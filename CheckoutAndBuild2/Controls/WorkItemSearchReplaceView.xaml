@@ -1,0 +1,135 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.WorkItemSearchReplaceView"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+			 xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+			 xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+			 xmlns:wpfControls="clr-namespace:Microsoft.TeamFoundation.WorkItemTracking.WpfControls;assembly=Microsoft.TeamFoundation.WorkItemTracking.Controls"
+			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 mc:Ignorable="d"
+			 d:DesignHeight="300"
+			 d:DesignWidth="300">
+	<UserControl.Resources>
+		<Style x:Key="GridHeader"
+			   TargetType="TextBlock">
+			<Setter Property="FontWeight"
+					Value="Bold" />
+			<Setter Property="TextAlignment"
+					Value="Right" />
+			<Setter Property="Margin"
+					Value="0,0,6,6" />
+		</Style>
+		<BooleanToVisibilityConverter x:Key="BooleanVisConverter" />
+		<converter:NegationConverter x:Key="negConv" />
+	</UserControl.Resources>
+
+	<StackPanel Orientation="Vertical">
+	<Expander IsExpanded="True" Template="{StaticResource ExpanderTemplate}">
+		<Expander.Header>
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto" />
+					<ColumnDefinition Width="*" />
+				</Grid.ColumnDefinitions>
+
+				<TextBlock Grid.Row="0"
+						   Grid.Column="0"
+						   Style="{StaticResource GridHeader}">Work Item Query:</TextBlock>
+				<StackPanel Grid.Column="1"
+							Orientation="Horizontal">
+					<TextBlock Text="{Binding Path=QueryName}" />
+
+					<TextBlock Margin="8,0,0,0"
+							   Text="{Binding Path=QueryWorkItemCount, FallbackValue=55}" />
+					<TextBlock Margin="3,0,0,0"
+							   Text="Workitems"></TextBlock>
+				</StackPanel>
+			</Grid>
+		</Expander.Header>
+
+		<StackPanel Margin="15,6,6,6">
+			<TextBlock>Search term</TextBlock>
+			<TextBox x:Name="searchTermTextBox"
+					 Style="{StaticResource COABTextBoxStyle}"
+					 Margin="0,0,0,6"
+					 Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+					 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+					 Text="{Binding Path=SearchTerm, UpdateSourceTrigger=PropertyChanged}"
+					 IsEnabled="{Binding Path=IsBusy, Converter={StaticResource negConv}}" />
+
+			<TextBlock>Replace term</TextBlock>
+			<TextBox x:Name="replaceTermTextBox"
+					 Style="{StaticResource COABTextBoxStyle}"
+					 Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+					 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+					 Margin="0,0,0,6"
+					 Text="{Binding Path=ReplaceTerm}"
+					 IsEnabled="{Binding Path=IsBusy, Converter={StaticResource negConv}}" />
+
+			<StackPanel Orientation="Horizontal"
+						HorizontalAlignment="Right"
+						Margin="0, 0, 0, 6">
+				<Button x:Name="previewButton"
+						Padding="12,3"
+						Margin="0,0,6,0"
+						Command="{Binding PreviewCommand}">Preview</Button>
+				<Button x:Name="executeButton"
+						Padding="12,3"
+						Command="{Binding ExecuteCommand}">Execute</Button>
+			</StackPanel>
+
+			<TextBlock Text="{Binding Path=StatusText}" />
+
+			<StackPanel Visibility="{Binding Path=IsPreviewVisible, Converter={StaticResource BooleanVisConverter}}">
+				<Expander Header="Matched Work Items"
+						  IsExpanded="True"
+						  Template="{StaticResource ExpanderTemplate}">
+					<Border  Margin="10,0,0,6">
+						<Grid>
+							<Grid.RowDefinitions>
+								<RowDefinition Height="Auto" />
+								<RowDefinition Height="*" />
+							</Grid.RowDefinitions>
+
+							<controls:SearchBox Margin="-2,-2,-2,0"
+												x:Name="searchBox" />
+
+							<wpfControls:WorkItemsList x:Name="previewListBox"
+													   RerouteMouseWheel="true"
+													   ShowDefaultContextMenu="True"
+													   Margin="5,0,5,0"
+													   Grid.Row="1"
+													   OpenWorkItemCommand="{Binding Path=OpenWorkItemCommand}"
+													   WorkItemsListProvider="{Binding Path=WorkItemsListProvider}" />
+
+							<i:Interaction.Behaviors>
+								<behavoir:ItemSourceFilterBehavior x:Uid="itemSourceFilterBehavior"
+																   x:Name="itemSourceFilterBehavior"
+																   ItemsControl="{Binding ElementName=previewListBox, Path=InnerListBoxControl}"
+																   TextBox="{Binding ElementName=searchBox}" />
+							</i:Interaction.Behaviors>
+
+						</Grid>
+					</Border>
+				</Expander>
+
+				<Expander Header="Matched Fields"
+						  Template="{StaticResource ExpanderTemplate}"
+						  IsExpanded="True">
+					<ListBox ItemsSource="{Binding Path=PreviewFields}"
+							 Margin="10,0,0,0"
+							 Style="{DynamicResource COABListBoxStyle}"
+							 BorderBrush="Transparent"
+							 ItemContainerStyle="{DynamicResource COABProjectListItemContainerStyle}"
+							 MaxHeight="200" />
+				</Expander>
+
+			</StackPanel>
+		</StackPanel>
+	</Expander>
+	<Border Height="1" BorderBrush="LightGray" Background="LightGray" HorizontalAlignment="Stretch"/>
+	</StackPanel>
+</UserControl>

@@ -1,0 +1,155 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.GitStashDetailSectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:wpf="clr-namespace:Microsoft.TeamFoundation.Controls.WPF;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:contracts="clr-namespace:CheckoutAndBuild2.Contracts;assembly=CheckoutAndBuild2.Contracts"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <converter:BoolToVisibilityConverter x:Key="boolToVis2" />
+        <converter:NullToVisibilityConverter x:Key="nullToVis"/>
+        <DataTemplate x:Key="gitChangeItemTemplate" DataType="{x:Type contracts:GitChange}">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <Image Margin="2,0,4,0" Source="{Binding Image}" Width="16" Height="16" Stretch="UniformToFill"/>
+                    <TextBlock Text="{Binding FormattedInfo}"/>
+                </StackPanel>
+                <Grid.ToolTip>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="File:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=FileName}" />
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Changes:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Changes}" />
+
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Added:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Added}" />
+
+                        <TextBlock Grid.Row="3"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Removed:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="3"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Removed}" />
+
+                    </Grid>
+                </Grid.ToolTip>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+
+        <Border DockPanel.Dock="Top" Visibility="{Binding ExtraContent, Converter={StaticResource nullToVis}}"
+            Margin="0,0,8,0"
+            Background="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUIBackgroundBrushKey}}">
+            <ContentControl Content="{Binding ExtraContent}"></ContentControl>
+        </Border>
+
+        <Grid Margin="6,6,6,6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+
+            <!-- Action links -->
+            <WrapPanel Orientation="Horizontal"
+				   Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Grid.Row="0"
+				   Margin="0,0,0,6">
+
+                <teamExplorer:TextLink Text="{Binding ApplyStashCommand.Caption}"
+                                   Command="{Binding ApplyStashCommand}"
+                                   CommandParameter="{Binding StashInfo}"/>
+                <TextBlock Margin="4,0" Text="|"></TextBlock>
+                <teamExplorer:DropDownLink Text="More"
+                                          
+                                           DropDownMenu="{Binding ContextMenu}"/>
+            </WrapPanel>
+
+            <ProgressBar Style="{DynamicResource COABProgressBar}"
+                         Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}}"
+                         IsIndeterminate="True"
+                         Minimum="0"
+                         Grid.Row="0"
+                         VerticalAlignment="Top"
+                         Margin="16,0,10,0"
+                         Background="LightSteelBlue"
+                         BorderBrush="Transparent"
+                         Height="4"
+                         Foreground="Green" />
+
+            <Grid Grid.Row="1"
+			  Visibility="{Binding HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=True}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!--ShowContextMenuCommand="{Binding Path=ShowContextMenuCommand}"-->
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Vertical">
+                        <TextBlock Text="{Binding StashInfo.StatusText}"/>
+                    </StackPanel>
+                    <ListBox Grid.Row="1"
+                         x:Name="changeList"                         
+                         BorderThickness="0"
+                         wpf:ListViewHelper.ShowBorderOnScrollBarVisibility="true"
+                         MouseDoubleClick="changeList_OnMouseDoubleClick"
+                         Style="{DynamicResource COABListBoxStyle}"                         
+                         ItemTemplate="{StaticResource gitChangeItemTemplate}"
+                         ItemsSource="{Binding StashInfo.Changes, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+
+                </Grid>
+
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>
+

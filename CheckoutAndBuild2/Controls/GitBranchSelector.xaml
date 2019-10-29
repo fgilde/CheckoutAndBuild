@@ -1,0 +1,30 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.GitBranchSelector"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             Visibility="{Binding IsAvailable, Converter={StaticResource boolToVis}}"
+             mc:Ignorable="d" 
+             d:DesignHeight="100" d:DesignWidth="300">
+    <Grid>
+		<WrapPanel x:Name="actionsRow"
+				   x:Uid="WrapPanel_1"
+				   Grid.Row="0"
+				   Grid.Column="0"
+				   Margin="12,0,0,0"
+				   HorizontalAlignment="Stretch"
+				   VerticalAlignment="Center"
+				   Orientation="Horizontal">
+			<!--<TextBlock Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemGrayTextBrushKey}}" Text="Workspace:"/>-->
+			<teamExplorer:DropDownLink Margin="0,0,0,0"
+                                       TextWrapping="NoWrap"
+									   VerticalAlignment="Center"
+									   ToolTip="{Binding ToolTip}"
+									   Text="{Binding SelectedBranch, FallbackValue='Select Branch'}"
+									   ContextMenu="{Binding SelectBranchMenu}"
+									   DropDownMenu="{Binding SelectBranchMenu}" />
+        </WrapPanel>
+	</Grid>
+</UserControl>

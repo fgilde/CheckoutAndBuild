@@ -1,0 +1,1 @@
+﻿Put your CheckoutAndBuild Extension dll's in this directory'

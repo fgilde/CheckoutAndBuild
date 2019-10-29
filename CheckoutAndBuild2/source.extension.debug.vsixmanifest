@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+    <Metadata>
+        <Identity Id="9221c587-d658-438b-a9d8-16092cbc68c6" Version="2.3.1.1" Language="en-US" Publisher="Florian Gilde" />
+        <DisplayName>CheckoutAndBuild 2019</DisplayName>
+        <Description xml:space="preserve">CheckoutAndBuild2 is a Visual Studio Team Explorer Extension to manage multiple Solutions</Description>
+        <MoreInfo>https://checkoutandbuild.azurewebsites.net/</MoreInfo>
+        <License>lic.txt</License>
+        <ReleaseNotes>https://checkoutandbuild.azurewebsites.net/page/releasenotes</ReleaseNotes>
+        <Icon>icon32.png</Icon>
+        <PreviewImage>Resources\coabPreview.png</PreviewImage>
+        <Tags>Checkout, Build, Teamexplorer, MultiSolution</Tags>
+    </Metadata>
+    <Installation InstalledByMsi="false">
+        <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[16.0, 17.0]" />
+    </Installation>
+    <Dependencies>
+        <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.6,)" />
+    </Dependencies>
+    <Assets>
+        <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+        <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%|" />
+        <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="%CurrentProject%.CP.Plugin" d:VsixSubPath="Plugins\CP.Logic" Path="|CheckoutAndBuild2.CP.Plugin|" />
+        <Asset Type="Microsoft.VisualStudio.ItemTemplate" Path="Output\ItemTemplates"/>
+        <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="Output\ProjectTemplates" />
+        <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="File" Path="CheckoutAndBuild2.Contracts.dll" AssemblyName="CheckoutAndBuild2.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
+
+    </Assets>
+    <Prerequisites>
+        <Prerequisite Id="Microsoft.Component.MSBuild" Version="[16.0.28517.75,17.0)" DisplayName="MSBuild" />
+    </Prerequisites>
+</PackageManifest>

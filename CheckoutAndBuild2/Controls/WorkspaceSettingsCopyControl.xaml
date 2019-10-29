@@ -1,0 +1,96 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.WorkspaceSettingsCopyControl"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+			 xmlns:wpfControls="clr-namespace:Microsoft.TeamFoundation.WorkItemTracking.WpfControls;assembly=Microsoft.TeamFoundation.WorkItemTracking.Controls"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+			 xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+			 mc:Ignorable="d"
+			 Height="100"
+			 d:DesignHeight="70"
+			 d:DesignWidth="300">
+    <UserControl.Resources>
+        <converter:NullToVisibilityConverter x:Key="nullToVis"/>
+        <converter:BoolToVisibilityConverter x:Key="boolToVis"/>
+	</UserControl.Resources>
+    <Grid>
+        <Grid Margin="20" Visibility="{Binding IsLoading, Converter={StaticResource boolToVis}, ConverterParameter=True}">
+            <TextBlock VerticalAlignment="Center" Margin="0,0,0,30" Text="Please wait"></TextBlock>
+            <ProgressBar Style="{DynamicResource COABProgressBar}" 
+                         Height="5"
+                         Foreground="Green" Background="LightSteelBlue" BorderBrush="Transparent" IsIndeterminate="True" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,0,0,20" Visibility="{Binding IsLoading, Converter={StaticResource boolToVis}, ConverterParameter=False}">
+            <Grid.RowDefinitions>
+			    <RowDefinition Height="Auto" />
+			    <RowDefinition />
+		    </Grid.RowDefinitions>
+
+            <Grid  Margin="0,0,0,10" Background="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlEditRequiredBackgroundBrushKey}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+		        <TextBlock				  
+				           Text="{Binding Message, FallbackValue='Copy your Settings from other Workspace then everything is easier'}"
+				           FontStyle="Italic"
+				           Margin="0,0,0,6"
+				           Padding="10,5,0,5"				   
+				           FontWeight="SemiBold"				           
+				           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+				           TextWrapping="Wrap"/>
+
+                <TextBlock 
+                        Grid.Column="1"
+                    VerticalAlignment="Top"
+                    Margin="3,0,3,0"
+				       FontSize="14"
+				       ><Hyperlink Click="CloseClick">X</Hyperlink></TextBlock>
+            </Grid>
+
+            <StackPanel Margin="10,0,10,0" Grid.Row="1" Orientation="Horizontal">
+                <Grid>
+                <ComboBox x:Name="sourceWorkspaceSelector"
+				      Text="Default"		
+                      Height="20"
+                      MinWidth="140"
+                      DisplayMemberPath="Name"                                        
+				      behavoir:ItemSourceFilterBehavior.IsFilterEnabled="False"
+				      ItemsSource="{Binding AvailableWorkspaces}"
+				      SelectedItem="{Binding SourceWorkspace}"
+				      Style="{DynamicResource COABComboBoxStyle}" />
+
+                <TextBlock  Grid.ColumnSpan="2"                                      
+					    x:Name="watermark"                                            
+					    IsHitTestVisible="False"                            
+					    Visibility="{Binding SourceWorkspace, Converter={StaticResource nullToVis}, ConverterParameter=True}"									
+					    Padding="5,0,0,0"
+                        Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"  
+					    Text="Select Workspace"					
+					    VerticalAlignment="Center" />
+                </Grid>
+
+
+                <Button Height="20"
+                        Margin="4,0,0,0"
+				    Width="80"					
+				    Command="{Binding CopyCommand}"
+				    Content="Copy" />
+
+                <teamExplorer:TextLink Text="Cancel"
+								    Margin="10, 0, 0,0"
+								    VerticalAlignment="Center"
+								    Command="{Binding CancelCommand}"/>
+            </StackPanel>
+
+        
+	
+
+
+
+	    </Grid>
+    </Grid>
+</UserControl>

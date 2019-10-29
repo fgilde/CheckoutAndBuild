@@ -1,0 +1,28 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+					xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+	<ResourceDictionary.MergedDictionaries>
+		<ResourceDictionary x:Uid="ResourceDictionary_5"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Pathes.xaml" />
+		<ResourceDictionary x:Uid="ResourceDictionary_1"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/ViewModelTemplates.xaml" />		
+		<ResourceDictionary x:Uid="ResourceDictionary_2"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/Expander.xaml" />		
+		<ResourceDictionary x:Uid="ResourceDictionary_3"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/StandardControls.xaml" />		
+		<ResourceDictionary x:Uid="ResourceDictionary_4"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/ProjectList.xaml" />	
+		<ResourceDictionary x:Uid="ResourceDictionary_5"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/ProjectViewModelTemplates.xaml" />
+		<ResourceDictionary x:Uid="ResourceDictionary_6"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/ResizeableContentControlResources.xaml" />
+		<ResourceDictionary x:Uid="ResourceDictionary_7"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/SliderStyles.xaml" />
+		<ResourceDictionary x:Uid="ResourceDictionary_8"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Themes/Styles/ListViewStyles.xaml" />
+		<ResourceDictionary x:Uid="ResourceDictionary_9"
+							Source="pack://application:,,,/CheckoutAndBuild2;component/Controls/SearchBox.xaml" />
+	</ResourceDictionary.MergedDictionaries>
+
+	
+</ResourceDictionary> 

@@ -3,3 +3,12 @@
 ################################################################################
 
 /.vs/CheckoutAndBuild2/v16
+/CheckoutAndBuild2/bin
+/CheckoutAndBuild2/obj
+/CheckoutAndBuild2.Contracts/bin
+/CheckoutAndBuild2.Contracts/obj
+/CheckoutAndBuild2.CP.Plugin/bin
+/CheckoutAndBuild2.CP.Plugin/obj
+/packages
+/SolutionPacker/bin
+/SolutionPacker/obj

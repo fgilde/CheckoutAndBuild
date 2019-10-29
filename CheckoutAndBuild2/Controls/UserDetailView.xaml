@@ -1,0 +1,35 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.UserDetailView"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 mc:Ignorable="d"
+			 d:DesignHeight="300"
+			 d:DesignWidth="300">
+	<Grid Margin="10">
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="Auto" />
+			<ColumnDefinition Width="*" />
+		</Grid.ColumnDefinitions>
+		<Image Source="{Binding Image}" />
+		<StackPanel Margin="5,0,0,0"
+					Grid.Column="1"
+					Orientation="Vertical">
+			<!--<TextBlock FontSize="13" Text="{Binding DisplayName}" />-->
+			
+			<ComboBox HorizontalAlignment="Stretch"
+					  HorizontalContentAlignment="Left"
+					  Style="{DynamicResource COABComboBoxStyle}"
+					  ItemsSource="{Binding AllUsers}"
+					  FontSize="15"
+					  Margin="-10,0,2,4"					  
+					  DisplayMemberPath="DisplayName"
+					  SelectedItem="{Binding Identity, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+
+			<TextBlock FontSize="13"> <Hyperlink x:Name="nameLink"
+												 Click="NameLink_OnClick"><TextBlock Text="{Binding UniqueName}" /></Hyperlink></TextBlock>
+			<TextBlock FontSize="13"> <Hyperlink x:Name="mailLink"
+												 Click="MailLink_OnClick"><TextBlock Text="{Binding Email}" /></Hyperlink></TextBlock>			
+		</StackPanel>
+	</Grid>
+</UserControl>

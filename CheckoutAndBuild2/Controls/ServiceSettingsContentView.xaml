@@ -1,0 +1,238 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.ServiceSettingsContentView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+             xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+             xmlns:contracts="clr-namespace:CheckoutAndBuild2.Contracts;assembly=CheckoutAndBuild2.Contracts"
+             xmlns:wpf="clr-namespace:Microsoft.TeamFoundation.Controls.WPF;assembly=Microsoft.TeamFoundation.Controls"
+             mc:Ignorable="d"
+             Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+			 Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+			 d:DesignHeight="300" d:DesignWidth="420">
+	<UserControl.Resources>
+		<BooleanToVisibilityConverter x:Key="boolToVis"></BooleanToVisibilityConverter>
+		<converter:ServiceStringEqualityToVisibilityConverter x:Key="serviceToVisibility"></converter:ServiceStringEqualityToVisibilityConverter>
+	</UserControl.Resources>
+    <Grid x:Name="container"
+		  MinHeight="300">
+		<Border Padding="0,2,0,10"
+				BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}"
+				BorderThickness="1">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition x:Name="column0" />
+					<ColumnDefinition />
+				</Grid.ColumnDefinitions>
+				<Grid.RowDefinitions>					
+					<RowDefinition Height="Auto" />
+					<RowDefinition Height="*" />
+				</Grid.RowDefinitions>
+				
+				<GroupBox Grid.Column="0"
+						  Header="Included Services for complete CheckoutAndBuild Action"
+						  BorderThickness="0"						  
+						  BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.AccessKeyToolTipDisabledTextBrushKey}}"
+						Grid.Row="0"
+						Grid.ColumnSpan="2">
+					<StackPanel Orientation="Vertical">
+					<ItemsControl ItemsSource="{Binding ServiceSelectors}"
+								  Margin="0,5">
+						<ItemsControl.ItemsPanel>
+							<ItemsPanelTemplate>
+								<UniformGrid Columns="4" />
+							</ItemsPanelTemplate>
+						</ItemsControl.ItemsPanel>
+					</ItemsControl>
+						<DockPanel Margin="6,1,0,2">
+							<TextBlock DockPanel.Dock="Left"
+							           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+									   VerticalAlignment="Center"
+									   Text="Log Detail:" />
+							<ComboBox Style="{DynamicResource COABComboBoxStyle}"
+									  ItemsSource="{Binding LogLevels}"
+									  SelectedItem="{Binding LogLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+									  Margin="4,0,10,0"
+									  VerticalAlignment="Center" />
+						</DockPanel>
+					</StackPanel>
+				</GroupBox>	
+
+				<Border Grid.Column="0"
+						BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}"
+						BorderThickness="0,1,0,0"
+						Grid.Row="1"						
+						Grid.ColumnSpan="2">
+					<Grid>
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="*"/>
+						</Grid.ColumnDefinitions>
+
+						<Border x:Name="serviceSettingsFilter"
+								Grid.Column="0">
+							<ListBox BorderThickness="0,0,1,0"
+									 Background="Transparent"
+									 SelectedItem="{Binding SelectedService}"
+									 ItemsSource="{Binding AvailableServices}">
+								<ListBox.ItemTemplate>
+									<DataTemplate>
+										<Border x:Name="border">
+											<StackPanel Margin="5"
+														Orientation="Horizontal">
+												<TextBlock Text="{Binding OperationName}" 
+												           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"/>
+												<TextBlock Margin="2,0,0,0"
+												           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+														   Text="Service Settings" />
+											</StackPanel>
+										</Border>
+									</DataTemplate>
+								</ListBox.ItemTemplate>
+								<wpf:MultiSelectionHelper.SelectedItems>
+									<Binding Path="SelectedServices" />
+								</wpf:MultiSelectionHelper.SelectedItems>
+							</ListBox>
+						</Border>
+											
+						<StackPanel Grid.Column="1"
+									Margin="6,1,0,0"
+									Orientation="Vertical">
+							
+							<!-- Extra checkout settings -->
+							<StackPanel  Visibility="{Binding SelectedService, Converter={StaticResource serviceToVisibility}, ConverterParameter={x:Static contracts:ServiceIds.CheckoutServiceId}}"
+										 Orientation="Horizontal"
+							             TextBlock.Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+										 Margin="6,5">
+								<TextBlock
+								    Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+                                    Text="Version to retrieve:"></TextBlock>
+								<ContentControl Margin="4,0,0,0" Content="{Binding VersionSpecSelectorViewModel}" />
+							</StackPanel>
+
+
+							<ItemsControl ItemsSource="{Binding ExternalSettings}"
+							              Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+										  Margin="0,5">
+								<ItemsControl.ItemsPanel>
+									<ItemsPanelTemplate>
+                                        <!--<UniformGrid Columns="{Binding UIColumns}" />-->
+                                        <WrapPanel IsItemsHost="True" />
+                                    </ItemsPanelTemplate>
+								</ItemsControl.ItemsPanel>
+							</ItemsControl>
+
+							<!-- Delphi -->
+							<DockPanel Margin="6,0,10,0"
+									   Visibility="{Binding SelectedService, Converter={StaticResource serviceToVisibility}, ConverterParameter={x:Static contracts:ServiceIds.BuildServiceId}}">
+								<TextBlock DockPanel.Dock="Left"
+										   Text="Delphi:"
+								           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+										   VerticalAlignment="Center"></TextBlock>
+								<Button MinWidth="20"
+										MaxWidth="20"
+										DockPanel.Dock="Right"
+										Content="..."
+										Command="{Binding SelectDelphiCommand}"
+										CommandParameter="{Binding ElementName=container}"
+										VerticalAlignment="Center"></Button>
+								<TextBox Style="{StaticResource COABTextBoxStyle}"
+										 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+										 Margin="4,0"
+										 Text="{Binding DelphiPath}"
+										 VerticalAlignment="Center"></TextBox>
+							</DockPanel>
+
+							<!-- Build Props -->
+							<UniformGrid Columns="2"
+										 Visibility="{Binding SelectedService, Converter={StaticResource serviceToVisibility}, ConverterParameter={x:Static contracts:ServiceIds.BuildServiceId}}">
+								<Button x:Name="buttonProp"
+										Margin="6,2"
+										Content="{Binding Path=BuildPropertiesCaption, FallbackValue=_BuildProperties}"
+										Command="{Binding ShowBuildPropertiesCommand}" />
+
+								<Button x:Name="buttonTarget"
+										Margin="6,2"
+										Content="{Binding Path=BuildTargetsCaption, FallbackValue=_BuildTargets}"
+										Command="{Binding ShowBuildTargetsCommand}" />
+							</UniformGrid>
+
+							<!-- LogLevel -->
+
+
+
+							<!-- Pre u Pot Build -->
+							<DockPanel Margin="6,10,0,0"
+									   Visibility="{Binding SelectedService, Converter={StaticResource serviceToVisibility}, ConverterParameter={x:Static contracts:ServiceIds.BuildServiceId}}">
+								<CheckBox ToolTip="Run Async while checkout operations"
+										  Content="Async"
+										  DockPanel.Dock="Right"
+										  Margin="10,3"
+										  IsChecked="{Binding RunPreScriptsAsync}"
+										  VerticalAlignment="Center" />
+								<controls:ScriptSelector Watermark="Enter path to prebuild script"
+														 FileName="{Binding PreBuildScriptPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+							</DockPanel>
+
+
+							<DockPanel Margin="6,2,0,0"
+									   Visibility="{Binding SelectedService, Converter={StaticResource serviceToVisibility}, ConverterParameter={x:Static contracts:ServiceIds.BuildServiceId}}">
+								<CheckBox ToolTip="Run Async while build operations"
+										  IsChecked="{Binding RunPostScriptsAsync}"
+										  DockPanel.Dock="Right"
+										  Content="Async"
+										  Margin="10,3"
+										  VerticalAlignment="Center" />
+								<controls:ScriptSelector Watermark="Enter path to postbuild script"
+														 FileName="{Binding PostBuildScriptPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+							</DockPanel>
+
+						</StackPanel>
+
+					</Grid>					
+				</Border>
+
+				
+
+			</Grid>
+		</Border>
+		
+		<!-- Hidden Container für Build Props und Targets -->
+		<Border Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+				Visibility="{Binding IsInPropertyEdit, Converter={StaticResource boolToVis}}">
+			<Grid>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*" />
+					<RowDefinition Height="Auto" />
+				</Grid.RowDefinitions>
+				<controls:DictionaryEdit DataContext="{Binding GlobalBuildProperties}" />
+				<Grid Grid.Row="1">
+					<!--<teamExplorer:TextLink HorizontalAlignment="Center" Command="{Binding ShowBuildPropertiesCommand}">GO BACK</teamExplorer:TextLink>-->
+					<Button Grid.Column="0"
+							Content="GO BACK"
+							Command="{Binding ShowBuildPropertiesCommand}" />
+				</Grid>
+			</Grid>
+		</Border>
+
+		<Border Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+				Visibility="{Binding IsInTargetEdit, Converter={StaticResource boolToVis}}">
+			<Grid>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="*" />
+					<RowDefinition Height="Auto" />
+				</Grid.RowDefinitions>
+				<controls:StringListEdit DataContext="{Binding GlobalBuildTargets}" />
+				<Grid Grid.Row="1">
+					<!--<teamExplorer:TextLink HorizontalAlignment="Center" Command="{Binding ShowBuildPropertiesCommand}">GO BACK</teamExplorer:TextLink>-->
+					<Button Grid.Column="0"
+							Content="GO BACK"
+							Command="{Binding ShowBuildTargetsCommand}" />
+				</Grid>
+			</Grid>
+		</Border>
+
+	</Grid>
+</UserControl>

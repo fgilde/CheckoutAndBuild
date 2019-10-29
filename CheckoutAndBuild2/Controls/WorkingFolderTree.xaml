@@ -1,0 +1,151 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.WorkingFolderTree"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+			 xmlns:viewModels="clr-namespace:FG.CheckoutAndBuild2.ViewModels"
+			 xmlns:wpf="clr-namespace:Microsoft.TeamFoundation.Controls.WPF;assembly=Microsoft.TeamFoundation.Controls"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+			 xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+			 xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+			 mc:Ignorable="d"
+			 d:DesignHeight="200"
+			 d:DesignWidth="300">
+	<UserControl.Resources>
+		<converter:BoolToVisibilityConverter x:Key="boolToVis" />
+	</UserControl.Resources>
+	<DockPanel  Margin="1,3,0,0">		
+		<Expander Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+			  Template="{StaticResource ExpanderTemplate}"
+			  IsEnabled="{Binding HasWorkspaceOrDirectory}"
+                  IsExpanded="{Binding IsExpanded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+			  Header="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:WorkingFolderTree}}, Path=Title}"> 
+		<Grid>
+			<controls:LoadingWait Height="20"
+								  HorizontalAlignment="Left"
+								  VerticalAlignment="Top"
+								  Margin="18,0,0,0"
+								  Visibility="{Binding HasProjects, Converter={StaticResource boolToVis}}"
+								  x:Name="loader" />
+			<ItemsControl ItemsSource="{Binding WorkingFolders, UpdateSourceTrigger=PropertyChanged}"
+						  x:Name="foldersView"
+						  BorderThickness="0">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate DataType="{x:Type viewModels:WorkingFolderViewModel}">
+							<DockPanel Margin="3,0,0,0">
+								<teamExplorer:TextLink DockPanel.Dock="Right"
+													   Text="+"
+													   Margin="0,0,15,0"
+													   FontSize="15"
+													   Command="{Binding AddSolutionCommand}"
+													   ToolTip="Add Custom/Specific Project or Solution" />
+
+								<TextBlock Text="{Binding Name}"
+										   Margin="20,0,0,0"
+										  Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"										  
+										  Visibility="{Binding HasProjects, Converter={StaticResource boolToVis}, ConverterParameter=False}"
+										  FontStyle="Italic"
+										  ContextMenu="{Binding WorkFolderContextMenu}"/>
+								
+								
+								<Expander Tag="{Binding}"
+                                          IsExpanded="{Binding IsExpanded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+								  Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+								  Template="{StaticResource ExpanderTemplate}"
+								  Visibility="{Binding HasProjects, Converter={StaticResource boolToVis}}"								  
+								  ContextMenu="{Binding WorkFolderContextMenu}"> 
+								<Expander.Header>
+									<StackPanel Orientation="Horizontal">
+										<TextBlock Text="{Binding Name}"
+												   FontWeight="SemiBold" />
+										<teamExplorer:DropDownLink Text="  "
+																   DropDownMenu="{Binding WorkFolderContextMenu}">
+										</teamExplorer:DropDownLink>
+										<StackPanel.ToolTip>
+											<Grid>
+												<Grid.RowDefinitions>
+													<RowDefinition Height="Auto" />
+													<RowDefinition Height="Auto" />
+												</Grid.RowDefinitions>
+												<Grid.ColumnDefinitions>
+													<ColumnDefinition Width="Auto" />
+													<ColumnDefinition Width="*" />
+												</Grid.ColumnDefinitions>
+
+												<TextBlock Grid.Row="0"
+														   Grid.Column="0"
+														   Margin="0,0,6,3"
+														   Text="Local Path"
+														   FontWeight="Bold" />
+												<TextBlock Grid.Row="0"
+														   Grid.Column="1"
+														   Margin="0,0,0,3"
+														   Text="{Binding Path=WorkingFolder.LocalItem}" />
+
+												<TextBlock Grid.Row="1"
+														   Grid.Column="0"
+														   Margin="0,0,6,3"
+														   Text="Server Path"
+														   FontWeight="Bold" />
+												<TextBlock Grid.Row="1"
+														   Grid.Column="1"
+														   Margin="0,0,0,3"
+														   Text="{Binding Path=WorkingFolder.ServerItem}" />
+
+											</Grid>
+										</StackPanel.ToolTip>
+									</StackPanel>
+								</Expander.Header>
+									<Grid Margin="16,0,0,0">
+										<Grid.RowDefinitions>
+											<RowDefinition Height="Auto" />
+											<RowDefinition Height="*" />
+										</Grid.RowDefinitions>
+										<StackPanel Orientation="Horizontal"
+													Margin="3,2,0,3">
+											<TextBlock Text="Order By"
+													   ContextMenu="{Binding SortContextMenu}"
+													   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+											<teamExplorer:DropDownLink Margin="3,0,0,0"
+																	   Text="{Binding SortName}"
+																	   ContextMenu="{Binding SortContextMenu}"
+																	   DropDownMenu="{Binding SortContextMenu}" />
+											<teamExplorer:DropDownLink Margin="4,0,0,0"
+																	   Text="{Binding SortDirection}"
+																	   ContextMenu="{Binding SortContextMenuDirections}"
+																	   DropDownMenu="{Binding SortContextMenuDirections}" />
+
+										</StackPanel>
+										<ListBox ItemsSource="{Binding Projects, UpdateSourceTrigger=PropertyChanged}"
+												 Margin="0,2,0,0"
+												 Grid.Row="1"
+												 behavoir:ItemSourceFilterBehavior.PropertyNameToFilter="SolutionFileName"
+												 ContextMenu="{Binding ContextMenu}"
+												 Loaded="FrameworkElement_OnLoaded"
+												 HorizontalAlignment="Stretch"
+												 MouseDoubleClick="Control_OnMouseDoubleClick"
+												 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+												 SelectionMode="Extended"
+												 HorizontalContentAlignment="Stretch"
+												 ItemTemplate="{StaticResource ProjectViewModelDefaultTemplate}"
+												 ItemContainerStyle="{StaticResource COABProjectListItemContainerStyle}"
+												 Style="{StaticResource COABListBoxStyle}"
+												 BorderThickness="0">
+
+											<wpf:MultiSelectionHelper.SelectedItems>
+												<Binding Path="SelectedProjects" />
+											</wpf:MultiSelectionHelper.SelectedItems>
+										</ListBox>
+									</Grid>
+								</Expander>
+						</DockPanel>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</Grid>
+	</Expander>
+	</DockPanel>	
+		
+</UserControl>

@@ -1,0 +1,89 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.ScriptSelector"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+			 xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"			 
+			 xmlns:common="clr-namespace:FG.CheckoutAndBuild2.Common"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 mc:Ignorable="d"
+			 d:DesignHeight="28"
+			 d:DesignWidth="300">
+	<UserControl.Resources>
+		<converter:BoolToVisibilityConverter x:Key="boolToVis" />
+		<converter:StripFileNameConverter x:Key="stripFileNameConv" />
+		<Viewbox x:Key="ExecuteImage"
+				 Height="18">
+			<Path Data="{x:Static common:Pathes.Execute}"
+				  Fill="Green" />
+		</Viewbox>
+		<Viewbox x:Key="CancelImage"
+				 Height="18">
+			<Path Data="{x:Static common:Pathes.Error}"
+				  Fill="DarkRed" />
+		</Viewbox>
+	</UserControl.Resources>
+	<DockPanel>
+		<Button DockPanel.Dock="Right"
+				MinWidth="24"
+				Width="24"
+				x:Name="ExecuteButton"
+				Visibility="{Binding Path=IsExecuting, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}, Converter={StaticResource boolToVis}, ConverterParameter=False}"
+				Command="{Binding Path=ExecuteCommand, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}"
+				Content="{StaticResource ExecuteImage}" />
+		<Button DockPanel.Dock="Right"
+				x:Name="CancelButton"
+				MinWidth="24"
+				Width="24"
+				Visibility="{Binding Path=IsExecuting, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}, Converter={StaticResource boolToVis}, ConverterParameter=True}"
+				Command="{Binding Path=CancelCommand, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}"
+				Content="{StaticResource CancelImage}" />
+		<Button DockPanel.Dock="Right"
+				MinWidth="24"
+				Width="24"
+				Content="{Binding Path=SelectPathCommand.Caption, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}, FallbackValue=_...}"
+				Command="{Binding Path=SelectPathCommand, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}" />
+		<Grid Background="Transparent">
+            <Grid.ToolTip>
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="{Binding Path=Watermark, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}" />
+                    <TextBlock Text="On a powershell script At the top of your file, add this line: param($solutions)" />
+                </StackPanel>
+            </Grid.ToolTip>
+
+			<Grid  Visibility="{Binding ElementName=CancelButton, Path=Visibility}">
+				<ProgressBar  Style="{DynamicResource COABProgressBar}"
+							  IsIndeterminate="True"
+							  Margin="0,1"
+							  Background="LightSteelBlue"
+							  Value="{Binding Path=CurrentOperation.Progress}"
+							  BorderBrush="Transparent"
+							  Foreground="DarkGreen" />
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+					<TextBlock
+							   VerticalAlignment="Center"
+							   Visibility="{Binding ElementName=CancelButton, Path=Visibility}"
+							   Text="Executing" />
+					<TextBlock Margin="4,0,0,0"
+							   VerticalAlignment="Center"
+							   Visibility="{Binding ElementName=CancelButton, Path=Visibility}"
+							   Text="{Binding Path=FileName, Converter={StaticResource stripFileNameConv}, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}" />
+				</StackPanel>
+			</Grid>
+
+			<Grid  Visibility="{Binding ElementName=ExecuteButton, Path=Visibility}">
+				<TextBlock VerticalAlignment="Center"
+						   Margin="5,0"
+						   Text="{Binding Path=Watermark, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}"
+						   Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+						   Visibility="{Binding ElementName=textboxPreBuildScript , Path=Text.IsEmpty, Converter={StaticResource boolToVis}}" />
+				<TextBox x:Name="textboxPreBuildScript"
+						 Style="{StaticResource COABTextBoxStyle}"
+						 BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.ComboBoxDisabledBorderBrushKey}}"
+						 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+						 Text="{Binding Path=FileName, RelativeSource={RelativeSource AncestorType={x:Type controls:ScriptSelector}}}" />
+			</Grid>
+		</Grid>
+	</DockPanel>
+</UserControl>

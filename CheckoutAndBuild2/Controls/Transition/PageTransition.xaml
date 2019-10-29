@@ -1,0 +1,170 @@
+﻿<UserControl x:Uid="UserControl_1" x:Class="FG.CheckoutAndBuild2.Controls.Transition.PageTransition"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"             
+             xmlns:transition="clr-namespace:FG.CheckoutAndBuild2.Controls.Transition"
+			 >
+	<UserControl.Resources>
+
+        <!-- Hinweis Ausgegraute sachen nicht mit ReSharper entfernen, wird CodeBehind benutzt-->
+        
+		<Style x:Uid="Style_1" TargetType="{x:Type ContentPresenter}">
+			<Setter x:Uid="Setter_1" Property="LayoutTransform">
+				<Setter.Value>
+					<ScaleTransform x:Uid="ScaleTransform_1" />
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<transition:CenterConverter x:Uid="Converters:CenterConverter_1" x:Key="centerConverter"/>
+		<!--<Converters:DummyConverter x:Key="dc"/>-->
+
+           
+		<!-- Slide and Fade -->
+		<Storyboard x:Uid="Storyboard_1" x:Key="SlideAndFadeIn" >
+			<ThicknessAnimation x:Uid="ThicknessAnimation_1" Duration="0:0:.50" Storyboard.TargetProperty="Margin" From="500,0,-500,0" To="0" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_1" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_2" x:Key="SlideAndFadeOut">
+			<ThicknessAnimation x:Uid="ThicknessAnimation_2" Duration="0:0:.5" Storyboard.TargetProperty="Margin" To="-500,0,500,0" AccelerationRatio=".9"/>
+			<DoubleAnimation x:Uid="DoubleAnimation_2" Duration="0:0:.5" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+        
+        <!-- ReverseSlide -->
+		<Storyboard x:Uid="Storyboard_3" x:Key="ReverseSlideIn" >
+			<ThicknessAnimation x:Uid="ThicknessAnimation_3" Duration="0:0:.50" Storyboard.TargetProperty="Margin" From="-500,0,500,0" To="0" DecelerationRatio=".9" />
+		</Storyboard>
+
+        <Storyboard x:Uid="Storyboard_4" x:Key="ReverseSlideOut">
+			<ThicknessAnimation x:Uid="ThicknessAnimation_4" Duration="0:0:.5" Storyboard.TargetProperty="Margin" To="500,0,-500,0" AccelerationRatio=".9"/>
+		</Storyboard>
+
+        <!-- ReverseSlide and Fade -->
+        <Storyboard x:Uid="Storyboard_5" x:Key="ReverseSlideAndFadeIn" >
+			<ThicknessAnimation x:Uid="ThicknessAnimation_5" Duration="0:0:.50" Storyboard.TargetProperty="Margin" From="-500,0,500,0" To="0" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_3" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+        <Storyboard x:Uid="Storyboard_6" x:Key="ReverseSlideAndFadeOut">
+			<ThicknessAnimation x:Uid="ThicknessAnimation_6" Duration="0:0:.5" Storyboard.TargetProperty="Margin" To="500,0,-500,0" AccelerationRatio=".9"/>
+			<DoubleAnimation x:Uid="DoubleAnimation_4" Duration="0:0:.5" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+
+		<!-- Fade -->
+		<Storyboard x:Uid="Storyboard_7" x:Key="FadeIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_5" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_8" x:Key="FadeOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_6" Duration="0:0:.5" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+
+		<!-- Slide -->
+		<Storyboard x:Uid="Storyboard_9" x:Key="SlideIn" >
+			<ThicknessAnimation x:Uid="ThicknessAnimation_7" Duration="0:0:.50" Storyboard.TargetProperty="Margin" From="500,0,-500,0" To="0" DecelerationRatio=".9" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_10" x:Key="SlideOut">
+			<ThicknessAnimation x:Uid="ThicknessAnimation_8" Duration="0:0:.5" Storyboard.TargetProperty="Margin" To="-500,0,500,0" AccelerationRatio=".9"/>
+		</Storyboard>
+
+		<!-- Grow -->
+		<Storyboard x:Uid="Storyboard_11" x:Key="GrowIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_7" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_8" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_12" x:Key="GrowOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_9" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_10" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+		</Storyboard>
+
+		<!-- Grow and Fade -->
+		<Storyboard x:Uid="Storyboard_13" x:Key="GrowAndFadeIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_11" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_12" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_13" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_14" x:Key="GrowAndFadeOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_14" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_15" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_16" Duration="0:0:.75" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+
+		<!-- Flip -->
+		<Storyboard x:Uid="Storyboard_15" x:Key="FlipIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_17" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)" From="-100" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_18" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleY)" From="-100" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_16" x:Key="FlipOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_19" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)" To="100" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_20" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleY)" To="100" Duration="0:0:.75" AccelerationRatio=".9" />
+		</Storyboard>
+
+		<!-- Flip and Fade -->
+		<Storyboard x:Uid="Storyboard_17" x:Key="FlipAndFadeIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_21" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)" From="-100" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_22" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleY)" From="-100" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_23" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_18" x:Key="FlipAndFadeOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_24" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)" To="100" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_25" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleY)" To="100" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_26" Duration="0:0:.75" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+
+		<!-- Spin -->
+		<Storyboard x:Uid="Storyboard_19" x:Key="SpinIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_27" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)" From="-360" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_28" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_29" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />			
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_20" x:Key="SpinOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_30" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)" To="360" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_31" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_32" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+		</Storyboard>
+
+		<!-- Spin and Fade -->
+		<Storyboard x:Uid="Storyboard_21" x:Key="SpinAndFadeIn" >
+			<DoubleAnimation x:Uid="DoubleAnimation_33" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)" From="-360" To="0" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_34" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_35" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0" To="1" Duration="0:0:.75" DecelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_36" Duration="0:0:.25" Storyboard.TargetProperty="Opacity" From="0" To="1" />
+		</Storyboard>
+
+		<Storyboard x:Uid="Storyboard_22" x:Key="SpinAndFadeOut">
+			<DoubleAnimation x:Uid="DoubleAnimation_37" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)" To="360" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_38" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_39" Storyboard.TargetProperty="(RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" To="0" Duration="0:0:.75" AccelerationRatio=".9" />
+			<DoubleAnimation x:Uid="DoubleAnimation_40" Duration="0:0:.75" Storyboard.TargetProperty="Opacity" To="0" />
+		</Storyboard>
+
+	</UserControl.Resources>
+
+	<Grid x:Uid="page" Name="page">
+
+		<ContentControl x:Uid="contentPresenter" Name="contentPresenter">
+			<ContentControl.RenderTransform>
+				<TransformGroup x:Uid="TransformGroup_1">
+					<ScaleTransform x:Uid="ScaleTransform_2" ScaleX="1" ScaleY="1"
+									CenterX="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualWidth, Converter={StaticResource centerConverter}}" 
+									CenterY="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualHeight, Converter={StaticResource centerConverter}}" />
+					<SkewTransform x:Uid="SkewTransform_1" AngleX="0" AngleY="0" 
+								   CenterX="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualWidth, Converter={StaticResource centerConverter}}" 
+								   CenterY="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualHeight, Converter={StaticResource centerConverter}}" />
+					<RotateTransform x:Uid="RotateTransform_1" Angle="0" 
+									 CenterX="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualWidth, Converter={StaticResource centerConverter}}" 
+									 CenterY="{Binding RelativeSource={RelativeSource AncestorType=Grid, Mode=FindAncestor}, Path=ActualHeight, Converter={StaticResource centerConverter}}" />
+					<TranslateTransform x:Uid="TranslateTransform_1" X="0" Y="0" />
+				</TransformGroup>
+			</ContentControl.RenderTransform>			
+		</ContentControl>
+
+	</Grid>
+
+</UserControl>

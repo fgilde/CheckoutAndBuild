@@ -1,0 +1,81 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29318.209
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{20E15B7B-E9AA-49D9-996E-E66CC2A9EDE8}"
+	ProjectSection(SolutionItems) = preProject
+		CheckoutAndBuild2\Key.snk = CheckoutAndBuild2\Key.snk
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckoutAndBuild2", "CheckoutAndBuild2\CheckoutAndBuild2.csproj", "{8CD2BC4E-527B-4000-A25A-959DF7CF80F3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckoutAndBuild2.Contracts", "CheckoutAndBuild2.Contracts\CheckoutAndBuild2.Contracts.csproj", "{372194D0-6D28-423D-81E4-C90CB041A55F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckoutAndBuild2.CP.Plugin", "CheckoutAndBuild2.CP.Plugin\CheckoutAndBuild2.CP.Plugin.csproj", "{8A917C36-0BB9-4B4D-BAC2-0DB85EDCCE48}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolutionPacker", "SolutionPacker\SolutionPacker.csproj", "{E3AA1C3F-EA55-4235-B522-34C4B9C41947}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_Assemblies", "_Assemblies", "{7F03C295-7057-42BA-BCC9-FA7BECC92C86}"
+	ProjectSection(SolutionItems) = preProject
+		_Assemblies\CWDev.SLNTools.Core.dll = _Assemblies\CWDev.SLNTools.Core.dll
+		_Assemblies\Microsoft.TeamFoundation.Build.Client.dll = _Assemblies\Microsoft.TeamFoundation.Build.Client.dll
+		_Assemblies\Microsoft.TeamFoundation.Build.Common.dll = _Assemblies\Microsoft.TeamFoundation.Build.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.Build.Controls.Common.dll = _Assemblies\Microsoft.TeamFoundation.Build.Controls.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.Build.Controls.dll = _Assemblies\Microsoft.TeamFoundation.Build.Controls.dll
+		_Assemblies\Microsoft.TeamFoundation.Client.dll = _Assemblies\Microsoft.TeamFoundation.Client.dll
+		_Assemblies\Microsoft.TeamFoundation.Common.dll = _Assemblies\Microsoft.TeamFoundation.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.Controls.dll = _Assemblies\Microsoft.TeamFoundation.Controls.dll
+		_Assemblies\Microsoft.TeamFoundation.Git.Client.dll = _Assemblies\Microsoft.TeamFoundation.Git.Client.dll
+		_Assemblies\Microsoft.TeamFoundation.Git.Controls.dll = _Assemblies\Microsoft.TeamFoundation.Git.Controls.dll
+		_Assemblies\Microsoft.TeamFoundation.ProjectManagement.dll = _Assemblies\Microsoft.TeamFoundation.ProjectManagement.dll
+		_Assemblies\Microsoft.TeamFoundation.VersionControl.Client.dll = _Assemblies\Microsoft.TeamFoundation.VersionControl.Client.dll
+		_Assemblies\Microsoft.TeamFoundation.VersionControl.Common.dll = _Assemblies\Microsoft.TeamFoundation.VersionControl.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.VersionControl.Common.Integration.dll = _Assemblies\Microsoft.TeamFoundation.VersionControl.Common.Integration.dll
+		_Assemblies\Microsoft.TeamFoundation.VersionControl.Controls.Common.dll = _Assemblies\Microsoft.TeamFoundation.VersionControl.Controls.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.VersionControl.Controls.dll = _Assemblies\Microsoft.TeamFoundation.VersionControl.Controls.dll
+		_Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Client.dll = _Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Client.dll
+		_Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Common.dll = _Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Common.dll
+		_Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Controls.dll = _Assemblies\Microsoft.TeamFoundation.WorkItemTracking.Controls.dll
+		_Assemblies\Microsoft.TeamFoundation.WorkItemTracking.ControlsCore.dll = _Assemblies\Microsoft.TeamFoundation.WorkItemTracking.ControlsCore.dll
+		_Assemblies\Microsoft.VisualStudio.ExtensionManager.dll = _Assemblies\Microsoft.VisualStudio.ExtensionManager.dll
+		_Assemblies\Microsoft.VisualStudio.ExtensionManager.Implementation.dll = _Assemblies\Microsoft.VisualStudio.ExtensionManager.Implementation.dll
+		_Assemblies\Microsoft.VisualStudio.ExtensionsExplorer.dll = _Assemblies\Microsoft.VisualStudio.ExtensionsExplorer.dll
+		_Assemblies\Microsoft.VisualStudio.TeamFoundation.Build.dll = _Assemblies\Microsoft.VisualStudio.TeamFoundation.Build.dll
+		_Assemblies\Microsoft.VisualStudio.TeamFoundation.Client.dll = _Assemblies\Microsoft.VisualStudio.TeamFoundation.Client.dll
+		_Assemblies\Microsoft.VisualStudio.TeamFoundation.dll = _Assemblies\Microsoft.VisualStudio.TeamFoundation.dll
+		_Assemblies\Microsoft.VisualStudio.TeamFoundation.VersionControl.dll = _Assemblies\Microsoft.VisualStudio.TeamFoundation.VersionControl.dll
+		_Assemblies\Microsoft.VisualStudio.TeamFoundation.WorkItemTracking.dll = _Assemblies\Microsoft.VisualStudio.TeamFoundation.WorkItemTracking.dll
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8CD2BC4E-527B-4000-A25A-959DF7CF80F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CD2BC4E-527B-4000-A25A-959DF7CF80F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CD2BC4E-527B-4000-A25A-959DF7CF80F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CD2BC4E-527B-4000-A25A-959DF7CF80F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{372194D0-6D28-423D-81E4-C90CB041A55F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{372194D0-6D28-423D-81E4-C90CB041A55F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{372194D0-6D28-423D-81E4-C90CB041A55F}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{372194D0-6D28-423D-81E4-C90CB041A55F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{372194D0-6D28-423D-81E4-C90CB041A55F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A917C36-0BB9-4B4D-BAC2-0DB85EDCCE48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A917C36-0BB9-4B4D-BAC2-0DB85EDCCE48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A917C36-0BB9-4B4D-BAC2-0DB85EDCCE48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3AA1C3F-EA55-4235-B522-34C4B9C41947}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3AA1C3F-EA55-4235-B522-34C4B9C41947}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3AA1C3F-EA55-4235-B522-34C4B9C41947}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3AA1C3F-EA55-4235-B522-34C4B9C41947}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {96AD5B26-381D-4E6A-B4AD-3A0645C0CD55}
+	EndGlobalSection
+EndGlobal

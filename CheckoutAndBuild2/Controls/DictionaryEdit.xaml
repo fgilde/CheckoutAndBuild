@@ -1,0 +1,52 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.DictionaryEdit"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+	<Grid>
+		<!--<ListBox ItemsSource="{Binding}">
+			
+		</ListBox>-->
+		<DataGrid Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+				  ItemsSource="{Binding}" AutoGenerateColumns="False" GridLinesVisibility="Vertical" CanUserAddRows="True">
+			<DataGrid.Columns>
+				<DataGridTemplateColumn Header="Key" Width="2*">
+					<DataGridTemplateColumn.CellTemplate>
+						<DataTemplate>
+							<TextBlock Height="20" Text="{Binding Key}" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellTemplate>
+					<DataGridTemplateColumn.CellEditingTemplate>
+						<DataTemplate>
+							<TextBox Height="20" Text="{Binding Key}" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellEditingTemplate>
+				</DataGridTemplateColumn>
+				<DataGridTemplateColumn Header="Value"
+										Width="2*">
+					<DataGridTemplateColumn.CellTemplate>
+						<DataTemplate>
+							<TextBlock Height="20" Text="{Binding Value}" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellTemplate>
+					<DataGridTemplateColumn.CellEditingTemplate>
+						<DataTemplate>
+							<TextBox  Height="20" Text="{Binding Value}" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellEditingTemplate>
+				</DataGridTemplateColumn>
+				<!--<DataGridTemplateColumn Header=""
+										Width="20">
+					<DataGridTemplateColumn.CellTemplate>
+						<DataTemplate>
+							<Button Content="X"></Button>
+						</DataTemplate>
+					</DataGridTemplateColumn.CellTemplate>
+				</DataGridTemplateColumn>-->
+			</DataGrid.Columns>
+		</DataGrid>
+	</Grid>
+</UserControl>

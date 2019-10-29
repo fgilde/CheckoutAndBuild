@@ -1,0 +1,85 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.ServiceSettingsSelector"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+			 mc:Ignorable="d"
+			 d:DesignHeight="100"
+			 d:DesignWidth="300">
+	<UserControl.Resources>
+		<BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></BooleanToVisibilityConverter>
+		<Style TargetType="{x:Type CheckBox}">
+			<Setter Property="Margin"
+					Value="7,3" />
+			<!-- {DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextHoverBrushKey}} -->
+			<Setter Property="Foreground"
+					Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+		</Style>
+
+		<Viewbox x:Key="ExecuteImagePre"
+				 Height="18">
+			<Path Data="M0,0L226.984205022454,114.765510559082 453.999997869134,229.468978881836 226.984205022454,344.234497070313 0,459 0,229.468978881836z"
+				  Fill="Green" />
+		</Viewbox>
+
+		<Viewbox x:Key="ExecuteImagePost"
+				 Height="18">
+			<Path Data="M0,0L226.984205022454,114.765510559082 453.999997869134,229.468978881836 226.984205022454,344.234497070313 0,459 0,229.468978881836z"
+				  Fill="Green" />
+		</Viewbox>
+
+	</UserControl.Resources>
+
+	<Grid IsEnabled="{Binding HasWorkspaceOrDirectory}">
+		<!--<teamExplorer:TextLink x:Name="linkShowPopup"
+							   Text="{Binding Path=OpenPopupCommand.Caption, FallbackValue=_Options}"
+							   Command="{Binding OpenPopupCommand}"
+							   CommandParameter="{Binding ElementName=popup}" />-->
+
+		<controls:DropDownTextLink x:Name="DropDownTextLink"
+								   Text="{Binding Path=OpenPopupCommand.Caption, FallbackValue=_Options}"
+								   CommandParameter="{Binding ElementName=popup}"
+								   Command="{Binding OpenPopupCommand}" />
+
+		<Popup x:Name="popup"
+			   HorizontalOffset="-75"
+			   VerticalOffset="0"
+			   PlacementTarget="{Binding ElementName=linkShowPopup}"
+		       TextBlock.Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUITextBrushKey}}"
+			   Placement="Bottom"
+			   PopupAnimation="Slide"
+			   AllowsTransparency="True"
+			   Closed="Popup_OnClosed"
+			   StaysOpen="False"
+			   Focusable="True"
+			   Width="560">
+			
+			<controls:ResizeableContentControl x:Uid="spcc:ResizeableContentControl_1"
+											   Focusable="False">
+				<StackPanel Orientation="Vertical">
+					<Border Background="{DynamicResource {x:Static platformUi:EnvironmentColors.DesignerBackgroundBrushKey}}"
+							BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}" BorderThickness="1,1,1,0">
+						<DockPanel>
+							<TextBlock DockPanel.Dock="Right"									   
+									   HorizontalAlignment="Right"><Hyperlink x:Name="optionsLink"
+																			  Click="optionsLinkClick">Open Main Options Dialog...</Hyperlink></TextBlock>
+							<StackPanel Margin="2,2,0,2" Orientation="Horizontal">
+								<TextBlock HorizontalAlignment="Left"
+										   FontWeight="Bold"
+										   Text="Settings for "/>
+								<TextBlock HorizontalAlignment="Left" Margin="1,0,0,0"
+										   FontWeight="Bold"
+										   Text="{Binding TfsContext.SelectedWorkspace.Name}" />
+							</StackPanel>
+
+						</DockPanel>
+					</Border>
+					<controls:ServiceSettingsContentView DataContext="{Binding}" />
+				</StackPanel>
+			</controls:ResizeableContentControl>
+		</Popup>
+	</Grid>
+</UserControl>

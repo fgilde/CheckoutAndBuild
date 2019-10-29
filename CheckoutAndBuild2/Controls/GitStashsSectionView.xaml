@@ -1,0 +1,173 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.GitStashsSectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:wpf="clr-namespace:Microsoft.TeamFoundation.Controls.WPF;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:contracts="clr-namespace:CheckoutAndBuild2.Contracts;assembly=CheckoutAndBuild2.Contracts"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <converter:BoolToVisibilityConverter x:Key="boolToVis2" />
+        <converter:NullToVisibilityConverter x:Key="nullToVis"/>
+        <DataTemplate x:Key="stashItemTemplate" DataType="{x:Type contracts:GitStash}">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <Image  Margin="2,0,4,0" Source="pack://application:,,,/CheckoutAndBuild2;component/Resources/stash16.png" Width="16" Height="16" Stretch="UniformToFill"/>
+                    <TextBlock Text="{Binding Id}"/>
+                    <TextBlock Margin="5,0,0,0" Text=" - "/>
+                    <TextBlock Margin="5,0" Text="{Binding Name}"/>
+                    <TextBlock Text=" - ("/>
+                    <TextBlock Margin="0,0,5,0"
+                           Text="{Binding TimeInfo}"/>
+                    <TextBlock Text="{Binding Creator}"/>
+                    <TextBlock Text=")"/>
+                </StackPanel>
+                <Grid.ToolTip>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Hash:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="0"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Hash}" />
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Id:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Id}" />
+
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Name:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="2"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Name}" />
+
+                        <TextBlock Grid.Row="3"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Branch:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="3"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Branch}" />
+
+                        <TextBlock Grid.Row="4"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Creator:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="4"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=Creator}" />
+
+                        <TextBlock Grid.Row="5"
+                                   Grid.Column="0"
+                                   Margin="0,0,6,3"
+                                   Text="Time:"
+                                   FontWeight="Bold" />
+                        <TextBlock Grid.Row="5"
+                                   Grid.Column="1"
+                                   Margin="0,0,0,3"
+                                   Text="{Binding Path=TimeInfo}" />
+
+                    </Grid>
+                </Grid.ToolTip>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+
+        <Border DockPanel.Dock="Top" Visibility="{Binding ExtraContent, Converter={StaticResource nullToVis}}"
+            Margin="0,0,8,0"
+            Background="{DynamicResource {x:Static platformUi:EnvironmentColors.BrandedUIBackgroundBrushKey}}">
+            <ContentControl Content="{Binding ExtraContent}"></ContentControl>
+        </Border>
+
+        <Grid Margin="6,6,6,6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+
+            <!-- Action links -->
+            <WrapPanel Orientation="Horizontal"
+				   Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Grid.Row="0"
+				   Margin="0,0,0,6">
+                <teamExplorer:TextLink Text="{Binding CreateStashCommand.Caption}"
+                                   Command="{Binding CreateStashCommand}"/>
+            </WrapPanel>
+
+            <ProgressBar Style="{DynamicResource COABProgressBar}"
+					 Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}}"
+					 IsIndeterminate="True"
+					 Minimum="0"
+					 Grid.Row="0"
+					 VerticalAlignment="Top"
+					 Margin="16,0,10,0"
+					 Background="LightSteelBlue"
+					 BorderBrush="Transparent"
+					 Height="4"
+					 Foreground="Green" />
+
+
+
+            <Grid Grid.Row="1"
+			  Visibility="{Binding HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=True}"
+			  ContextMenu="{Binding ContextMenu}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!--ShowContextMenuCommand="{Binding Path=ShowContextMenuCommand}"-->
+                <ListBox Grid.Row="1"
+                         x:Name="stashList"
+                         ContextMenu="{Binding ContextMenu}"
+                         BorderThickness="0"
+                         wpf:ListViewHelper.ShowBorderOnScrollBarVisibility="true"
+                         MouseDoubleClick="StashList_OnMouseDoubleClick"
+                         Style="{DynamicResource COABListBoxStyle}"
+                         SelectedItem="{Binding SelectedStash, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         ItemTemplate="{StaticResource stashItemTemplate}"
+                         ItemsSource="{Binding Stashs, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" />
+
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>
+

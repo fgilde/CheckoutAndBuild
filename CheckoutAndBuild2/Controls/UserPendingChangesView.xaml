@@ -1,0 +1,91 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.UserPendingChangesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+             xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:shell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:wpf="clr-namespace:Microsoft.TeamFoundation.Controls.WPF;assembly=Microsoft.TeamFoundation.Controls"
+             xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+             xmlns:common="clr-namespace:FG.CheckoutAndBuild2.Common"
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300">
+
+	<UserControl.Resources>
+		<converter:BoolToVisibilityConverter x:Key="boolToVis2" />
+	</UserControl.Resources>
+	<Grid Margin="6,6,6,6"
+		  ContextMenu="{Binding ContextMenu}">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+
+		<!-- Action links -->
+		<WrapPanel Orientation="Horizontal"
+				   Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Grid.Row="0"
+				   Margin="0,0,0,6">
+			<TextBlock Margin="6,0,0,0" Text="Workspace:"/>
+			<teamExplorer:DropDownLink Margin="6,0,0,0"
+									   VerticalAlignment="Center"
+									   ToolTip="{Binding ToolTip}"
+									   Text="{Binding SelectedUserWorkspaceName, FallbackValue='Select workspace'}"
+									   ContextMenu="{Binding SelectUserWorkspaceMenu}"
+									   DropDownMenu="{Binding SelectUserWorkspaceMenu}" />
+		</WrapPanel>
+
+		<ProgressBar Style="{DynamicResource COABProgressBar}"
+					 Visibility="{Binding IsBusy, Converter={StaticResource boolToVis2}}"
+					 IsIndeterminate="True"
+					 Minimum="0"
+					 Grid.Row="0"
+					 VerticalAlignment="Top"
+					 Margin="16,0,10,0"
+					 Background="LightSteelBlue"
+					 BorderBrush="Transparent"
+					 Height="4"
+					 Foreground="Green" />
+
+		<TextBlock Margin="0,10,0,0"
+				   Grid.Row="1"
+				   HorizontalAlignment="Center"
+				   Visibility="{Binding HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ToolboxDisabledContentMouseOverTextBrushKey}}"
+				   Text="No Pending Changes found in this workspace" />
+
+		<Grid Grid.Row="1"
+			  Visibility="{Binding HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=True}"
+			  ContextMenu="{Binding ContextMenu}">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto" />
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
+
+			<controls:SearchBox Margin="-2,-2,-2,0"
+								x:Name="searchBox" />
+
+
+			<teamExplorer:FileListView x:Name="fileListView"
+									   Grid.Row="1"
+									   wpf:ListViewHelper.ShowBorderOnScrollBarVisibility="true"
+									   AutomationProperties.Name="Changes list"									  
+									   ShowContextMenuCommand="{Binding Path=ShowContextMenuCommand}"
+									   ItemsSource="{Binding UserPendingChangesNodes}"
+									   ListLayout="Default">
+			</teamExplorer:FileListView>
+			<i:Interaction.Behaviors>
+				<behavoir:ItemSourceFilterBehavior x:Uid="itemSourceFilterBehavior"
+												   x:Name="itemSourceFilterBehavior"
+												   PropertyNameToFilter="ItemText"
+												   ItemsControl="{Binding ElementName=fileListView, Path=InnerListViewControl}"
+												   TextBox="{Binding ElementName=searchBox}" />
+			</i:Interaction.Behaviors>
+		</Grid>		
+	</Grid>
+</UserControl>

@@ -1,0 +1,40 @@
+﻿<ResourceDictionary x:Uid="ResourceDictionary_1"
+					xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+					xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+					xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls">
+	<ControlTemplate x:Uid="ControlTemplate_1"
+					 x:Key="resizeThumbTemplate">
+		<ResizeGrip x:Uid="ResizeGrip_1"
+					Focusable="False" />
+	</ControlTemplate>
+
+	<ControlTemplate x:Uid="ControlTemplate_2"
+					 x:Key="resizableContentControl"
+					 TargetType="{x:Type controls:ResizeableContentControl}">
+		<Border x:Uid="Border_1"
+				Background="White"
+				BorderBrush="{DynamicResource ButtonNormalBorder}"
+				BorderThickness="1"
+				CornerRadius="0"
+				RenderOptions.ClearTypeHint="Enabled">
+			<Grid x:Uid="Grid_1">
+				<ContentPresenter x:Uid="popupContentPresenter"
+								  x:Name="popupContentPresenter"
+								  Content="{TemplateBinding Content}"
+								  ContentTemplate="{TemplateBinding ContentTemplate}" />
+				<Thumb x:Uid="PART_ResizeThumb"
+					   x:Name="PART_ResizeThumb"
+					   HorizontalAlignment="Left"
+					   VerticalAlignment="Bottom"
+					   Cursor="SizeNWSE"
+					   Template="{StaticResource ResourceKey=resizeThumbTemplate}" />
+			</Grid>
+		</Border>
+	</ControlTemplate>
+	<Style x:Uid="Style_1"
+		   TargetType="{x:Type controls:ResizeableContentControl}">
+		<Setter x:Uid="Setter_1"
+				Property="Template"
+				Value="{StaticResource ResourceKey=resizableContentControl}" />
+	</Style>
+</ResourceDictionary>

@@ -1,0 +1,1096 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+					xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+					xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"					
+					xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+					xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+					xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+					xmlns:common="clr-namespace:FG.CheckoutAndBuild2.Common"
+					xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls">
+
+	<converter:NullToVisibilityConverter x:Key="tagComboboxToVisibility"/>
+	
+	<Style x:Key="COABProgressBar"
+		   TargetType="{x:Type ProgressBar}">
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="{x:Type ProgressBar}">
+					<Grid MinHeight="14"
+						  MinWidth="200"
+						  Background="{TemplateBinding Background}">
+						<VisualStateManager.VisualStateGroups>
+							<VisualStateGroup x:Name="CommonStates">
+								<VisualState x:Name="Determinate" />
+								<VisualState x:Name="Indeterminate">
+									<Storyboard>
+										<ObjectAnimationUsingKeyFrames Duration="00:00:00"
+																	   Storyboard.TargetName="PART_Indicator"
+																	   Storyboard.TargetProperty="Background">
+											<DiscreteObjectKeyFrame KeyTime="00:00:00">
+												<DiscreteObjectKeyFrame.Value>
+													<SolidColorBrush>Transparent</SolidColorBrush>
+												</DiscreteObjectKeyFrame.Value>
+											</DiscreteObjectKeyFrame>
+										</ObjectAnimationUsingKeyFrames>
+
+									</Storyboard>
+								</VisualState>
+							</VisualStateGroup>
+						</VisualStateManager.VisualStateGroups>
+						<Border x:Name="PART_Track"
+								CornerRadius="0"
+								BorderBrush="{TemplateBinding BorderBrush}"
+								BorderThickness="1">
+						</Border>
+						<Border x:Name="PART_Indicator"
+								CornerRadius="0"
+								BorderThickness="0"
+								HorizontalAlignment="Left"
+								Background="{TemplateBinding Foreground}"
+								BorderBrush="{TemplateBinding BorderBrush}"
+								Margin="0,-1,0,1">
+							<Grid ClipToBounds="True"
+								  x:Name="Animation">
+								<Border x:Name="PART_GlowRect"
+										Width="100"
+										HorizontalAlignment="Left"
+										Background="{TemplateBinding Foreground}"
+										Margin="-100,0,0,0" />
+							</Grid>
+						</Border>
+					</Grid>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+		<Setter Property="Background">
+			<Setter.Value>
+				<SolidColorBrush Color="#FFF0F0F0" />
+			</Setter.Value>
+		</Setter>
+		<Setter Property="Foreground">
+			<Setter.Value>
+				<SolidColorBrush Color="#FF4B8BC2" />
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+	<Style x:Uid="Style_27"
+		   x:Key="COABTextBoxStyle"
+		   TargetType="{x:Type TextBox}"
+		   BasedOn="{StaticResource {x:Type TextBoxBase}}">
+
+		<Setter x:Uid="Setter_201"
+				Property="Background"
+				Value="Transparent" />
+		<Setter x:Uid="Setter_202"
+				Property="Foreground"
+				Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+		<Setter x:Uid="Setter_20"
+				Property="CaretBrush"
+				Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+		<Setter x:Uid="Setter_224"
+				Property="BorderThickness"
+				Value="1" />
+		<Setter x:Uid="Setter_224"
+				Property="BorderBrush"
+				Value="Transparent" />
+		<Setter x:Uid="Setter_204"
+				Property="Template">
+			<Setter.Value>
+				<ControlTemplate x:Uid="ControlTemplate_25"
+								 TargetType="{x:Type TextBox}">
+					<Border x:Uid="Border_14"
+							Name="Bd"
+							TextElement.Foreground="{TemplateBinding Foreground}"										
+							Background="{TemplateBinding Background}"
+							BorderThickness="{TemplateBinding BorderThickness}"
+							BorderBrush="{TemplateBinding BorderBrush}"
+							SnapsToDevicePixels="true">
+						<Grid x:Uid="Grid_11">
+							<ScrollViewer x:Uid="ScrollViewer_4"
+										  x:Name="PART_ContentHost"
+										  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+						</Grid>
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger x:Uid="Trigger_57"
+								 Property="IsEnabled"
+								 Value="false">
+							<Setter x:Uid="Setter_225"
+									TargetName="Bd"
+									Property="Opacity"
+									Value="0.7" />
+							<Setter x:Uid="Setter_206"
+									Property="Foreground"
+									Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
+						</Trigger>
+
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+		<Style.Triggers>
+			<Trigger x:Uid="Trigger_57"
+					 Property="IsFocused"
+					 Value="True">				
+				<Setter x:Uid="Setter_206"
+						Property="BorderBrush"
+						Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+			</Trigger>
+		</Style.Triggers>
+	</Style>
+
+
+	<ControlTemplate x:Key="ComboBoxTextBox"
+					 TargetType="TextBox">
+		<Border x:Name="PART_ContentHost"
+				Focusable="True" />
+	</ControlTemplate>
+
+	<Style x:Key="ComboBoxToggleButton"
+		   TargetType="ToggleButton">
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ToggleButton">
+					<Grid Margin="2,0,0,0">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition />
+							<ColumnDefinition Width="12" />
+						</Grid.ColumnDefinitions>
+						<Border x:Name="Border"
+								Grid.ColumnSpan="2"
+								CornerRadius="0"
+								Background="{TemplateBinding Background}"
+								BorderBrush="{TemplateBinding BorderBrush}"
+								BorderThickness="2" />
+						<Viewbox x:Uid="viewBoxArrow"
+								 DockPanel.Dock="Right"
+								 Name="viewBoxArrow"
+								 Height="6"								
+								 Margin="2,0,0,0"
+								 Grid.Column="1"
+								 Width="6"								 
+								 RenderTransformOrigin="0.5, 0.5">
+							<Path x:Name="Arrow"									  
+								  Fill="{TemplateBinding Foreground}"
+								  Stroke="{TemplateBinding Foreground}"
+								  HorizontalAlignment="Center"
+								  VerticalAlignment="Center"
+								  Data="M 0 0 L 8 12 L 16 0 Z" />
+						</Viewbox>
+					</Grid>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsEnabled"
+								 Value="False">
+							<Setter TargetName="Border"
+									Property="Background"
+									Value="LightGray" />
+							<Setter TargetName="Border"
+									Property="BorderBrush"
+									Value="Gray" />
+							<Setter Property="Foreground"
+									Value="Gray" />
+							<Setter TargetName="Arrow"
+									Property="Fill"
+									Value="Gray" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+
+	<Style x:Key="ComboBoxToggleButtonWithoutArrow"
+		   TargetType="ToggleButton">
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ToggleButton">
+					<Grid Margin="2,0,0,0">
+
+						<Border x:Name="Border"
+								Grid.ColumnSpan="2"
+								CornerRadius="0"
+								Background="{TemplateBinding Background}"
+								BorderBrush="{TemplateBinding BorderBrush}"
+								BorderThickness="2" />
+						
+					</Grid>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsEnabled"
+								 Value="False">
+							<Setter TargetName="Border"
+									Property="Background"
+									Value="LightGray" />
+							<Setter TargetName="Border"
+									Property="BorderBrush"
+									Value="Gray" />
+							<Setter Property="Foreground"
+									Value="Gray" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+
+	<converter:StringContentToVisibilityConverter x:Uid="Converters:StringToVisibilityConverter_1"
+										   x:Key="stringToVisibility" />
+	<BooleanToVisibilityConverter x:Uid="BooleanToVisibilityConverter_1"
+								  x:Key="boolToVisibility" />
+	<Geometry x:Uid="Geometry_4"
+			  x:Key="DownArrowGeometry">M 0 0 L 3.5 4 L 7 0 Z</Geometry>
+
+
+	<!-- Style for Listbox x:Key="{x:Type ListBox}" -->
+	<Style x:Key="COABListBoxStyle"
+		   TargetType="{x:Type ListBox}">
+
+		<Setter x:Uid="Setter_8"
+				Property="BorderThickness"
+				Value="1" />
+		<Setter Property="Background" Value="Transparent"/>
+		
+		<Setter x:Uid="Setter_10"
+				Property="ScrollViewer.HorizontalScrollBarVisibility"
+				Value="Auto" />
+		<Setter x:Uid="Setter_11"
+				Property="ScrollViewer.VerticalScrollBarVisibility"
+				Value="Auto" />
+		<Setter x:Uid="Setter_12"
+				Property="ScrollViewer.CanContentScroll"
+				Value="true" />
+		<Setter x:Uid="Setter_13"
+				Property="VerticalContentAlignment"
+				Value="Center" />
+		<Setter x:Uid="Setter_65"
+				Property="behavoir:ItemSourceFilterBehavior.IsFilterEnabled"
+				Value="True" />
+		<Setter x:Uid="Setter_14"
+				Property="Template">
+			<Setter.Value>
+				<ControlTemplate x:Uid="ControlTemplate_1"
+								 TargetType="{x:Type ListBox}">
+					<!--FocusManager.FocusedElement="{Binding ElementName=searchBox}"-->
+					<Border x:Uid="Bd"
+							Name="Bd"
+							Background="{TemplateBinding Background}"
+							BorderBrush="{TemplateBinding BorderBrush}"
+							BorderThickness="{TemplateBinding BorderThickness}"
+							SnapsToDevicePixels="true"
+							Padding="1">
+						<DockPanel>
+
+
+							<controls:SearchBox Margin="-2,-2,-2,0"
+												x:Name="searchBox"
+												DockPanel.Dock="Top"
+												Visibility="{TemplateBinding behavoir:ItemSourceFilterBehavior.IsFilterEnabled, Converter={StaticResource boolToVisibility}}"/>
+								
+						
+							<ScrollViewer x:Uid="ScrollViewer_1"
+										  Padding="{TemplateBinding Padding}"
+										  KeyboardNavigation.TabIndex="2"
+										  Focusable="false">
+								<ItemsPresenter x:Uid="ItemsPresenter_1"
+												KeyboardNavigation.TabIndex="3"
+												SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+									<i:Interaction.Behaviors>
+										<behavoir:ItemSourceFilterBehavior x:Uid="itemSourceFilterBehavior"
+																	  x:Name="itemSourceFilterBehavior"
+																	  TextBox="{Binding ElementName=searchBox}" />
+									</i:Interaction.Behaviors>
+								</ItemsPresenter>
+							</ScrollViewer>
+
+						</DockPanel>
+
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger x:Uid="Trigger_1"
+								 Property="IsEnabled"
+								 Value="false">
+							<Setter x:Uid="Setter_15"
+									Property="Opacity"
+									Value="0.7" />
+							<Setter x:Uid="Setter_16"
+									Property="Foreground"
+									Value="LightGray" />
+						</Trigger>
+						<Trigger x:Uid="Trigger_2"
+								 Property="IsGrouping"
+								 Value="true">
+							<Setter x:Uid="Setter_17"
+									Property="ScrollViewer.CanContentScroll"
+									Value="false" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+
+	<Style x:Key="defaultListBox"
+		   TargetType="{x:Type ListBox}"
+		   BasedOn="{StaticResource {x:Type ListBox}}" />
+
+
+
+	<Style x:Uid="Style_2"
+		   x:Key="ComboBoxFocusVisual">
+		<Setter x:Uid="Setter_2"
+				Property="Control.Template">
+			<Setter.Value>
+				<ControlTemplate x:Uid="ControlTemplate_2">
+					<Rectangle x:Uid="Rectangle_2"
+							   Margin="4,4,21,4"
+							   StrokeThickness="1"
+							   Stroke="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"
+							   StrokeDashArray="1 2"
+							   SnapsToDevicePixels="true" />
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+	<Style x:Uid="Style_3"
+		   x:Key="ComboBoxReadonlyToggleButton"
+		   TargetType="{x:Type ToggleButton}">
+		<Setter x:Uid="Setter_3"
+				Property="OverridesDefaultStyle"
+				Value="true" />
+		<Setter x:Uid="Setter_4"
+				Property="IsTabStop"
+				Value="false" />
+		<Setter x:Uid="Setter_5"
+				Property="Focusable"
+				Value="false" />
+		<Setter x:Uid="Setter_6"
+				Property="ClickMode"
+				Value="Press" />
+		<Setter x:Uid="Setter_7"
+				Property="Template">
+			<Setter.Value>
+				<ControlTemplate x:Uid="ControlTemplate_3"
+								 TargetType="{x:Type ToggleButton}">
+					<Border x:Uid="Chrome"
+							CornerRadius="3"
+							Name="Chrome"
+							BorderThickness="1"
+							Background="{TemplateBinding Background}"
+							BorderBrush="{DynamicResource ButtonNormalBorder}"
+							SnapsToDevicePixels="true">
+						<Grid x:Uid="Grid_1"
+							  Width="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}"
+							  HorizontalAlignment="Right">
+							<Path x:Uid="Arrow"
+								  Name="Arrow"
+								  Margin="3,1,0,0"
+								  Fill="{DynamicResource ButtonForegroundColor}"
+								  Data="{DynamicResource DownArrowGeometry}"
+								  HorizontalAlignment="Center"
+								  VerticalAlignment="Center" />
+						</Grid>
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger x:Uid="Trigger_1"
+								 Property="IsMouseOver"
+								 Value="True">
+							<Setter x:Uid="Setter_8"
+									TargetName="Chrome"
+									Property="Background"
+									Value="{DynamicResource ButtonHoverBackground}" />
+
+							<Setter x:Uid="Setter_9"
+									TargetName="Arrow"
+									Property="Fill"
+									Value="{DynamicResource DefaultHoverForegroundColor}" />
+						</Trigger>
+						<Trigger x:Uid="Trigger_2"
+								 Property="IsEnabled"
+								 Value="false">
+							<Setter x:Uid="Setter_10"
+									TargetName="Arrow"
+									Property="Fill"
+									Value="#AFAFAF" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+
+	</Style>
+
+	<ControlTemplate x:Key="ComboBoxEditableTemplate"
+					 TargetType="{x:Type ComboBox}">
+		<Border x:Uid="Border_17"
+				BorderBrush="{Binding Path=BorderBrush,RelativeSource={RelativeSource TemplatedParent}}"
+				BorderThickness="1">
+			<DockPanel x:Uid="DockPanel_2"
+					   Name="Placement"
+					   SnapsToDevicePixels="true">
+
+				<Popup x:Uid="Popup_2"
+					   Name="PART_Popup"
+					   FocusManager.FocusedElement="{Binding ElementName=searchBox}"
+					   Grid.ColumnSpan="2"
+					   AllowsTransparency="true"
+					   Placement="Bottom"
+					   IsOpen="{Binding Path=IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+					   PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+					<platformUi:SystemDropShadowChrome x:Uid="theme:SystemDropShadowChrome_2"
+												  Name="Shdw"
+												  MinWidth="{Binding ElementName=Placement,Path=ActualWidth}"
+												  MaxHeight="{TemplateBinding MaxDropDownHeight}">
+						<Border x:Uid="Border_18"
+								x:Name="DropDownBorder"
+								BorderThickness="1"
+								BorderBrush="{DynamicResource ButtonNormalBorder}"
+								Background="{DynamicResource DefaultContentBackground}">
+							<DockPanel x:Uid="StackPanel_2">
+								<Grid x:Uid="Grid_12"
+									  Margin="-1,-1,-1,2"
+									  DockPanel.Dock="Top"
+									  Visibility="{TemplateBinding behavoir:ItemSourceFilterBehavior.IsFilterEnabled, Converter={StaticResource boolToVisibility}}">
+									<TextBox x:Uid="searchBox"
+											 Name="searchBox" />
+									<TextBlock x:Uid="waterMark"
+											   x:Name="waterMark"
+											   IsHitTestVisible="False"
+											   Visibility="{Binding ElementName=searchBox, Path=Text, Converter={StaticResource stringToVisibility},ConverterParameter=True}"
+											   Foreground="Gray"
+											   Margin="0,1,2,2"
+											   Padding="5,0,0,0"
+											   Text="{TemplateBinding behavoir:ItemSourceFilterBehavior.WaterMarkText}"
+											   Width="{Binding Width, ElementName=SearchTextBox}"
+											   VerticalAlignment="Center" />
+								</Grid>
+								<ScrollViewer x:Uid="ScrollViewer_5"
+											  Name="DropDownScrollViewer">
+									<Grid x:Uid="Grid_13"
+										  RenderOptions.ClearTypeHint="Enabled">
+										<Canvas x:Uid="Canvas_3"
+												Height="0"
+												Width="0"
+												HorizontalAlignment="Left"
+												VerticalAlignment="Top">
+											<Rectangle x:Uid="Rectangle_5"
+													   Name="OpaqueRect"
+													   Height="{Binding ElementName=DropDownBorder,Path=ActualHeight}"
+													   Width="{Binding ElementName=DropDownBorder,Path=ActualWidth}"
+													   Fill="{Binding ElementName=DropDownBorder,Path=Background}" />
+										</Canvas>
+										<ItemsPresenter x:Uid="ItemsPresenter_2"
+														Name="ItemsPresenter"
+														KeyboardNavigation.DirectionalNavigation="Contained"
+														SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+											<i:Interaction.Behaviors>
+												<behavoir:ItemSourceFilterBehavior x:Uid="itemSourceFilterBehavior"
+																			  x:Name="itemSourceFilterBehavior"
+																			  TextBox="{Binding ElementName=searchBox}" />
+											</i:Interaction.Behaviors>
+										</ItemsPresenter>
+									</Grid>
+								</ScrollViewer>
+							</DockPanel>
+						</Border>
+					</platformUi:SystemDropShadowChrome>
+				</Popup>
+
+				<ToggleButton x:Uid="PART_DropDownToggle"
+							  x:Name="PART_DropDownToggle"
+							  Grid.Column="1"
+							  Width="15"
+							  DockPanel.Dock="Right"
+							 
+							  BorderBrush="{Binding Path=BorderBrush,RelativeSource={RelativeSource TemplatedParent}}"
+							  BorderThickness="1,0,0,0"
+							  IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}">
+					<Path x:Uid="Path_3"
+						  Data="M 0 0 L 3.5 4 L 7 0 Z"
+						  Fill="{TemplateBinding Foreground}" />
+				</ToggleButton>
+				<TextBox x:Uid="TextBox_1"
+						 Name="PART_EditableTextBox"
+						 VerticalAlignment="Stretch"
+						 BorderThickness="0"
+						 BorderBrush="Transparent"
+						
+						 IsReadOnly="{Binding Path=IsReadOnly,RelativeSource={RelativeSource TemplatedParent}}"
+						 HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+						 VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+
+			</DockPanel>
+		</Border>
+		<ControlTemplate.Triggers>
+
+			<Trigger x:Uid="Trigger_63"
+					 Property="HasItems"
+					 Value="false">
+				<Setter x:Uid="Setter_249"
+						TargetName="DropDownBorder"
+						Property="Height"
+						Value="95" />
+			</Trigger>
+			<Trigger x:Uid="Trigger_64"
+					 Property="IsMouseOver"
+					 SourceName="PART_DropDownToggle"
+					 Value="True">
+				<!--<Setter x:Uid="Setter_250"
+						Property="Foreground"
+						Value="{DynamicResource DefaultHoverForegroundColor}" />-->
+			</Trigger>
+			<Trigger x:Uid="Trigger_65"
+					 Property="IsEnabled"
+					 Value="false">
+				<Setter x:Uid="Setter_251"
+						Property="Foreground"
+						Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
+				<Setter x:Uid="Setter_252"
+						Property="Opacity"
+						Value="0.7" />
+			</Trigger>
+			<Trigger x:Uid="Trigger_66"
+					 Property="IsGrouping"
+					 Value="true">
+				<Setter x:Uid="Setter_253"
+						Property="ScrollViewer.CanContentScroll"
+						Value="false" />
+			</Trigger>
+			<Trigger x:Uid="Trigger_67"
+					 SourceName="PART_Popup"
+					 Property="Popup.HasDropShadow"
+					 Value="true">
+				<Setter x:Uid="Setter_254"
+						TargetName="Shdw"
+						Property="Margin"
+						Value="0,0,5,5" />
+				<Setter x:Uid="Setter_255"
+						TargetName="Shdw"
+						Property="Color"
+						Value="#71000000" />
+			</Trigger>
+			<Trigger x:Uid="Trigger_68"
+					 SourceName="DropDownScrollViewer"
+					 Property="ScrollViewer.CanContentScroll"
+					 Value="false">
+				<Setter x:Uid="Setter_256"
+						TargetName="OpaqueRect"
+						Property="Canvas.Top"
+						Value="{Binding ElementName=DropDownScrollViewer, Path=VerticalOffset}" />
+				<Setter x:Uid="Setter_257"
+						TargetName="OpaqueRect"
+						Property="Canvas.Left"
+						Value="{Binding ElementName=DropDownScrollViewer, Path=HorizontalOffset}" />
+			</Trigger>
+		</ControlTemplate.Triggers>
+	</ControlTemplate>
+
+	<Style x:Key="COABComboBoxStyleWithoutArrow"
+		   TargetType="{x:Type ComboBox}">
+		<Setter Property="Foreground"
+				Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+		<Setter Property="BorderBrush"
+				Value="Transparent" />
+		<Setter Property="Background"
+				Value="Transparent" />
+		<Setter Property="BorderThickness"
+				Value="1" />
+		<Setter Property="SnapsToDevicePixels"
+				Value="true" />
+		<Setter Property="OverridesDefaultStyle"
+				Value="true" />
+		<Setter Property="ScrollViewer.HorizontalScrollBarVisibility"
+				Value="Auto" />
+		<Setter Property="ScrollViewer.VerticalScrollBarVisibility"
+				Value="Auto" />
+		<Setter Property="ScrollViewer.CanContentScroll"
+				Value="true" />
+		<Setter x:Uid="Setter_258"
+				Property="behavoir:ItemSourceFilterBehavior.IsFilterEnabled"
+				Value="True" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ComboBox">
+
+					<Grid x:Uid="MainGrid"
+						  Name="MainGrid"
+						  FocusManager.FocusedElement="{Binding ElementName=searchBox}"
+						  SnapsToDevicePixels="true">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition x:Uid="ColumnDefinition_3"
+											  Width="*" />
+							<ColumnDefinition x:Uid="ColumnDefinition_4"
+											  MinWidth="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}"
+											  Width="0" />
+						</Grid.ColumnDefinitions>
+						<Popup x:Uid="Popup_1"
+							   Name="PART_Popup"
+							   FocusManager.FocusedElement="{Binding ElementName=searchBox}"
+							   AllowsTransparency="true"
+							   Grid.ColumnSpan="2"
+							   Placement="Bottom"
+							   Margin="1"
+							   IsOpen="{Binding Path=IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+							   PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+							<platformUi:SystemDropShadowChrome x:Uid="theme:SystemDropShadowChrome_1"
+															   Name="Shdw"
+															   Color="Transparent"
+															   MinWidth="{Binding ElementName=MainGrid,Path=ActualWidth}"
+															   MaxHeight="{TemplateBinding MaxDropDownHeight}">
+								<Border x:Uid="Border_1"
+										x:Name="DropDownBorder"
+										Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+										BorderThickness="1"
+										BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}">
+									<DockPanel x:Uid="StackPanel_3">
+
+										<Grid x:Uid="Grid_14"
+											  Margin="-1,-1,-1,2"
+											  DockPanel.Dock="Top"
+											  Visibility="{TemplateBinding behavoir:ItemSourceFilterBehavior.IsFilterEnabled, Converter={StaticResource boolToVisibility}}">
+											<TextBox x:Uid="TextBox_2"
+													 KeyboardNavigation.TabIndex="0"
+													 Style="{StaticResource COABTextBoxStyle}"
+													 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+													 Name="searchBox" />
+											<TextBlock x:Uid="TextBlock_2"
+													   x:Name="waterMark"
+													   IsHitTestVisible="False"
+													   Visibility="{Binding ElementName=searchBox, Path=Text, Converter={StaticResource stringToVisibility},ConverterParameter=True}"
+													   Foreground="Gray"
+													   Margin="0,1,2,2"
+													   Padding="5,0,0,0"
+													   Text="{TemplateBinding behavoir:ItemSourceFilterBehavior.WaterMarkText}"
+													   Width="{Binding Width, ElementName=SearchTextBox}"
+													   VerticalAlignment="Center" />
+										</Grid>
+
+
+
+										<ScrollViewer x:Uid="ScrollViewer_1"
+													  BorderBrush="Black"
+													  BorderThickness="1"
+													  Name="DropDownScrollViewer">
+											<Grid x:Uid="Grid_3"
+												  RenderOptions.ClearTypeHint="Enabled">
+												<Canvas x:Uid="Canvas_2"
+														Height="0"
+														Width="0"
+														HorizontalAlignment="Left"
+														VerticalAlignment="Top">
+													<Rectangle x:Uid="Rectangle_3"
+															   Name="OpaqueRect"
+															   Height="{Binding ElementName=DropDownBorder,Path=ActualHeight}"
+															   Width="{Binding ElementName=DropDownBorder,Path=ActualWidth}"
+															   Fill="{Binding ElementName=DropDownBorder,Path=Background}" />
+												</Canvas>
+												<ItemsPresenter x:Uid="ItemsPresenter_1"
+																Name="ItemsPresenter"
+																KeyboardNavigation.TabIndex="1"
+																KeyboardNavigation.DirectionalNavigation="Contained"
+																SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+													<i:Interaction.Behaviors>
+														<behavoir:ItemSourceFilterBehavior x:Uid="bhv:ItemSourceFilterBehavior_1"
+																						   x:Name="itemSourceFilterBehavior"
+																						   TextBox="{Binding ElementName=searchBox}" />
+													</i:Interaction.Behaviors>
+												</ItemsPresenter>
+											</Grid>
+										</ScrollViewer>
+									</DockPanel>
+								</Border>
+							</platformUi:SystemDropShadowChrome>
+						</Popup>
+						<ToggleButton 									  BorderBrush="{TemplateBinding BorderBrush}"
+																		  Background="{TemplateBinding Background}"
+																		  Foreground="{TemplateBinding Foreground}"
+																		  Style="{StaticResource ComboBoxToggleButtonWithoutArrow}"
+																		  Focusable="false"
+																		  IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}"
+																		  ClickMode="Press" />
+						<ContentPresenter Name="ContentSite"
+										  IsHitTestVisible="False"
+										  Content="{TemplateBinding SelectionBoxItem}"
+										  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+										  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+										  Margin="10,3,10,3"
+										  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+										  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+						<Border VerticalAlignment="Bottom"
+								Visibility="Hidden"
+								Name="line"
+								Margin="7,0,7,0"
+								Height="1"
+								HorizontalAlignment="Stretch"
+								Background="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+					</Grid>
+
+					<ControlTemplate.Triggers>
+						<Trigger Property="HasItems"
+								 Value="false">
+							<Setter TargetName="DropDownBorder"
+									Property="MinHeight"
+									Value="95" />
+						</Trigger>
+						<Trigger Property="IsGrouping"
+								 Value="true">
+							<Setter Property="ScrollViewer.CanContentScroll"
+									Value="false" />
+						</Trigger>
+						<Trigger SourceName="PART_Popup"
+								 Property="Popup.AllowsTransparency"
+								 Value="true">
+							<Setter TargetName="DropDownBorder"
+									Property="CornerRadius"
+									Value="0" />
+							<Setter TargetName="DropDownBorder"
+									Property="Margin"
+									Value="0,2,0,0" />
+						</Trigger>
+						<Trigger Property="IsEditable"
+								 Value="true">
+							<Setter Property="IsTabStop"
+									Value="false" />
+							<!--<Setter TargetName="PART_EditableTextBox"
+									Property="Visibility"
+									Value="Visible" />-->
+							<Setter TargetName="ContentSite"
+									Property="Visibility"
+									Value="Hidden" />
+						</Trigger>
+						<Trigger Property="IsMouseOver"
+								 Value="True">
+							<Setter TargetName="line"
+									Property="Visibility"
+									Value="Visible" />
+							<Setter Property="Cursor"
+									Value="Hand"></Setter>
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+
+	<Style x:Key="COABComboBoxStyle"
+		   TargetType="{x:Type ComboBox}">
+		<Setter Property="Foreground"
+				Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+		<Setter Property="BorderBrush"
+				Value="Transparent" />
+		<Setter Property="Background"
+				Value="Transparent" />
+		<Setter Property="BorderThickness"
+				Value="1" />
+		<Setter Property="SnapsToDevicePixels"
+				Value="true" />
+		<Setter Property="OverridesDefaultStyle"
+				Value="true" />
+		<Setter Property="ScrollViewer.HorizontalScrollBarVisibility"
+				Value="Auto" />
+		<Setter Property="ScrollViewer.VerticalScrollBarVisibility"
+				Value="Auto" />
+		<Setter Property="ScrollViewer.CanContentScroll"
+				Value="true" />
+		<Setter x:Uid="Setter_258"
+				Property="behavoir:ItemSourceFilterBehavior.IsFilterEnabled"
+				Value="True" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ComboBox">
+
+					<Grid x:Uid="MainGrid"
+						  Name="MainGrid"
+						  FocusManager.FocusedElement="{Binding ElementName=searchBox}"
+						  SnapsToDevicePixels="true">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition x:Uid="ColumnDefinition_3"
+											  Width="*" />
+							<ColumnDefinition x:Uid="ColumnDefinition_4"
+											  MinWidth="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}"
+											  Width="0" />
+						</Grid.ColumnDefinitions>
+						<Popup x:Uid="Popup_1"
+							   Name="PART_Popup"
+							   FocusManager.FocusedElement="{Binding ElementName=searchBox}"
+							   AllowsTransparency="true"
+							   Grid.ColumnSpan="2"
+							   Placement="Bottom"
+							   Margin="1"
+							   IsOpen="{Binding Path=IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+							   PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+							<platformUi:SystemDropShadowChrome x:Uid="theme:SystemDropShadowChrome_1"
+															   Name="Shdw"
+															   Color="Transparent"
+															   MinWidth="{Binding ElementName=MainGrid,Path=ActualWidth}"
+															   MaxHeight="{TemplateBinding MaxDropDownHeight}">
+								<Border x:Uid="Border_1"
+										x:Name="DropDownBorder"
+										Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+										BorderThickness="1"
+										BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBorderBrushKey}}">
+									<DockPanel x:Uid="StackPanel_3">
+
+										<Grid x:Uid="Grid_14"
+											  Margin="-1,-1,-1,2"
+											  DockPanel.Dock="Top"
+											  Visibility="{TemplateBinding behavoir:ItemSourceFilterBehavior.IsFilterEnabled, Converter={StaticResource boolToVisibility}}">
+											<TextBox x:Uid="TextBox_2"
+													 KeyboardNavigation.TabIndex="0"
+													 Style="{StaticResource COABTextBoxStyle}"
+													 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+													 Name="searchBox" />
+											<TextBlock x:Uid="TextBlock_2"
+													   x:Name="waterMark"
+													   IsHitTestVisible="False"
+													   Visibility="{Binding ElementName=searchBox, Path=Text, Converter={StaticResource stringToVisibility},ConverterParameter=True}"
+													   Foreground="Gray"
+													   Margin="0,1,2,2"
+													   Padding="5,0,0,0"
+													   Text="{TemplateBinding behavoir:ItemSourceFilterBehavior.WaterMarkText}"
+													   Width="{Binding Width, ElementName=SearchTextBox}"
+													   VerticalAlignment="Center" />
+										</Grid>
+
+
+
+										<ScrollViewer x:Uid="ScrollViewer_1"
+													  BorderBrush="Black"
+													  BorderThickness="1"
+													  Name="DropDownScrollViewer">
+											<Grid x:Uid="Grid_3"
+												  RenderOptions.ClearTypeHint="Enabled">
+												<Canvas x:Uid="Canvas_2"
+														Height="0"
+														Width="0"
+														HorizontalAlignment="Left"
+														VerticalAlignment="Top">
+													<Rectangle x:Uid="Rectangle_3"
+															   Name="OpaqueRect"
+															   Height="{Binding ElementName=DropDownBorder,Path=ActualHeight}"
+															   Width="{Binding ElementName=DropDownBorder,Path=ActualWidth}"
+															   Fill="{Binding ElementName=DropDownBorder,Path=Background}" />
+												</Canvas>
+												<ItemsPresenter x:Uid="ItemsPresenter_1"
+																Name="ItemsPresenter"
+																KeyboardNavigation.TabIndex="1"
+																KeyboardNavigation.DirectionalNavigation="Contained"
+																SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+													<i:Interaction.Behaviors>
+														<behavoir:ItemSourceFilterBehavior x:Uid="bhv:ItemSourceFilterBehavior_1"
+																						   x:Name="itemSourceFilterBehavior"
+																						   TextBox="{Binding ElementName=searchBox}" />
+													</i:Interaction.Behaviors>
+												</ItemsPresenter>
+											</Grid>
+										</ScrollViewer>
+									</DockPanel>
+								</Border>
+							</platformUi:SystemDropShadowChrome>
+						</Popup>
+						<ToggleButton 									  BorderBrush="{TemplateBinding BorderBrush}"
+																		  Background="{TemplateBinding Background}"
+																		  Foreground="{TemplateBinding Foreground}"
+																		  Style="{StaticResource ComboBoxToggleButton}"
+																		  Focusable="false"
+																		  IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}"
+																		  ClickMode="Press" />
+						<ContentPresenter Name="ContentSite"
+										  IsHitTestVisible="False"
+										  Content="{TemplateBinding SelectionBoxItem}"
+										  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+										  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+										  Margin="10,3,10,3"
+										  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+										  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+						<Border VerticalAlignment="Bottom"
+								Visibility="Hidden"
+								Name="line"
+								Margin="7,0,7,0"
+								Height="1"
+								HorizontalAlignment="Stretch"
+								Background="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+					</Grid>
+				
+					<ControlTemplate.Triggers>
+						<Trigger Property="HasItems"
+								 Value="false">
+							<Setter TargetName="DropDownBorder"
+									Property="MinHeight"
+									Value="95" />
+						</Trigger>
+						<Trigger Property="IsGrouping"
+								 Value="true">
+							<Setter Property="ScrollViewer.CanContentScroll"
+									Value="false" />
+						</Trigger>
+						<Trigger SourceName="PART_Popup"
+								 Property="Popup.AllowsTransparency"
+								 Value="true">
+							<Setter TargetName="DropDownBorder"
+									Property="CornerRadius"
+									Value="0" />
+							<Setter TargetName="DropDownBorder"
+									Property="Margin"
+									Value="0,2,0,0" />
+						</Trigger>
+						<Trigger Property="IsEditable"
+								 Value="true">
+							<Setter Property="IsTabStop"
+									Value="false" />
+							<!--<Setter TargetName="PART_EditableTextBox"
+									Property="Visibility"
+									Value="Visible" />-->
+							<Setter TargetName="ContentSite"
+									Property="Visibility"
+									Value="Hidden" />
+						</Trigger>
+						<Trigger Property="IsMouseOver"
+								 Value="True">
+							<Setter TargetName="line"
+									Property="Visibility"
+									Value="Visible" />
+							<Setter Property="Cursor"
+									Value="Hand"></Setter>
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+	<Style TargetType="{x:Type ComboBoxItem}">
+		<Setter Property="SnapsToDevicePixels"
+				Value="true" />
+		<Setter Property="HorizontalAlignment"
+				Value="Stretch" />
+		<Setter Property="HorizontalContentAlignment"
+				Value="Left" />
+		<Setter Property="VerticalAlignment"
+				Value="Stretch" />
+		<Setter Property="OverridesDefaultStyle"
+				Value="true" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ComboBoxItem">
+					<Border Name="Border"
+							BorderThickness="0"
+							CornerRadius="0"
+							Background="Transparent"
+							BorderBrush="Transparent">
+						<TextBlock TextAlignment="Center">
+                                        <ContentPresenter />
+						</TextBlock>
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsHighlighted"
+								 Value="true">
+							<Setter TargetName="Border"
+									Property="Background"
+									Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuItemMouseOverBrushKey}}" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+	<!--<Style x:Uid="Style_25"
+		   x:Key="{x:Type ComboBox}"
+		   TargetType="{x:Type ComboBox}"
+		   BasedOn="{StaticResource DefaultComboBoxStyle}" />-->
+
+
+	<Style x:Key="COABListViewStyle"
+		   TargetType="{x:Type ListView}">
+
+		<Setter x:Uid="Setter_8"
+				Property="BorderThickness"
+				Value="1" />
+		<Setter Property="Background"
+				Value="Transparent" />
+
+		<Setter x:Uid="Setter_10"
+				Property="ScrollViewer.HorizontalScrollBarVisibility"
+				Value="Auto" />
+		<Setter x:Uid="Setter_11"
+				Property="ScrollViewer.VerticalScrollBarVisibility"
+				Value="Auto" />
+		<Setter x:Uid="Setter_12"
+				Property="ScrollViewer.CanContentScroll"
+				Value="true" />
+		<Setter x:Uid="Setter_13"
+				Property="VerticalContentAlignment"
+				Value="Center" />
+		<Setter x:Uid="Setter_65"
+				Property="behavoir:ItemSourceFilterBehavior.IsFilterEnabled"
+				Value="True" />
+		<Setter x:Uid="Setter_14"
+				Property="Template">
+			<Setter.Value>
+				<ControlTemplate x:Uid="ControlTemplate_1"
+								 TargetType="{x:Type ListBox}">
+					<!--FocusManager.FocusedElement="{Binding ElementName=searchBox}"-->
+					<Border x:Uid="Bd"
+							Name="Bd"
+							Background="{TemplateBinding Background}"
+							BorderBrush="{TemplateBinding BorderBrush}"
+							BorderThickness="{TemplateBinding BorderThickness}"
+							SnapsToDevicePixels="true"
+							Padding="1">
+						<DockPanel>
+
+							<controls:SearchBox Margin="-2,-2,-2,0"
+												x:Name="searchBox"
+												DockPanel.Dock="Top"
+												Visibility="{TemplateBinding behavoir:ItemSourceFilterBehavior.IsFilterEnabled, Converter={StaticResource boolToVisibility}}" />
+							
+
+							<ScrollViewer x:Uid="ScrollViewer_1"
+										  Padding="{TemplateBinding Padding}"
+										  KeyboardNavigation.TabIndex="2"
+										  Focusable="false">
+								<ItemsPresenter x:Uid="ItemsPresenter_1"
+												KeyboardNavigation.TabIndex="3"
+												SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+									<i:Interaction.Behaviors>
+										<behavoir:ItemSourceFilterBehavior x:Uid="itemSourceFilterBehavior"
+																		   x:Name="itemSourceFilterBehavior"
+																		   TextBox="{Binding ElementName=searchBox}" />
+									</i:Interaction.Behaviors>
+								</ItemsPresenter>
+							</ScrollViewer>
+
+						</DockPanel>
+
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger x:Uid="Trigger_1"
+								 Property="IsEnabled"
+								 Value="false">
+							<Setter x:Uid="Setter_15"
+									Property="Opacity"
+									Value="0.7" />
+							<Setter x:Uid="Setter_16"
+									Property="Foreground"
+									Value="LightGray" />
+						</Trigger>
+						<Trigger x:Uid="Trigger_2"
+								 Property="IsGrouping"
+								 Value="true">
+							<Setter x:Uid="Setter_17"
+									Property="ScrollViewer.CanContentScroll"
+									Value="false" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
+
+
+</ResourceDictionary>

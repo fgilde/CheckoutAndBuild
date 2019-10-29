@@ -1,0 +1,285 @@
+﻿<UserControl x:Class="FG.CheckoutAndBuild2.Controls.ChangesSectionView"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+			 xmlns:shell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+			 xmlns:checkoutAndBuild2="clr-namespace:FG.CheckoutAndBuild2"
+			 xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+			 xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
+			 mc:Ignorable="d"
+			 d:DesignHeight="300"
+			 d:DesignWidth="300"
+			 DataContext="{Binding RelativeSource={RelativeSource Self}}">
+
+	<UserControl.Resources>
+		<controls:ChangesetCommentConverter x:Key="ChangesetCommentConverter" />
+		<converter:BoolToVisibilityConverter x:Key="boolToVis2"/>
+		<converter:BuildDetailToPathConverter x:Key="buildDetailToPath" />
+		<converter:BuildDetailToBrushConverter x:Key="buildDetailToColor" />
+	</UserControl.Resources>
+
+	<Grid Margin="6,6,6,6">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+		<Border HorizontalAlignment="Right"
+				Width="60"
+				Visibility="{Binding ParentSection.SliderVisibility}"
+				Margin="0,-10,0,0">
+			<Slider Style="{StaticResource COABSliderStyle}"
+					Maximum="{Binding ParentSection.ItemCount}"
+					Minimum="5"
+					ToolTip="{Binding ParentSection.DisplayCount}"
+					Value="{Binding ParentSection.DisplayCount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+		</Border>
+		<!-- Action links -->
+		<WrapPanel Orientation="Horizontal"
+				   Visibility="{Binding ParentSection.IsBusy, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Grid.Row="0"
+				   Margin="0,0,0,6">
+			<TextBlock><Hyperlink x:Name="historyLink"
+								  Click="historyLink_Click">View history</Hyperlink></TextBlock>
+			<TextBlock Margin="6,0,0,0">
+				<Hyperlink x:Name="findChange"
+								  Click="findChangeset">Find Changeset</Hyperlink></TextBlock>
+			<TextBlock Margin="6,0,0,0"
+					   Visibility="{Binding ParentSection.IsInUserInfoPage, Converter={StaticResource boolToVis2}, ConverterParameter=True}">
+				<Hyperlink x:Name="viewAllRecent"
+						   Click="viewAllRecentChanges">View all Recent changes</Hyperlink></TextBlock>
+		</WrapPanel>
+
+		<ProgressBar Style="{DynamicResource COABProgressBar}"
+					 Visibility="{Binding ParentSection.IsBusy, Converter={StaticResource boolToVis2}}"
+					 IsIndeterminate="True"
+					 Minimum="0"
+					 Grid.Row="0"
+					 VerticalAlignment="Top"
+					 Margin="16,0,10,0"
+					 Background="LightSteelBlue"
+					 BorderBrush="Transparent"
+					 Height="4"
+					 Foreground="Green" />
+
+		<!-- Changesets list view -->
+		<TextBlock Margin="0,10,0,0"
+				   Grid.Row="1"
+				   HorizontalAlignment="Center"
+				   Visibility="{Binding ParentSection.HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=False}"
+				   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ToolboxDisabledContentMouseOverTextBrushKey}}" Text="No Changes found" />
+		
+		<ListView x:Name="changesetList"
+				  Grid.Row="1"
+				  Visibility="{Binding ParentSection.HasItems, Converter={StaticResource boolToVis2}, ConverterParameter=True}"
+				  ItemsSource="{Binding Path=ParentSection.Changesets}"
+				  BorderThickness="0"				  				 
+				  SelectionMode="Single"
+				  SelectionChanged="ChangesetList_OnSelectionChanged"
+				  Style="{StaticResource COABListViewStyle}"
+				  behavoir:ItemSourceFilterBehavior.PropertyNameToFilter="Comment"
+				  ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+				  MouseDoubleClick="changesetList_MouseDoubleClick"
+				  KeyDown="changesetList_KeyDown">
+			<ListView.View>
+				<GridView>
+					<GridView.ColumnHeaderContainerStyle>
+						<Style>
+							<Setter Property="FrameworkElement.Visibility"
+									Value="Collapsed" />
+						</Style>
+					</GridView.ColumnHeaderContainerStyle>
+					<GridViewColumn>
+						<GridViewColumnHeader Content="BuildDetail" />
+						<GridViewColumn.CellTemplate>
+							<DataTemplate>
+								<Grid Visibility="{Binding BuildDetailVisibility}">
+									<Viewbox Height="10"
+											 Width="10">
+										<Path Data="{Binding TriggeredBuildDetail, Converter={StaticResource buildDetailToPath}}"
+											  Fill="{Binding TriggeredBuildDetail, Converter={StaticResource buildDetailToColor}}" />
+										
+									</Viewbox>
+									<Grid.ToolTip>
+										<Grid>
+											<Grid.RowDefinitions>
+												<RowDefinition Height="Auto" />
+												<RowDefinition Height="Auto" />
+												<RowDefinition Height="Auto" />
+											</Grid.RowDefinitions>
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="Auto" />
+												<ColumnDefinition Width="*" />
+											</Grid.ColumnDefinitions>
+
+
+											<TextBlock Grid.Row="0"
+													   Grid.Column="0"
+													   Margin="0,0,6,3"
+													   Text="BuildNumber:"
+													   FontWeight="Bold" />
+											<TextBlock Grid.Row="0"
+													   Grid.Column="1"
+													   Margin="0,0,0,3"
+													   Text="{Binding Path=TriggeredBuildDetail.BuildNumber}" />
+
+											<TextBlock Grid.Row="1"
+													   Grid.Column="0"
+													   Margin="0,0,6,3"
+													   Text="RequestedFor:"
+													   FontWeight="Bold" />
+											<TextBlock Grid.Row="1"
+													   Grid.Column="1"
+													   Margin="0,0,0,3"
+													   Text="{Binding Path=TriggeredBuildDetail.RequestedFor}" />
+
+											<TextBlock Grid.Row="2"
+													   Grid.Column="0"
+													   Margin="0,0,6,3"
+													   Text="Status:"
+													   FontWeight="Bold" />
+											<TextBlock Grid.Row="2"
+													   Grid.Column="1"
+													   Margin="0,0,0,3"
+													   Text="{Binding Path=TriggeredBuildDetail.Status}" />
+
+										</Grid>
+									</Grid.ToolTip>
+								</Grid>
+								
+							</DataTemplate>
+						</GridViewColumn.CellTemplate>
+					</GridViewColumn>
+					<GridViewColumn>
+						<GridViewColumnHeader Content="Changeset" />
+						<GridViewColumn.CellTemplate>
+							<DataTemplate>
+								<teamExplorer:TextLink Command="{x:Static checkoutAndBuild2:StaticCommands.ViewChangesetDetailsCommand}"
+													   CommandParameter="{Binding Path=Changeset.ChangesetId}"
+													   Text="{Binding Path=Changeset.ChangesetId}" />
+							</DataTemplate>
+						</GridViewColumn.CellTemplate>
+					</GridViewColumn>
+					<GridViewColumn >
+						<GridViewColumnHeader Content="Owner" />
+						<GridViewColumn.CellTemplate>
+							<DataTemplate>
+								<teamExplorer:TextLink x:Name="userLink"													   
+													   Command="{x:Static checkoutAndBuild2:StaticCommands.UserInfoCommand}"
+													   Visibility="{Binding RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type controls:ChangesSectionView}}, Path=ParentSection.IsUserNameVisible, Converter={StaticResource boolToVis2}}"
+													   CommandParameter="{Binding Path=Changeset.Owner}"
+													   Text="{Binding Path=OwnerDisplayName}" />
+							</DataTemplate>
+						</GridViewColumn.CellTemplate>
+					</GridViewColumn>
+					<GridViewColumn>
+						<GridViewColumnHeader Content="Date" />
+						<GridViewColumn.CellTemplate>
+							<DataTemplate>
+								<TextBlock Text="{Binding Path=Changeset.CreationDate, ConverterCulture=de-DE}" />
+							</DataTemplate>
+						</GridViewColumn.CellTemplate>
+					</GridViewColumn>
+					<GridViewColumn>
+						<GridViewColumnHeader Content="Comment" />
+						<GridViewColumn.CellTemplate>
+							<DataTemplate>
+								<TextBlock Text="{Binding Path=Changeset.Comment, Converter={StaticResource ChangesetCommentConverter}}" />
+							</DataTemplate>
+						</GridViewColumn.CellTemplate>
+					</GridViewColumn>
+				</GridView>
+			</ListView.View>
+			<ListView.ItemContainerStyle>				
+				<Style TargetType="ListViewItem"
+					   BasedOn="{x:Null}">
+					<Style.Resources>
+						<SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"
+										 Color="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuItemMouseOverColorKey}}" />
+					</Style.Resources>
+					<Setter Property="BorderThickness"
+							Value="0" />
+					<Setter Property="Border.CornerRadius"
+							Value="0" />
+					<Setter Property="Foreground"
+							Value="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}" />
+					<Setter Property="ToolTip">
+						<Setter.Value>
+							<Grid>
+								<Grid.RowDefinitions>
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+									<RowDefinition Height="Auto" />
+								</Grid.RowDefinitions>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="Auto" />
+									<ColumnDefinition Width="*" />
+								</Grid.ColumnDefinitions>
+
+
+								<TextBlock Grid.Row="0"
+										   Grid.Column="0"
+										   Margin="0,0,6,3"
+										   Text="Changeset ID:"
+										   FontWeight="Bold" />
+								<TextBlock Grid.Row="0"
+										   Grid.Column="1"
+										   Margin="0,0,0,3"
+										   Text="{Binding Path=Changeset.ChangesetId}" />
+
+								<TextBlock Grid.Row="1"
+										   Grid.Column="0"
+										   Margin="0,0,6,3"
+										   Text="Owner:"
+										   FontWeight="Bold" />
+								<TextBlock Grid.Row="1"
+										   Grid.Column="1"
+										   Margin="0,0,0,3"
+										   Text="{Binding Path=Changeset.OwnerDisplayName}" />
+
+								<TextBlock Grid.Row="2"
+										   Grid.Column="0"
+										   Margin="0,0,6,3"
+										   Text="Date:"
+										   FontWeight="Bold" />
+								<TextBlock Grid.Row="2"
+										   Grid.Column="1"
+										   Margin="0,0,0,3"
+										   Text="{Binding Path=Changeset.CreationDate, ConverterCulture=de-DE}" />
+
+								<TextBlock Grid.Row="3"
+										   Grid.Column="0"
+										   Margin="0,0,6,3"
+										   Text="Comment:"
+										   FontWeight="Bold" />
+								<TextBlock Grid.Row="3"
+										   Grid.Column="1"
+										   Margin="0,0,0,3"
+										   Text="{Binding Path=Changeset.Comment}"
+										   TextWrapping="Wrap"
+										   MaxWidth="500" />
+							</Grid>
+						</Setter.Value>
+					</Setter>
+					<Style.Triggers>
+						<Trigger Property="IsSelected"
+								 Value="True">
+							<Setter Property="Background"
+									Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuItemMouseOverBrushKey}}" />
+						</Trigger>
+						<Trigger Property="IsMouseOver"
+								 Value="True">
+							<Setter Property="Background"
+									Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuItemMouseOverBrushKey}}" />
+						</Trigger>
+					</Style.Triggers>
+				</Style>
+			</ListView.ItemContainerStyle>
+		</ListView>
+	</Grid>
+</UserControl>

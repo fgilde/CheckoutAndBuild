@@ -1,0 +1,332 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+					xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+					xmlns:viewModels="clr-namespace:FG.CheckoutAndBuild2.ViewModels"
+					xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
+					xmlns:themes="clr-namespace:FG.CheckoutAndBuild2.Themes"
+					xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
+					xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+					xmlns:teamExplorer="clr-namespace:Microsoft.TeamFoundation.Controls.WPF.TeamExplorer;assembly=Microsoft.TeamFoundation.Controls"
+					xmlns:properties="clr-namespace:FG.CheckoutAndBuild2.Properties"
+					xmlns:transition="clr-namespace:FG.CheckoutAndBuild2.Controls.Transition"
+					xmlns:checkoutAndBuild2="clr-namespace:FG.CheckoutAndBuild2"
+					xmlns:charts="clr-namespace:DocumentFormat.OpenXml.Drawing.Charts;assembly=DocumentFormat.OpenXml"
+					xmlns:common="clr-namespace:FG.CheckoutAndBuild2.Common">
+
+    <themes:ProjectViewModelTemplateSelector x:Key="projectViewModelTemplateSelector" />
+
+    <converter:SolutionListItemIconConverter x:Key="SolutionListItemIconConverter"
+											 x:Uid="SolutionListItemIconConverter" />
+
+    <converter:BoolToVisibilityConverter x:Key="boolToVis" />
+    <converter:NullToVisibilityConverter x:Key="operationVisConverter" />
+    <converter:NegationConverter x:Key="negationConv" />
+    <converter:BoolToFontWeightConverter x:Key="boolToFontWeight" />
+
+    <DataTemplate x:Key="ProjectViewModelOperationTemplate"
+				  DataType="{x:Type viewModels:ProjectViewModel}">
+        <DockPanel HorizontalAlignment="Stretch">
+
+
+            <StackPanel Orientation="Horizontal"
+						Margin="0,0,6,0"
+						x:Name="ToolsPanel"
+						DockPanel.Dock="Right">
+                <Grid Width="130">
+                    <ProgressBar Style="{DynamicResource COABProgressBar}"
+								 IsIndeterminate="{Binding Path=CurrentOperation.IsIndeterminate}"
+								 Background="LightSteelBlue"
+								 Height="16"
+								 Minimum="0"
+								 Maximum="100"
+								 Value="{Binding Path=CurrentOperation.Progress}"
+								 BorderBrush="Transparent"
+								 Foreground="{Binding CurrentOperation.ColorBrush, UpdateSourceTrigger=PropertyChanged}" >
+                    </ProgressBar>
+
+                    <TextBlock Text="{Binding CurrentOperation.StatusText, UpdateSourceTrigger=PropertyChanged}"
+							   VerticalAlignment="Center"
+							   FontSize="10"
+							   FontStyle="Italic"
+							   TextAlignment="Center" />
+                </Grid>
+                <!-- Cancel instead -->
+
+                <Button Width="20" Height="20" MinWidth="0"                           
+                            Padding="2"
+                            Visibility="{Binding MainViewModel.IsPaused, Converter={StaticResource boolToVis}, ConverterParameter=False}"
+                            Margin="8,0,16,0"
+                            Command="{Binding CancelCommand}"                            
+                            Background="#01FFFFFF" 
+                            Panel.ZIndex="99"
+                            ToolTip="Cancel this project"
+                            BorderThickness="0,0,0,1">
+                    <Border>
+                        <Viewbox>
+                            <Grid>
+                                <Path Data="{x:Static common:Pathes.Cancel}" Stretch="Uniform" Opacity="0.8" Fill="DarkRed" Width="16" Height="16" Margin="0,0,0,0" />
+                            </Grid>
+                        </Viewbox>
+
+                    </Border>
+                </Button>
+
+            </StackPanel>
+
+
+
+            <DockPanel>
+                <Grid DockPanel.Dock="Left">
+
+                    <controls:LoadingWait Height="20"                     
+                                          IsSpinning="{Binding MainViewModel.IsPaused, Converter={StaticResource negationConv}}"
+                                          IsEnabled="{Binding IsBusy, Converter={StaticResource negationConv}}"
+                                          Width="20" />
+                </Grid>
+                <TextBlock Text="{Binding SolutionFileName}"
+                           IsEnabled="{Binding IsBusy, Converter={StaticResource negationConv}}"
+						   Margin="4,0,0,0"
+						   MaxWidth="150"
+						   TextTrimming="CharacterEllipsis"
+						   FontStyle="Italic"
+						   HorizontalAlignment="Left"
+						   VerticalAlignment="Center" />
+            </DockPanel>
+
+        </DockPanel>
+
+    </DataTemplate>
+
+
+    <DataTemplate x:Key="DefaultContentTemplate"
+				  DataType="{x:Type viewModels:ProjectViewModel}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="17" />
+            </Grid.ColumnDefinitions>
+
+            <DockPanel Grid.Column="0" HorizontalAlignment="Stretch">
+
+                <Grid Margin="0,0,6,0"							
+							x:Name="ToolsPanel"
+							Visibility="{Binding IsIncluded, Converter={StaticResource boolToVis}}"
+							DockPanel.Dock="Right">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <controls:DropDownTextLink x:Name="serviceDropDownTextLink"
+											   Margin="0,3,6,0"											   
+											   Text="{Binding ServicesCaptionSmall}"
+											   FontSize="11"
+											   CommandParameter="{Binding ElementName=popup}"
+											   Command="{Binding ShowOptionsPopupCommand}" >
+                        <controls:DropDownTextLink.ToolTip>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="The Included services for this Solution" />
+                                <TextBlock Text="{Binding ServicesCaption}" />
+                                <TextBlock Text="{Binding BuildPropertiesCaption, FallbackValue='Build Properties'}" />
+                                <TextBlock Text="{Binding BuildTargetsCaption, FallbackValue='Build Targets'}" />
+                            </StackPanel>
+                        </controls:DropDownTextLink.ToolTip>
+                    </controls:DropDownTextLink>
+
+                    <Popup x:Name="popup"					   		  
+						  
+						   Grid.Column="0"
+						   MinWidth="140"
+						   PlacementTarget="{Binding ElementName=serviceDropDownTextLink}"
+						   Placement="Left"
+						   HorizontalOffset="{Binding ElementName=serviceDropDownTextLink, Path=ActualWidth}"
+						   VerticalOffset="{TemplateBinding ActualHeight}"
+						   PopupAnimation="Slide"
+						   AllowsTransparency="True"					   
+						   StaysOpen="False"
+						   Focusable="True">
+                        <Border Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+								BorderBrush="Black"
+								BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition />
+                                    <RowDefinition Height="20" />
+                                </Grid.RowDefinitions>
+                                <ItemsControl ItemsSource="{Binding ServiceSelectors}"
+											  Margin="0,5">
+                                    <ItemsControl.Resources>
+                                        <Style TargetType="{x:Type CheckBox}">
+                                            <Setter Property="Margin"
+													Value="7,3" />
+                                            <Setter Property="Background"
+													Value="Transparent" />
+                                            <Setter Property="Foreground"
+													Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                        </Style>
+                                    </ItemsControl.Resources>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="1" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+
+                                <transition:PageTransition Grid.Row="0"
+														   x:Uid="TransitionControl"
+														   TransitionType="Slide"
+														   AnimationDuration="0:0:.25"
+														   x:Name="TransitionControl" />
+
+                                <Button Command="{Binding SlideToOptionsCommand}"
+										Grid.Row="1"										  
+										CommandParameter="{Binding ElementName=TransitionControl}"
+										Content="Options" />
+                                <Button Command="{x:Static checkoutAndBuild2:StaticCommands.ShowPropertiesCommand}"
+										CommandParameter="{Binding}"
+										Grid.Row="1"										
+										Content="Options" />
+                            </Grid>
+                        </Border>
+                    </Popup>
+
+                    <TextBox Text="{Binding BuildPriority, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+							 Width="30"
+							 x:Name="buildPrioTextBox"
+							 Grid.Column="1"
+							 ToolTip="{x:Static properties:Texts.BuildPrioTooltip}"
+							 TextAlignment="Right"
+							 Style="{DynamicResource COABTextBoxStyle}" />
+
+                </Grid>
+
+
+
+                <DockPanel IsEnabled="{Binding IsBusy, Converter={StaticResource negationConv}}">
+
+                    <Button Height="18"
+							Width="18"
+							MaxWidth="18"
+							MinWidth="18"
+							Padding="0"
+							HorizontalContentAlignment="Stretch"
+							VerticalContentAlignment="Stretch"
+							BorderBrush="Transparent"
+							Command="{Binding ShowErrorContentCommand}"
+							Background="Transparent">
+                        <Viewbox>
+                            <Path Data="{Binding ImageGeometry}"
+								  Fill="{Binding ImageBrush}" />
+                        </Viewbox>
+                    </Button>
+
+                    <teamExplorer:TextLink Margin="4,0,0,0"
+										   MaxWidth="150"
+										   TextTrimming="CharacterEllipsis"
+										   FontStyle="Italic"
+										   HorizontalAlignment="Left"
+										   VerticalAlignment="Center"
+										   Text="{Binding SolutionFileName}"										   
+										   FontWeight="{Binding HasChanges, Converter={StaticResource boolToFontWeight}}"
+										   Command="{Binding ShowErrorContentCommand}">
+                    </teamExplorer:TextLink>
+
+                </DockPanel>
+
+            </DockPanel>
+
+            <teamExplorer:TextLink Text="-"
+								   FontSize="15"
+								   Grid.Column="1"					
+								   Margin="8,0,0,0"
+								   ToolTip="Remove this Custom Project"
+								   Command="{Binding RemoveCustomSolutionCommand}"
+								   Visibility="{Binding IsManuallyAdded, Converter={StaticResource boolToVis}}" />
+
+        </Grid>
+    </DataTemplate>
+
+
+
+    <DataTemplate x:Key="ProjectViewModelDefaultTemplate"
+				  DataType="{x:Type viewModels:ProjectViewModel}">
+        <Grid Height="20">
+            <ContentControl Visibility="{Binding CurrentOperation, Converter={StaticResource operationVisConverter}}"
+							Content="{Binding}"
+							Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+							ContentTemplate="{StaticResource ProjectViewModelOperationTemplate}" />
+
+            <ContentControl Visibility="{Binding CurrentOperation, Converter={StaticResource operationVisConverter}, ConverterParameter=True}"
+							Content="{Binding}"
+							Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+							ContentTemplate="{StaticResource DefaultContentTemplate}" />
+            <Grid.ToolTip>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+
+                    <TextBlock Grid.Row="0"
+							   Grid.Column="0"
+							   Margin="0,0,6,3"
+							   Text="Path"
+							   FontWeight="Bold" />
+                    <TextBlock Grid.Row="0"
+							   Grid.Column="1"
+							   Margin="0,0,0,3"
+							   Text="{Binding Path=ItemPath}" />
+
+                    <TextBlock Grid.Row="1"
+							   Grid.Column="0"
+							   Margin="0,0,6,3"
+							   Text="ServerItem"
+							   FontWeight="Bold" />
+                    <TextBlock Grid.Row="1"
+							   Grid.Column="1"
+							   Margin="0,0,0,3"
+							   Text="{Binding Path=ServerItem}" />
+
+                    <TextBlock Grid.Row="2"
+							   Grid.Column="0"
+							   Margin="0,0,6,3"
+							   Text="Has Changes:"
+							   FontWeight="Bold" />
+                    <TextBlock Grid.Row="2"
+							   Grid.Column="1"
+							   Margin="0,0,0,3"
+							   Text="{Binding Path=HasChanges}" />
+
+                    <TextBlock Grid.Row="3"
+							   Grid.Column="0"
+							   Margin="0,0,6,3"
+							   Text="WorkingFolder:"
+							   FontWeight="Bold" />
+                    <TextBlock Grid.Row="3"
+							   Grid.Column="1"
+							   Margin="0,0,0,3"
+							   Text="{Binding Path=ParentWorkingFolder.Name}"
+							   TextWrapping="Wrap"
+							   MaxWidth="500" />
+                    <TextBlock Grid.Row="4"
+							   Grid.Column="0"
+							   Margin="0,0,6,3"
+							   Text="Build Priority:"
+							   FontWeight="Bold" />
+                    <TextBlock Grid.Row="4"
+							   Grid.Column="1"
+							   Margin="0,0,0,3"
+							   Text="{Binding BuildPriority}"
+							   TextWrapping="Wrap"
+							   MaxWidth="500" />
+                </Grid>
+            </Grid.ToolTip>
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>

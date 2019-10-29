@@ -1,0 +1,103 @@
+﻿<UserControl x:Uid="UserControl_1" x:Class="FG.CheckoutAndBuild2.Controls.LoadingWait"
+			 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+			 Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuGroupHeaderLinkTextBrushKey}}"
+             IsVisibleChanged="HandleVisibleChanged">
+	
+		<Viewbox x:Uid="Viewbox_1" Width="{Binding Width}"
+			 Height="{Binding Height}"
+			 HorizontalAlignment="Center"
+			 VerticalAlignment="Center">
+		<Grid x:Uid="LayoutRoot" x:Name="LayoutRoot"
+			  Background="Transparent"
+			  ToolTip="Please wait"
+			  HorizontalAlignment="Center"
+			  VerticalAlignment="Center">
+			<Canvas x:Uid="Canvas_1" RenderTransformOrigin="0.5,0.5"
+					HorizontalAlignment="Center"
+					VerticalAlignment="Center"
+					Width="120"
+					Height="120"
+					Loaded="HandleLoaded"
+					Unloaded="HandleUnloaded">
+				<Ellipse x:Uid="C0" x:Name="C0"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+						 Opacity="1.0" />
+				<Ellipse x:Uid="C1" x:Name="C1"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.9" />
+				<Ellipse x:Uid="C2" x:Name="C2"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.8" />
+				<Ellipse x:Uid="C3" x:Name="C3"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.7" />
+				<Ellipse x:Uid="C4" x:Name="C4"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.6" />
+				<Ellipse x:Uid="C5" x:Name="C5"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.5" />
+				<Ellipse x:Uid="C6" x:Name="C6"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.4" />
+				<Ellipse x:Uid="C7" x:Name="C7"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+                         Opacity="0.3" />
+				<Ellipse x:Uid="C8" x:Name="C8"
+						 Width="20"
+						 Height="20"
+						 Canvas.Left="0"
+						 Canvas.Top="0"
+						 Stretch="Fill"
+                         Fill="{Binding Foreground}"
+						 Opacity="0.2" />
+				<Canvas.RenderTransform>
+					<RotateTransform x:Uid="SpinnerRotate" x:Name="SpinnerRotate"
+									 Angle="0" />
+				</Canvas.RenderTransform>
+			</Canvas>
+		</Grid>
+	</Viewbox>
+</UserControl>
