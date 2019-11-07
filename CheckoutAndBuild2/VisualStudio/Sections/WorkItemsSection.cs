@@ -199,7 +199,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 			base.Initialize(sender, provider, context);
 			IsBusy = true;
 			if (UserContext == null)
-				UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+				UserContext = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
 			else
 				IsInUserInfoPage = true;
 

@@ -49,7 +49,7 @@ namespace FG.CheckoutAndBuild2.Controls
 
 		private void showMyUserInfoClick(object sender, RoutedEventArgs e)
 		{			
-			TeamExplorerUtils.Instance.NavigateToPage(GuidList.userInfoPage, tfsContext.ServiceProvider, new UserInfoContext(tfsContext.VersionControlServer.AuthorizedIdentity));
+			TeamExplorerUtils.Instance.NavigateToPage(GuidList.userInfoPage, tfsContext.ServiceProvider, new UserInfoContext(tfsContext.VersionControlServer?.AuthorizedIdentity));
 		}
 
 		private void WorkItemList_OnMouseMove(object sender, MouseEventArgs e)

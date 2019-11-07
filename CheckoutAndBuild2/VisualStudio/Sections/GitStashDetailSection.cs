@@ -109,7 +109,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
         {
             base.Initialize(sender, provider, context);
             if (UserContext == null)
-                UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+                UserContext = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
             StashInfo = StashInfo ?? context as GitStashInfo;
             IsVisible = TfsContext.IsGitConnected && StashInfo != null;
         }

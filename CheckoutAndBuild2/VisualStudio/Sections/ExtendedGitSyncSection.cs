@@ -60,7 +60,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 		    IsVisible = false;
 			base.Initialize(sender, provider, context);
 		    if (UserContext == null)
-		        UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+		        UserContext = new UserInfoContext(TfsContext?.VersionControlServer?.AuthorizedIdentity);
         }
 
 
