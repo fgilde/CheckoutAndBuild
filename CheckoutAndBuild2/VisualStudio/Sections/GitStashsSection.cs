@@ -241,8 +241,8 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
         {
             base.Initialize(sender, provider, context);
             if (UserContext == null)
-                UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
-            IsVisible = TfsContext.IsGitConnected;
+                UserContext = new UserInfoContext(TfsContext?.VersionControlServer?.AuthorizedIdentity);
+            IsVisible = TfsContext?.IsGitConnected ?? true;
             Load();
         }
 

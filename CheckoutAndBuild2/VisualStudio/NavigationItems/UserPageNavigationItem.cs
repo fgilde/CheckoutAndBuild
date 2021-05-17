@@ -61,7 +61,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio.NavigationItems
 	        if (settingsService != null && settingsService.Get(SettingsKeys.ShowUserInfoLinkKey, true) &&
 	            TfsContext?.VersionControlServer?.AuthorizedIdentity != null)
 	        {
-	            user = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+	            user = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
 	            Text = $"Info {user.UserName}";
 	            IsVisible = true;
 	            var _image = await TfsContext.IdentityManager.GetImageAsync(user.Identity);

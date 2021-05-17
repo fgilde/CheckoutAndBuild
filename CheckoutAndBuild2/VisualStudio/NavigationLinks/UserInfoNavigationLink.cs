@@ -34,7 +34,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio.NavigationLinks
 		{
 			if (TfsContext != null && TfsContext.VersionControlServer != null &&
 				TfsContext.VersionControlServer.AuthorizedIdentity != null)
-				Context = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+				Context = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
 		}
 	}
 }
