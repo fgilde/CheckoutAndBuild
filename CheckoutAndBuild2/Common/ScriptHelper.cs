@@ -229,6 +229,7 @@ namespace FG.CheckoutAndBuild2.Common
 							onError(args.Data);
 					};
 					//p.EnableRaisingEvents = true;
+                    processInfo.StandardOutputEncoding = Encoding.UTF8;
 				}
 
 				p.EnableRaisingEvents = true;

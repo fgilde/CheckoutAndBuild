@@ -38,7 +38,7 @@ namespace FG.CheckoutAndBuild2.VisualStudio
         {
             var dte2 = serviceProvider.Get<DTE2>();
             var vsVersion = Version.Parse(dte2.Version);
-
+            IExtensionReference r;
             return extension.References.Any(t => vsVersion >= t.VersionRange.Minimum && vsVersion <= t.VersionRange.Maximum);
         }
 

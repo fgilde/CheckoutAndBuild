@@ -122,8 +122,8 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 		{			
 			base.Initialize(sender, provider, context);
 			IsBusy = true;
-			if (UserContext == null)
-				UserContext = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
+			if (UserContext == null && TfsContext.VersionControlServer != null)
+				UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
 			await RefreshAsync();
 		}
 
@@ -140,8 +140,11 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 			}
 			try
 			{
-				UserWorkspaces.AddRange(
-					(await TfsContext.GetWorkspacesAsync(UserContext.UserName, null)).Where(workspace => !workspace.IsLocal).ToArray());
+                if(UserContext != null)
+                {
+                    UserWorkspaces.AddRange(
+                        (await TfsContext.GetWorkspacesAsync(UserContext.UserName, null)).Where(workspace => !workspace.IsLocal).ToArray());
+                }
 				IsVisible = UserWorkspaces.Any();
 				if (IsVisible)
 				{

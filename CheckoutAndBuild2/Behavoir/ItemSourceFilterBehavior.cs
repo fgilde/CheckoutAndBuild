@@ -9,12 +9,12 @@
 // Alle Rechte vorbehalten. All rights reserved.
 //============================================================================================
 
+using Microsoft.Xaml.Behaviors;
 using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Interactivity;
 
 namespace FG.CheckoutAndBuild2.Behavoir
 {

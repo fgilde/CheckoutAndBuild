@@ -343,11 +343,22 @@ namespace FG.CheckoutAndBuild2.ViewModels
             {
                 if (projects == null)
                 {
-                    projects = new ProjectCollection();
+                    var globalProperties = new Dictionary<string, string>
+                    {
+                        {"SolutionDir", new FileInfo(ItemPath).DirectoryName}
+                    };
+                    projects = new ProjectCollection(globalProperties);
                     foreach (var p in this.ToSolution().Projects.Where(p => p.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat))
                     {
                         var p1 = p;
-                        Check.TryCatch<Exception>(() => projects.LoadProject(Path.Combine(SolutionFolder, p1.RelativePath)));
+                        try
+                        {
+                            projects.LoadProject(Path.Combine(SolutionFolder, p1.RelativePath));
+                        }
+                        catch (Exception exception)
+                        {
+                            Output.WriteLine($"Error loading project {p1.ProjectName}: {exception}");
+                        }
                     }
                 }
             }

@@ -33,6 +33,7 @@ namespace FG.CheckoutAndBuild2.Services
         private const string defaultWorkSpaceName = "DEFAULTWORKSPACE";
         private const string defaultServerName = "DEFAULTSERVER";
         private const string defaultTeamName = "DEFAULTTEAM";
+	    private const string defaultSettingsFile = "settingsBackup.coab";
 
         private readonly IServiceContainer serviceContainer;
 		private readonly WritableSettingsStore settingsStore;
@@ -48,8 +49,17 @@ namespace FG.CheckoutAndBuild2.Services
 			settingsStore = vsSettingsManager.GetWritableSettingsStore(SettingsScope.UserSettings);
 
 			bool collectionExists = settingsStore.CollectionExists(collectionPath);
-			if (!collectionExists)
-				settingsStore.CreateCollection(collectionPath);
+		    if (!collectionExists)
+		    {
+		        settingsStore.CreateCollection(collectionPath);
+                var localSettingPath = GetLocalApplicationSettingsPath();
+
+		        var filename = Path.Combine(localSettingPath, defaultSettingsFile);
+		        if (System.IO.File.Exists(filename))
+		        {
+		            Import(filename);
+		        }
+		    }
 		}
 
 	    public Task<bool> CopySettingsAsync(WorkingProfile sourceProfile, Workspace sourceWorkspace,
@@ -67,29 +77,42 @@ namespace FG.CheckoutAndBuild2.Services
 	        };
 	        if (dlg.ShowDialog() == DialogResult.OK)
 	        {
-	            Dictionary<string, object> dictionary = settingsStore.GetPropertyNames(collectionPath)
-	                .ToDictionary(s => s, s => Get(s));
-	            dictionary.BinarySerialize(dlg.FileName);
+	            Export(dlg.FileName);
 	        }
 	    }
 
-	    public bool Import()
+	    public void Export(string filename)
+	    {
+	        Dictionary<string, object> dictionary = settingsStore.GetPropertyNames(collectionPath)
+	            .ToDictionary(s => s, s => Get(s));
+	        dictionary.BinarySerialize(filename);
+	    }
+
+	    public bool Import(string filename)
+	    {
+	        var hasChanged = false;
+            Dictionary<string, object> dict;
+	        SerializationHelper.TryBinaryDeserialize(filename, out dict);
+	        foreach (KeyValuePair<string, object> pair in dict)
+	        {
+	            var currentValue = Get(pair.Key);
+	            if (currentValue != pair.Value)
+	            {
+	                hasChanged = true;
+	                Set(pair.Key, pair.Value);
+	            }
+	        }
+
+	        return hasChanged;
+	    }
+
+        public bool Import()
 	    {
 	        var hasChanged = false;
             var dlg = new OpenFileDialog(){DefaultExt = "coab", FileName = "Settings.coab"};
 	        if (dlg.ShowDialog() == DialogResult.OK)
 	        {
-	            Dictionary<string, object> dict;
-	            SerializationHelper.TryBinaryDeserialize(dlg.FileName, out dict);
-	            foreach (KeyValuePair<string, object> pair in dict)
-	            {
-                    var currentValue = Get(pair.Key);
-	                if (currentValue != pair.Value)
-	                {
-	                    hasChanged = true;
-                        Set(pair.Key, pair.Value);
-	                }
-	            }	            
+	            hasChanged = Import(dlg.FileName);
 	        }
 	        return hasChanged;
 	    }
@@ -215,7 +238,7 @@ namespace FG.CheckoutAndBuild2.Services
 	        {
 	            if (targetType == null)	                            
 	                targetType = ConvertSettingsType(Check.TryCatch<SettingsType, Exception>(() => settingsStore.GetPropertyType(collectionPath, key)));
-	            
+            
 	            object result = null;
 
 	            if (targetType.IsEnum)
@@ -354,7 +377,7 @@ namespace FG.CheckoutAndBuild2.Services
 		                teamName = tfsContext.TeamProjectCollection.DisplayName;
 		            if (tfsContext.SelectedWorkspace != null && key.IsWorkspaceDepending)
 		                workSpaceName = tfsContext.SelectedWorkspace.Name;
-                    if(!string.IsNullOrEmpty(tfsContext.SelectedGitBranch) && key.IsGitBranchDepending)
+                    if(key.IsGitBranchDepending && Get(SettingsKeys.GitSettingsPerBranch, false) && !string.IsNullOrEmpty(tfsContext.SelectedGitBranch))
                         workSpaceName += $" ({tfsContext.SelectedGitBranch})";
 
                     if (key.IsProfileDepending && tfsContext.SelectedProfile != null && !tfsContext.SelectedProfile.IsDefault)
@@ -364,6 +387,7 @@ namespace FG.CheckoutAndBuild2.Services
 		    }
 		    catch (Exception e)
 		    {
+                Output.WriteLine($"Exception while reading setting '{key}': {e}");
 		        return string.Empty;
 		    }
 		}
@@ -405,5 +429,22 @@ namespace FG.CheckoutAndBuild2.Services
 		{
 			return FileHelper.EnsureDirectory(pluginPath ?? (pluginPath = Path.Combine(Path.GetDirectoryName(Assembly.GetCallingAssembly().Location), "Plugins")));
 		}
+
+	    public string GetLocalApplicationSettingsPath()
+	    {
+	        const string appSettingsDirectory = "COAB";
+	        var localSettingEnum = Environment.SpecialFolder.ApplicationData;
+	        var localSettingPath = Environment.GetFolderPath(localSettingEnum);
+	        var localApplicationSettingsPath = Path.Combine(localSettingPath,appSettingsDirectory);
+	        if (!System.IO.Directory.Exists(localApplicationSettingsPath))
+	            System.IO.Directory.CreateDirectory(localApplicationSettingsPath);
+
+	        return localApplicationSettingsPath;
+	    }
+
+	    public void MakeBackup()
+	    {
+	        Export(Path.Combine(GetLocalApplicationSettingsPath(), defaultSettingsFile));
+	    }
 	}
 }

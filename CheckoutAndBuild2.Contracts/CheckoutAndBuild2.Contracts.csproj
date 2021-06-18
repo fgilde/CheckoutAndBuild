@@ -84,6 +84,7 @@
     <Compile Include="Service\IDefaultBuildPriorityManager.cs" />
     <Compile Include="Service\IOperationService.cs" />
     <Compile Include="IProjectBuildPropertiesProvider.cs" />
+    <Compile Include="Service\IPowerShellExecutor.cs" />
     <Compile Include="Service\IScriptGenerator.cs" />
     <Compile Include="Settings\IDefaultBehavior.cs" />
     <Compile Include="Settings\IServiceSettings.cs" />

@@ -22,7 +22,12 @@ namespace FG.CheckoutAndBuild2.Types
         [DisplayName("NugetAction")]
         [Category("Nuget")]
         public NugetAction NugetAction { get; set; }
-
+        
+        [SettingsProperty(SettingsAvailability.Global, "RunParallel", "Should the restore operations be parallelized", ServiceId = ServiceIds.NugetRestoreServiceId)]
+        [DefaultValue(true)]
+        [DisplayName("RunParallel")]
+        [Category("Nuget")]
+        public bool RunParallel { get; set; }
     }
 
     public enum NugetAction

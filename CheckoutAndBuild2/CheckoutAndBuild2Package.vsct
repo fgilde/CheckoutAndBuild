@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
-	<Extern href="stdidcmd.h"/>
-	<Extern href="vsshlids.h"/>
+  <Extern href="stdidcmd.h"/>
+  <Extern href="vsshlids.h"/>
 
-	<Commands package="guidCheckoutAndBuild2Pkg">
+  <Commands package="guidCheckoutAndBuild2Pkg">
 		
-		<Groups>
+    <Groups>
 			<Group guid="guidWorkItemSearchReplace" id="WorkItemSearchReplaceMenuGroup" priority="0x200">
 				<Parent guid="WorkItemTrackingGuid" id="TEQuery"/>
 			</Group>
-			<Group guid="guidCheckoutAndBuild2CmdSet" id="MyMenuGroup" priority="0x0600">
-				<Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
-			</Group>
+      <Group guid="guidCheckoutAndBuild2CmdSet" id="MyMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
+      </Group>
 			<Group guid="guidErrorListCommandSet" id="GroupIdErrorList" priority="0x0600">
 				<Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ERRORLIST" />
 			</Group>
-		</Groups>
-
-		<Buttons>
+    </Groups>
+    
+    <Buttons>
 			<Button guid="guidWorkItemSearchReplace" id="cmdidWorkItemSearchAndReplace" priority="0x0300" type="Button">
 				<Parent guid="guidWorkItemSearchReplace" id="WorkItemSearchReplaceMenuGroup" />
 				<Icon guid="guidImages" id="bmpPicSearch" />
@@ -27,7 +27,7 @@
 					<ButtonText>Search and Replace</ButtonText>
 				</Strings>
 			</Button>
-
+			
 			<Button guid="guidErrorListCommandSet" id="commandIdErrorList" priority="0x0100" type="Button">
 				<Parent guid="guidErrorListCommandSet" id="GroupIdErrorList" />
 				<Icon guid="guidImages" id="bmpPicX" />
@@ -37,47 +37,47 @@
 					<ButtonText>Clear CheckoutAndBuild Errors</ButtonText>
 				</Strings>
 			</Button>
-		</Buttons>
+    </Buttons>
+   
+    <Bitmaps>
+      <Bitmap guid="guidImages" href="Resources\CommandImages.png" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows"/>
+    </Bitmaps>
+ 
+  </Commands>
 
-		<Bitmaps>
-			<Bitmap guid="guidImages" href="Resources\CommandImages.png" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows"/>
-		</Bitmaps>
+  <Symbols>
+    <!-- This is the package guid. -->
+    <GuidSymbol name="guidCheckoutAndBuild2Pkg" value="{07804054-fcda-4d80-aac2-abe81b9360c5}" />
+    
+    <!-- This is the guid used to group the menu commands together -->
+    <GuidSymbol name="guidCheckoutAndBuild2CmdSet" value="{56697A9C-2233-42B9-869D-277F72E0EED9}">
+      <IDSymbol name="MyMenuGroup" value="0x1020" />
+      <IDSymbol name="cmdidMyCommand" value="0x0100" />
+    </GuidSymbol>
 
-	</Commands>
-
-	<Symbols>
-		<!-- This is the package guid. -->
-		<GuidSymbol name="guidCheckoutAndBuild2Pkg" value="{9221c587-d658-438b-a9d8-16092cbc68c6}" />
-
-		<!-- This is the guid used to group the menu commands together -->
-		<GuidSymbol name="guidCheckoutAndBuild2CmdSet" value="{4ced4240-ab95-44d7-ba2f-b13772a295ce}">
-			<IDSymbol name="MyMenuGroup" value="0x1020" />
-			<IDSymbol name="cmdidMyCommand" value="0x0100" />
-		</GuidSymbol>
-
-		<GuidSymbol name="guidErrorListCommandSet" value="{95B6ABC0-1273-4238-9B8B-0D9707069C8D}">
+		<GuidSymbol name="guidErrorListCommandSet" value="{E55A1EB9-A848-446E-A3CF-5AAFBC2DF450}">
 			<IDSymbol name="GroupIdErrorList" value="0x1020" />
 			<IDSymbol name="commandIdErrorList" value="0x200" />
 		</GuidSymbol>
 
-		<GuidSymbol name="guidWorkItemSearchReplace" value="{70F60B0F-F7F8-4913-8E15-798E6A71DD9F}">
+		<GuidSymbol name="guidWorkItemSearchReplace" value="{7D3B0274-41A1-4952-A46D-EFCAD9215523}">
 			<IDSymbol name="WorkItemSearchReplaceMenuGroup" value="0x1020" />
 			<IDSymbol name="cmdidWorkItemSearchAndReplace" value="0x0300" />
 		</GuidSymbol>
-
-		<!-- GUID and Command ID for Work Item Query context menu  -->
+    
+				<!-- GUID and Command ID for Work Item Query context menu  -->
 		<GuidSymbol name="WorkItemTrackingGuid" value="{2dc8d6bb-916c-4b80-9c52-fd8fc371acc2}">
 			<IDSymbol name="TEQuery" value="0x300" />
 		</GuidSymbol>
-
-		<GuidSymbol name="guidImages" value="{ec5d446a-196d-414e-9740-8cf475ed565a}" >
-			<IDSymbol name="bmpPic1" value="1" />
-			<IDSymbol name="bmpPic2" value="2" />
-			<IDSymbol name="bmpPicSearch" value="3" />
-			<IDSymbol name="bmpPicX" value="4" />
-			<IDSymbol name="bmpPicArrows" value="5" />
-			<IDSymbol name="bmpPicStrikethrough" value="6" />
-		</GuidSymbol>
-	</Symbols>
+		
+    <GuidSymbol name="guidImages" value="{ec5d446a-196d-414e-9740-8cf475ed565a}" >
+      <IDSymbol name="bmpPic1" value="1" />
+      <IDSymbol name="bmpPic2" value="2" />
+      <IDSymbol name="bmpPicSearch" value="3" />
+      <IDSymbol name="bmpPicX" value="4" />
+      <IDSymbol name="bmpPicArrows" value="5" />
+      <IDSymbol name="bmpPicStrikethrough" value="6" />
+    </GuidSymbol>
+  </Symbols>
 
 </CommandTable>

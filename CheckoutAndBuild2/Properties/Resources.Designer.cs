@@ -173,6 +173,16 @@ namespace FG.CheckoutAndBuild2.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] nuget481 {
+            get {
+                object obj = ResourceManager.GetObject("nuget481", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] PluginManager {
             get {
                 object obj = ResourceManager.GetObject("PluginManager", resourceCulture);

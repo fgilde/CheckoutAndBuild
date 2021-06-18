@@ -9,7 +9,9 @@ using FG.CheckoutAndBuild2.Common.Commands;
 using FG.CheckoutAndBuild2.Extensions;
 using FG.CheckoutAndBuild2.Git;
 using Microsoft.TeamFoundation.VersionControl.Client;
+using Microsoft.VisualStudio.Settings;
 using ContextMenu = System.Windows.Controls.ContextMenu;
+using TaskScheduler = System.Threading.Tasks.TaskScheduler;
 
 namespace FG.CheckoutAndBuild2.ViewModels
 {

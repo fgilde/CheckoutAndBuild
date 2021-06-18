@@ -379,8 +379,8 @@ namespace FG.CheckoutAndBuild2.ViewModels
 				yield break;
 			yield return new DelegateCommand<object>("Create New Mapping...", CreateNewMapping, o => HasWorkspace) { IconImage = Images.NewSolutionFolder_6289.ToImageSource() };
 			yield return StaticCommands.Seperator;
-			yield return new DelegateCommand<object>("Edit Mapping...", EditMapping) { IconImage = Images.Folder_special_open__5844_16x.ToImageSource() };
-			yield return new DelegateCommand<object>("Delete Mapping...", DeleteMapping) { IconImage = Images.FolderOffline_7441.ToImageSource() };
+			yield return new DelegateCommand<object>("Edit Mapping...", EditMapping, o=>HasWorkspace) { IconImage = Images.Folder_special_open__5844_16x.ToImageSource() };
+            yield return new DelegateCommand<object>("Delete Mapping...", DeleteMapping,o=>HasWorkspace) { IconImage = Images.FolderOffline_7441.ToImageSource() };
 		}
 
 

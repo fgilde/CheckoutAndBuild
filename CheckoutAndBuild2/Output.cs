@@ -218,13 +218,13 @@ namespace FG.CheckoutAndBuild2
 				errorListProvider.Value.Tasks.Clear();
 		}
 
-		public static void HideNotification(Guid id)
+		public static void HideNotification(Guid id) 
 		{
 			TeamExplorerUtils.Instance.HideNotification(CheckoutAndBuild2Package.GetGlobalService<CheckoutAndBuild2Package>(), id);
 		}
 
 	    public static void ActionLink(string text, Action action, NotificationType notification = NotificationType.Information, 
-            string tooltip = "Click here to execute")
+            string tooltip = "Click here to execute.")
 	    {
             Guid id = Guid.NewGuid();
             var cmd = new DelegateCommand<object>(param =>

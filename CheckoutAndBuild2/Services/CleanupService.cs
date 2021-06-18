@@ -103,12 +103,18 @@ namespace FG.CheckoutAndBuild2.Services
                         if (!string.IsNullOrEmpty(directoryName))
                             yield return Path.GetFullPath(Path.Combine(directoryName, outputPath));
                     }
+                    var intermediateOutputPath = project.GetPropertyValue("BaseIntermediateOutputPath");
+                    if (!string.IsNullOrEmpty(intermediateOutputPath))
+                    {
+                        var directoryName = Path.GetDirectoryName(project.FullPath);
+                        if (!string.IsNullOrEmpty(directoryName))
+                            yield return Path.GetFullPath(Path.Combine(directoryName, intermediateOutputPath));
+                    }
                 }
             }
         }
 
         #endregion
-
 
         public async Task CleanSolutionsAsync(IEnumerable<ISolutionProjectModel> projectViewModels, IServiceSettings settings,
             CancellationToken cancellationToken = default(CancellationToken))

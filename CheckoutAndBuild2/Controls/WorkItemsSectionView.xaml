@@ -8,7 +8,7 @@
 			 xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"			 
 			 xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
 			 xmlns:wpfControls="clr-namespace:Microsoft.TeamFoundation.WorkItemTracking.WpfControls;assembly=Microsoft.TeamFoundation.WorkItemTracking.Controls"			 
-			 xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+			 xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
 			 xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls"
 			 mc:Ignorable="d"
 			 d:DesignHeight="300"

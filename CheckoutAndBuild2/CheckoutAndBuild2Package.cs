@@ -76,6 +76,7 @@ namespace FG.CheckoutAndBuild2
 	[ProvideService(typeof(GlobalStatusService))]
 	[ProvideService(typeof(CheckoutAndBuild2PackageManager))]
     [ProvideService(typeof(ScriptExportProvider))]
+	[ProvideService(typeof(PowerShellExecutor))]
 
     #endregion
     //[ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string)]
@@ -174,6 +175,13 @@ namespace FG.CheckoutAndBuild2
 			LoadResources();		    
         }
 
+		protected override int QueryClose(out bool canClose)
+	    {
+	        GetGlobalService<SettingsService>().MakeBackup();
+
+	        return base.QueryClose(out canClose);
+	    }
+
 		private void AddCustomCommands()
 		{
 			// Add our command handlers for menu (commands must exist in the .vsct file)
@@ -196,6 +204,10 @@ namespace FG.CheckoutAndBuild2
 
 		private void ReplaceInWorkItemsClick(object sender, EventArgs e)
 		{
+			/*
+			var teamExplorer = GetGlobalService<ITeamExplorer>();
+		    teamExplorer?.NavigateToPage(new Guid(GuidList.workItemSearchReplacePageId), teamExplorer.CurrentPage.GetService<IWorkItemQueriesExt>().SelectedQueryItems);
+			*/
 			var teamExplorer = GetGlobalService<ITeamExplorer>();
 		    teamExplorer?.NavigateToPage(new Guid(GuidList.workItemSearchReplacePageId), teamExplorer.CurrentPage.GetService<IWorkItemQueriesExt2>().SelectedQueryIds);
 		}

@@ -704,7 +704,12 @@ namespace Microsoft.Build.Construction
             proj.RelativePath = match.Groups["RELATIVEPATH"].Value.Trim();
             proj.ProjectGuid = match.Groups["PROJECTGUID"].Value.Trim();
             this.ValidateProjectRelativePath(proj);
-            if (string.Compare(strA, "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}", StringComparison.OrdinalIgnoreCase) == 0 || string.Compare(strA, "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}", StringComparison.OrdinalIgnoreCase) == 0 || (string.Compare(strA, "{F2A71F9B-5D33-465A-A702-920D77279786}", StringComparison.OrdinalIgnoreCase) == 0 || string.Compare(strA, "{C8D11400-126E-41CD-887F-60BD40844F9E}", StringComparison.OrdinalIgnoreCase) == 0) || string.Compare(strA, "{E6FDF86B-F3D1-11D4-8576-0002A516ECE8}", StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(strA, "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}", StringComparison.OrdinalIgnoreCase) == 0)
+            {
+                // ASP.NET Core project
+                proj.ProjectType = SolutionProjectType.KnownToBeMSBuildFormat;
+            }
+            else if (string.Compare(strA, "{F184B08F-C81C-45F6-A57F-5ABD9991F28F}", StringComparison.OrdinalIgnoreCase) == 0 || string.Compare(strA, "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}", StringComparison.OrdinalIgnoreCase) == 0 || (string.Compare(strA, "{F2A71F9B-5D33-465A-A702-920D77279786}", StringComparison.OrdinalIgnoreCase) == 0 || string.Compare(strA, "{C8D11400-126E-41CD-887F-60BD40844F9E}", StringComparison.OrdinalIgnoreCase) == 0) || string.Compare(strA, "{E6FDF86B-F3D1-11D4-8576-0002A516ECE8}", StringComparison.OrdinalIgnoreCase) == 0)
                 proj.ProjectType = SolutionProjectType.KnownToBeMSBuildFormat;
             else if (string.Compare(strA, "{2150E333-8FDC-42A3-9474-1A3956D46DE8}", StringComparison.OrdinalIgnoreCase) == 0)
                 proj.ProjectType = SolutionProjectType.SolutionFolder;

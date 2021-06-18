@@ -14,6 +14,7 @@ using FG.CheckoutAndBuild2.Common;
 using FG.CheckoutAndBuild2.Extensions;
 using FG.CheckoutAndBuild2.Properties;
 using FG.CheckoutAndBuild2.Types;
+using Microsoft.Build.Execution;
 
 namespace FG.CheckoutAndBuild2.Services
 {
@@ -63,10 +64,10 @@ namespace FG.CheckoutAndBuild2.Services
         {
             NugetServiceSettings nugetServiceSettings = settings.GetSettingsFromProvider<NugetServiceSettings>(model);
             return new StringBuilder()
-                .AppendLineWhen($"\"{NugetExe(model, settings)}\" restore \"{model.ItemPath}\"", s => nugetServiceSettings.NugetAction == NugetAction.Restore || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore )
+                .AppendLineWhen($"\"{NugetExe(model, settings)}\" restore -NonInteractive {AddMsBuildPath()} \"{model.ItemPath}\"", s => nugetServiceSettings.NugetAction == NugetAction.Restore || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore)
                 .AppendLinesWhen(Directory.EnumerateFiles(model.SolutionFolder, "packages.config", SearchOption.AllDirectories)
                     .Select(s => new FileInfo(s))
-                    .Select(file => $"\"{NugetExe(model, settings)}\" install \"{file.FullName}\" -OutputDirectory \"{file.Directory.Parent.FullName}\\packages\""), s => nugetServiceSettings.NugetAction == NugetAction.Install || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore).ToString();
+                    .Select(file => $"\"{NugetExe(model, settings)}\" install -NonInteractive \"{file.FullName}\" -OutputDirectory \"{file.Directory.Parent.FullName}\\packages\""), s => nugetServiceSettings.NugetAction == NugetAction.Install || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore).ToString();
         }
 
         #endregion
@@ -78,10 +79,9 @@ namespace FG.CheckoutAndBuild2.Services
             var nugetPath = settings.GetSettingsFromProvider<NugetServiceSettings>(solution).NugetExeLocation;
             var result = !string.IsNullOrEmpty(nugetPath) && File.Exists(nugetPath) ? nugetPath : Path.Combine(solution.SolutionFolder, ".nuget", "nuget.exe");
             if (!File.Exists(result))
-                result = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetCallingAssembly().Location), "Resources", "nuget35.exe"); //"nuget35.exe" //"nuget28.exe"
+                result = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetCallingAssembly().Location), "Resources", "nuget481.exe"); //"nuget35.exe" //"nuget28.exe"
             return result;
         }
-      
 
         protected override async Task ExecuteCoreAsync(IEnumerable<ISolutionProjectModel> projectViewModels, IServiceSettings settings, CancellationToken cancellationToken)
         {
@@ -89,7 +89,23 @@ namespace FG.CheckoutAndBuild2.Services
             statusService.InitOrAttach(viewModels.Length, "Nuget Restore");
             await cancellationToken.WaitWhenPaused();
             cancellationToken.Register(KillNuget);
-            await Task.WhenAll(viewModels.Select(model => RestorePackagesForSolutionAsync(model, settings,cancellationToken)));
+            if (settings.GetSettingsFromProvider<NugetServiceSettings>().RunParallel)
+                await RestoreParallelAsync(viewModels, settings, cancellationToken);
+            else
+                await RestoreSerializedAsync(viewModels, settings, cancellationToken);
+        }
+
+        private async Task RestoreParallelAsync(ISolutionProjectModel[] viewModels, IServiceSettings settings, CancellationToken cancellationToken)
+        {
+            await Task.WhenAll(viewModels.Select(model => RestorePackagesForSolutionAsync(model, settings, cancellationToken)));
+        }
+
+        private async Task RestoreSerializedAsync(ISolutionProjectModel[] viewModels, IServiceSettings settings, CancellationToken cancellationToken)
+        {
+            foreach (var solutionProjectModel in viewModels.OrderBy(solution => solution.BuildPriority))
+            {
+                await RestorePackagesForSolutionAsync(solutionProjectModel, settings, cancellationToken);
+            }
         }
 
         private void KillNuget()
@@ -97,7 +113,7 @@ namespace FG.CheckoutAndBuild2.Services
             foreach (var process in Process.GetProcesses())
             {                
                 // TODO: nur killn wenn selbst gestartet
-                if (process.ProcessName == "nuget35" || process.ProcessName == "nuget")
+                if (process.ProcessName == "nuget481" || process.ProcessName == "nuget")
                     Check.TryCatch<Exception>(()=> process.Kill());
             }            
         }
@@ -108,32 +124,44 @@ namespace FG.CheckoutAndBuild2.Services
             {
                 NugetServiceSettings nugetServiceSettings = settings.GetSettingsFromProvider<NugetServiceSettings>(projectViewModel);
                 using (new PauseCheckedActionScope(() => projectViewModel.CurrentOperation = Operations.NugetRestore, () => projectViewModel.CurrentOperation = Operations.None, cancellationToken))
-                {                    
+                {
                     var externalActionService = serviceProvider.Get<ExternalActionService>();
                     await externalActionService.RunExternalPreActions(projectViewModel, this, cancellationToken: cancellationToken);
-                    if(nugetServiceSettings.NugetAction == NugetAction.Restore || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore)
+                    if (nugetServiceSettings.NugetAction == NugetAction.Restore || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore)
                         await NugetRestoreAsync(projectViewModel, settings, cancellationToken);
                     if (nugetServiceSettings.NugetAction == NugetAction.Install || nugetServiceSettings.NugetAction == NugetAction.InstallAndRestore)
                         await NugetInstallAsync(projectViewModel, settings, cancellationToken);
                     if (nugetServiceSettings.NugetAction == NugetAction.Reinstall)
                         await NugetReinstallAsync(projectViewModel, settings, cancellationToken);
-                    await externalActionService.RunExternalPostActions(projectViewModel, this, true, cancellationToken: cancellationToken);                    
+                    await externalActionService.RunExternalPostActions(projectViewModel, this, true, cancellationToken: cancellationToken);
                     statusService.IncrementStep();
                 }
             }
         }
+        private string msBuildPath = "";
 
+        private void CheckMSBuildPath()
+        {
+            if (!Directory.Exists(msBuildPath))
+                msBuildPath = new FileInfo(new BuildParameters().NodeExeLocation).Directory?.FullName;
+        }
         private async Task NugetInstallAsync(ISolutionProjectModel projectViewModel, IServiceSettings settings, CancellationToken cancellationToken)
         {
             await Task.WhenAll(Directory.EnumerateFiles(projectViewModel.SolutionFolder, "packages.config", SearchOption.AllDirectories)
                 .Select(s => new FileInfo(s))
-                .Select(file => ScriptHelper.ExecuteScriptAsync(NugetExe(projectViewModel, settings), $"install \"{file.FullName}\" -OutputDirectory \"{file.Directory.Parent.FullName}\\packages\"", ScriptExecutionSettings.Default, cancellationToken: cancellationToken)));
+                .Select(file => ScriptHelper.ExecuteScriptAsync(NugetExe(projectViewModel, settings), $"install -NonInteractive \"{file.FullName}\" -OutputDirectory \"{file.Directory.Parent.FullName}\\packages\"", ScriptExecutionSettings.Default, cancellationToken: cancellationToken)));
         }
 
         private async Task NugetRestoreAsync(ISolutionProjectModel projectViewModel, IServiceSettings settings,
             CancellationToken cancellationToken)
         {
-            await ScriptHelper.ExecuteScriptAsync(NugetExe(projectViewModel, settings), $"restore \"{projectViewModel.ItemPath}\"", ScriptExecutionSettings.Default, cancellationToken: cancellationToken);
+            CheckMSBuildPath();
+            await ScriptHelper.ExecuteScriptAsync(NugetExe(projectViewModel, settings), $"restore -NonInteractive {AddMsBuildPath()} \"{projectViewModel.ItemPath}\"", ScriptExecutionSettings.Default, cancellationToken: cancellationToken);
+        }
+
+        private string AddMsBuildPath()
+        {
+            return $"-MSBuildPath \"{msBuildPath}\"";
         }
 
         private async Task NugetReinstallAsync(ISolutionProjectModel projectViewModel, IServiceSettings settings,

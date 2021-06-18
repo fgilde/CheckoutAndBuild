@@ -81,8 +81,8 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 		{
 		    IsVisible = false;
 			base.Initialize(sender, provider, context);
-		    if (UserContext == null)
-		        UserContext = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
+		    if (UserContext == null && TfsContext.VersionControlServer != null)
+		        UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
 		    if (context is WorkItem item)
 		    {
 		        OpenCreateBranchEdit();
@@ -131,7 +131,9 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 		}
 
 	    private async Task<IEnumerable<WorkItem>> GetWorkItems()
-	    {	        
+	    {	      
+			if (!TfsContext.IsTfsConnected)
+	            return Enumerable.Empty<WorkItem>();  
 	        var query = serviceProvider.Get<SettingsService>().Get(SettingsKeys.WorkItemSectionQueryKey(UserContext), TfsContext.WorkItemManager.GetDefaultUserWorkItemQuery(UserContext.Identity));
 	        if (string.IsNullOrEmpty(query))
 	            query = TfsContext.WorkItemManager.GetDefaultUserWorkItemQuery(UserContext.Identity);
@@ -162,25 +164,39 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 	    }
 
 	    public static string GetNameSuggestion(WorkItem workItem, string gitDir, string sourceName = "")
-	    {	        
+        {
 	        if (string.IsNullOrEmpty(sourceName))
-	            sourceName = GitHelper.GetCurrentBranch(gitDir);
-	        if (!string.IsNullOrEmpty(sourceName) && sourceName.Contains("/"))
-	            sourceName = sourceName.Split('/').LastOrDefault();
+	            sourceName = GitHelper.GetCurrentBranch(gitDir) ?? "";
+
+            string prefix = "wip/";
+
+            if (sourceName.StartsWith(prefix))
+                sourceName = sourceName.Substring(0, sourceName.LastIndexOf("/", StringComparison.OrdinalIgnoreCase));
+            else if (sourceName.Contains("/"))
+	            sourceName = sourceName.Split('/').LastOrDefault() ?? "";
 
 	        string typeName = workItem.Type.Name.ToLower();
+            typeName = typeName.Replace(" ", "");
 
-	        string prefix = "wip/";
-	        if (sourceName == "develop" || sourceName == "master")
-	        {
-	            prefix = sourceName == "develop" ? "bugfix/" : "hotfix/";
-	            sourceName = "";
-	        }
-	        if (!string.IsNullOrEmpty(sourceName) && !sourceName.EndsWith("/"))
-	            sourceName += "/";
+            if (sourceName.StartsWith(prefix))
+            {
+                if (!sourceName.EndsWith("/"))
+                    sourceName += "/";
 
-	        return $"{prefix}{sourceName}{typeName}-{workItem.Id}-{workItem.Title.Replace(" ", "")}";
-	    }
+                return $"{sourceName}{typeName}-{workItem.Id}-{workItem.Title.Replace(" ", "")}";
+            }
+
+            if (sourceName == "develop" || sourceName == "master")
+            {
+                prefix = sourceName == "develop" ? "bugfix/" : "hotfix/";
+                sourceName = "";
+            }
+
+            if (!string.IsNullOrEmpty(sourceName) && !sourceName.EndsWith("/"))
+                sourceName += "/";
+
+            return $"{prefix}{sourceName}{typeName}-{workItem.Id}-{workItem.Title.Replace(" ", "")}";
+        }
 
         private async void ExtendUI()
 	    {	        

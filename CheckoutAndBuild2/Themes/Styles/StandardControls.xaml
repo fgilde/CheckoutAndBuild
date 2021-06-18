@@ -1,8 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 					xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 					xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"					
-					xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"
-					xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+					xmlns:behavoir="clr-namespace:FG.CheckoutAndBuild2.Behavoir"					
+					xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
 					xmlns:converter="clr-namespace:FG.CheckoutAndBuild2.Converter"
 					xmlns:common="clr-namespace:FG.CheckoutAndBuild2.Common"
 					xmlns:controls="clr-namespace:FG.CheckoutAndBuild2.Controls">

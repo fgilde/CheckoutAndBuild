@@ -59,12 +59,12 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 			TfsContext.WorkItemManager.NavigateToWorkItem(uri);
 		}
 
-		public override string Title => !string.IsNullOrEmpty(Header) ? Header : $"Workitems for {UserContext.UserName}";
+		public override string Title => !string.IsNullOrEmpty(Header) ? Header : $"Workitems for {UserContext?.UserName}";
 
 	    public string Header
 		{
 			get => serviceProvider.Get<SettingsService>().Get(SettingsKeys.WorkItemSectionTitleKey(UserContext),
-			    $"Workitems for {UserContext.UserName}");
+			    $"Workitems for {UserContext?.UserName}");
 	        set
 			{
 				serviceProvider.Get<SettingsService>().Set(SettingsKeys.WorkItemSectionTitleKey(UserContext), value);
@@ -198,10 +198,19 @@ namespace FG.CheckoutAndBuild2.VisualStudio.Sections
 		{			
 			base.Initialize(sender, provider, context);
 			IsBusy = true;
-			if (UserContext == null)
-				UserContext = new UserInfoContext(TfsContext.VersionControlServer?.AuthorizedIdentity);
+		    if (UserContext == null)
+		    {
+		        if(TfsContext.VersionControlServer != null)
+		            UserContext = new UserInfoContext(TfsContext.VersionControlServer.AuthorizedIdentity);
+		    }
 			else
 				IsInUserInfoPage = true;
+
+		    if (UserContext == null)
+		    {
+		        IsBusy = false;
+		        return;
+		    }
 
 			query = !string.IsNullOrEmpty(context?.ToString()) ? context.ToString() : serviceProvider.Get<SettingsService>().Get(SettingsKeys.WorkItemSectionQueryKey(UserContext), TfsContext.WorkItemManager.GetDefaultUserWorkItemQuery(UserContext.Identity));				
 			
