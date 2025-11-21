@@ -2,7 +2,7 @@
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
         <Identity Id="07804054-fcda-4d80-aac2-abe81b9360c5" Version="2.3.1.1" Language="en-US" Publisher="Florian Gilde" />
-        <DisplayName>CheckoutAndBuild 2019</DisplayName>
+        <DisplayName>CheckoutAndBuild 2019-2026</DisplayName>
         <Description xml:space="preserve">CheckoutAndBuild2 is a Visual Studio Team Explorer Extension to manage multiple Solutions</Description>
         <MoreInfo>https://checkoutandbuild.azurewebsites.net/</MoreInfo>
         <License>lic.txt</License>
@@ -12,11 +12,11 @@
         <Tags>Checkout, Build, Teamexplorer, MultiSolution</Tags>
     </Metadata>
     <Installation InstalledByMsi="false">
-        <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[15.0, 17.0)" />
+        <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[15.0, 19.0)" />
     </Installation>
     <Dependencies>
         <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.7.2,)" />
-        <Dependency d:Source="Installed" Id="Microsoft.VisualStudio.MPF.15.0" DisplayName="Visual Studio MPF 15.0" Version="[15.0,16.0)" />
+        <Dependency d:Source="Installed" Id="Microsoft.VisualStudio.MPF.15.0" DisplayName="Visual Studio MPF 15.0" Version="[15.0,19.0)" />
     </Dependencies>
     <Assets>
         <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
@@ -26,6 +26,6 @@
         <Asset Type="Microsoft.VisualStudio.Assembly" d:Source="File" Path="CheckoutAndBuild2.Contracts.dll" AssemblyName="CheckoutAndBuild2.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" />
     </Assets>
     <Prerequisites>
-        <Prerequisite Id="Microsoft.Component.MSBuild" Version="[16.0.28517.75,17.0)" DisplayName="MSBuild" />
+        <Prerequisite Id="Microsoft.Component.MSBuild" Version="[16.0.28517.75,19.0)" DisplayName="MSBuild" />
     </Prerequisites>
 </PackageManifest>
