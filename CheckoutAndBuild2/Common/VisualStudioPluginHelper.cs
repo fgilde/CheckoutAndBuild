@@ -30,6 +30,8 @@ namespace FG.CheckoutAndBuild2.Common
 				{"14.0","Visual Studio 2015"},
 				{"15.0","Visual Studio 2017"},
 				{"16.0","Visual Studio 2019"},
+				{"17.0","Visual Studio 2022"},
+				{"18.0","Visual Studio 2025/2026"},
 			};
 
 		public Version Version { get; }

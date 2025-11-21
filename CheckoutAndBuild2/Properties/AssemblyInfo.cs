@@ -13,7 +13,7 @@ using FG.CheckoutAndBuild2.Properties;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Gilde Enterprises")]
 [assembly: AssemblyProduct(Const.ApplicationName)]
-[assembly: AssemblyCopyright("© 2019")]
+[assembly: AssemblyCopyright("© 2019-2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]   
 [assembly: ComVisible(false)]     
@@ -38,7 +38,7 @@ namespace FG.CheckoutAndBuild2.Properties
 {
 	public class Const
 	{
-		public const string ApplicationName = "CheckoutAndBuild 2019";
+		public const string ApplicationName = "CheckoutAndBuild 2019-2026";
 		public const string Version = "2.3.1.1";
 
 	    internal static string[] DefaultSupportedProjectExtensions => new[] { ".sln", ".dproj"};
