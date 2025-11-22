@@ -24,8 +24,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.TeamFoundation;
 using Microsoft.VisualStudio.TeamFoundation.VersionControl;
 using Microsoft.Win32;
-using IServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-using Solution = EnvDTE.Solution;
+
 
 namespace FG.CheckoutAndBuild2.VisualStudio
 {
@@ -226,18 +225,19 @@ namespace FG.CheckoutAndBuild2.VisualStudio
 
 		public static object GetService(IServiceProvider provider, Guid serviceGuid)
 		{
-			var riid = VSConstants.IID_IUnknown;
-			IntPtr ppvObject;
-			if (!HResult.Succeeded(provider.QueryService(ref serviceGuid, ref riid, out ppvObject)))
-				return null;
-			try
-			{
-				return Marshal.GetObjectForIUnknown(ppvObject);
-			}
-			finally
-			{
-				Marshal.Release(ppvObject);
-			}
+			throw new NotImplementedException("Code not longer working");
+			//var riid = VSConstants.IID_IUnknown;
+			//IntPtr ppvObject;
+			//if (!HResult.Succeeded(provider.QueryService(ref serviceGuid, ref riid, out ppvObject)))
+			//	return null;
+			//try
+			//{
+			//	return Marshal.GetObjectForIUnknown(ppvObject);
+			//}
+			//finally
+			//{
+			//	Marshal.Release(ppvObject);
+			//}
 		}
 
 		public static TfsTeamProjectCollection GetTfsTeamProjectCollection(IHostPlugin plugin)
