@@ -1,0 +1,97 @@
+using CheckoutAndBuild.Core.Model;
+
+namespace CheckoutAndBuild.Core.Tests;
+
+public class SolutionParserTests
+{
+    private static readonly string SlnPath =
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "TestSolution.sln");
+
+    private static SolutionProjectModel Parse() => SolutionParser.Parse(SlnPath);
+
+    [Fact]
+    public void Parse_FindsTwoProjects_SkipsSolutionFolder()
+    {
+        var model = Parse();
+        Assert.Equal(2, model.GetSolutionProjects().Count);
+        Assert.Equal(new[] { "ClassicLib", "SdkTests" }, model.Projects.Select(p => p.Name).OrderBy(n => n));
+        Assert.DoesNotContain(model.Projects, p => p.Name == "Solution Items");
+    }
+
+    [Fact]
+    public void Parse_ProjectPaths_AreAbsoluteAndExist()
+    {
+        var model = Parse();
+        Assert.All(model.GetSolutionProjects(), p =>
+        {
+            Assert.True(Path.IsPathRooted(p));
+            Assert.True(File.Exists(p), $"missing: {p}");
+        });
+    }
+
+    [Fact]
+    public void Parse_ClassicProject_ReadsExplicitDebugOutputPath()
+    {
+        var classic = Parse().Projects.Single(p => p.Name == "ClassicLib");
+        Assert.EndsWith(Path.Combine("ClassicLib", "bin", "DebugOut"), classic.OutputPath.TrimEnd('\\', '/'));
+        Assert.EndsWith(Path.Combine("ClassicLib", "obj", "DebugOut"), classic.IntermediateOutputPath.TrimEnd('\\', '/'));
+        Assert.Equal("ClassicLib.Assembly", classic.AssemblyName);
+        Assert.Equal("v4.8", classic.TargetFramework);
+        Assert.False(classic.IsSdkStyle);
+    }
+
+    [Fact]
+    public void Parse_SdkProject_UsesDefaultOutputPath()
+    {
+        var sdk = Parse().Projects.Single(p => p.Name == "SdkTests");
+        Assert.EndsWith(Path.Combine("SdkTests", "bin", "Debug", "net8.0"), sdk.OutputPath.TrimEnd('\\', '/'));
+        Assert.EndsWith(Path.Combine("SdkTests", "obj", "Debug", "net8.0"), sdk.IntermediateOutputPath.TrimEnd('\\', '/'));
+        Assert.Equal("SdkTests", sdk.AssemblyName);
+        Assert.Equal("net8.0", sdk.TargetFramework);
+        Assert.True(sdk.IsSdkStyle);
+    }
+
+    [Fact]
+    public void Parse_DetectsXunitProjectAsUnitTestProject()
+    {
+        var model = Parse();
+        var testProject = Assert.Single(model.GetUnitTestProjects());
+        Assert.EndsWith("SdkTests.csproj", testProject);
+    }
+
+    [Fact]
+    public void Parse_ReadsSolutionConfigurations()
+    {
+        var model = Parse();
+        Assert.Contains("Debug|Any CPU", model.SolutionConfigurations);
+        Assert.Contains("Release|Any CPU", model.SolutionConfigurations);
+    }
+
+    [Fact]
+    public void Model_Defaults_AreSensible()
+    {
+        var model = Parse();
+        Assert.Equal("TestSolution.sln", model.SolutionFileName);
+        Assert.Equal(Path.GetDirectoryName(SlnPath), model.SolutionFolder);
+        Assert.Equal(SlnPath, model.ItemPath);
+        Assert.True(model.IsIncluded);
+        Assert.Equal(0, model.BuildPriority);
+        Assert.False(model.IsBusy);
+        Assert.False(model.IsDelphiProject);
+        Assert.Null(model.ErrorContent);
+        Assert.NotNull(model.BuildTargets);
+        Assert.NotNull(model.BuildProperties);
+    }
+
+    [Fact]
+    public void Model_Progress_DrivesCurrentOperation()
+    {
+        var model = Parse();
+        model.CurrentOperation = new CheckoutAndBuild.Core.Contracts.OperationInfo(4);
+        Assert.True(model.IsBusy);
+        model.ResetProgress();
+        Assert.Equal(0, model.CurrentOperation.Progress);
+        model.IncrementProgress();
+        Assert.Equal(50, model.CurrentOperation.Progress); // 1 of 2 projects
+    }
+}
