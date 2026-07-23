@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-23-vs-modernization-design.md`
 
+**Status (2026-07-24):** Phase 1 KOMPLETT (Tasks 1.1–1.10, 60/60 Tests grün; Solution ist `CheckoutAndBuild.slnx`, Tests via `dotnet test VisualStudio/CheckoutAndBuild.Core.Tests`). Task 2.1 KOMPLETT (VSIX baut nur mit VS-msbuild `/restore`, nicht dotnet build; SDK-Pakete 17.14, läuft per API-Kompatibilitätsmodell auch in VS 2026 — keine 18.x-Pakete nötig). Task 2.2/2.3 in Arbeit.
+
 ## Global Constraints
 
 - Zielordner neu: `VisualStudio/` — Alt-Code in `CheckoutAndBuild2*/`, `SolutionPacker/` NICHT anfassen (Referenz; Umzug nach `Legacy/` erst ganz am Ende).
