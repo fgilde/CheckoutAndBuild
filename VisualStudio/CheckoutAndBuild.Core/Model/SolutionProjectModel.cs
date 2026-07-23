@@ -23,6 +23,8 @@ namespace CheckoutAndBuild.Core.Model
 		/// <summary>TargetFramework (SDK-style) or TargetFrameworkVersion (classic).</summary>
 		public string TargetFramework { get; set; }
 		public bool IsTestProject { get; set; }
+		/// <summary>Maps a solution configuration (e.g. "Debug|Any CPU") to the project configuration (ActiveCfg) from the source .sln.</summary>
+		public IDictionary<string, string> ProjectConfigurations { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 	}
 
 	/// <summary>IDE-free implementation of <see cref="ISolutionProjectModel"/> backed by a parsed .sln file.</summary>

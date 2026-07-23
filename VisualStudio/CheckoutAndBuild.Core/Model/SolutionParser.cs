@@ -27,6 +27,7 @@ namespace CheckoutAndBuild.Core.Model
 			var model = new SolutionProjectModel(slnPath);
 			string solutionDir = model.SolutionFolder;
 			bool inConfigSection = false;
+			bool inProjectConfigSection = false;
 
 			foreach (string rawLine in File.ReadAllLines(slnPath))
 			{
@@ -72,6 +73,34 @@ namespace CheckoutAndBuild.Core.Model
 					int eq = line.IndexOf('=');
 					if (eq > 0)
 						model.SolutionConfigurations.Add(line.Substring(0, eq).Trim());
+					continue;
+				}
+
+				if (line.StartsWith("GlobalSection(ProjectConfigurationPlatforms)", StringComparison.OrdinalIgnoreCase))
+				{
+					inProjectConfigSection = true;
+					continue;
+				}
+				if (inProjectConfigSection)
+				{
+					if (line.StartsWith("EndGlobalSection", StringComparison.OrdinalIgnoreCase))
+					{
+						inProjectConfigSection = false;
+						continue;
+					}
+					// {guid}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+					int eq = line.IndexOf('=');
+					int guidEnd = line.IndexOf('}');
+					if (eq < 0 || guidEnd < 0 || guidEnd > eq)
+						continue;
+					string key = line.Substring(0, eq).Trim();
+					if (!key.EndsWith(".ActiveCfg", StringComparison.OrdinalIgnoreCase))
+						continue;
+					string guid = key.Substring(0, guidEnd + 1);
+					string solutionConfig = key.Substring(guidEnd + 2, key.Length - guidEnd - 2 - ".ActiveCfg".Length);
+					var project = model.Projects.FirstOrDefault(p => string.Equals(p.ProjectGuid, guid, StringComparison.OrdinalIgnoreCase));
+					if (project != null)
+						project.ProjectConfigurations[solutionConfig] = line.Substring(eq + 1).Trim();
 				}
 			}
 
