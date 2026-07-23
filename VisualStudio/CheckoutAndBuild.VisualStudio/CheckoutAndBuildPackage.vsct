@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+
+  <Commands package="guidCheckoutAndBuildPackage">
+    <Buttons>
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowMainWindow" priority="0x0100" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild</ButtonText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="guidCheckoutAndBuildPackage" value="{13646d50-ef88-4777-9d09-e55b321cd24f}" />
+    <GuidSymbol name="guidCheckoutAndBuildCmdSet" value="{874acff0-be59-4dfc-8975-d77d0b75b5fe}">
+      <IDSymbol name="cmdidShowMainWindow" value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
