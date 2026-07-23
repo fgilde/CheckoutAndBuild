@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using System.Threading;
 using System.Threading.Tasks;
 using CheckoutAndBuild.Core.Contracts.Settings;
+using CheckoutAndBuild.Core.Pipeline;
 
 namespace CheckoutAndBuild.Core.Contracts.Service
 {
@@ -13,7 +13,7 @@ namespace CheckoutAndBuild.Core.Contracts.Service
         int Order { get; }
         Guid ServiceId { get; }
         string OperationName { get; }
-        Task ExecuteAsync(IEnumerable<ISolutionProjectModel> solutionProjects, IServiceSettings settings, CancellationToken cancellationToken);
+        Task ExecuteAsync(IEnumerable<ISolutionProjectModel> solutionProjects, IServiceSettings settings, PausableCancellationTokenSource cancellation);
         bool AllowScriptExport { get; }
         ScriptExportType[] SupportedScriptExportTypes { get; }
         string GetScript(IEnumerable<ISolutionProjectModel> models, IServiceSettings settings, ScriptExportType scriptExportType);
