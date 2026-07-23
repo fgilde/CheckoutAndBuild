@@ -1,0 +1,11 @@
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\bin\Debug\netstandard2.0\CheckoutAndBuild.Core.deps.json
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\bin\Debug\netstandard2.0\CheckoutAndBuild.Core.dll
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\bin\Debug\netstandard2.0\CheckoutAndBuild.Core.pdb
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.csproj.AssemblyReference.cache
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.AssemblyInfoInputs.cache
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.AssemblyInfo.cs
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.csproj.CoreCompileInputs.cache
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.sourcelink.json
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.dll
+C:\dev\privat\github\CheckoutAndBuild\VisualStudio\CheckoutAndBuild.Core\obj\Debug\netstandard2.0\CheckoutAndBuild.Core.pdb
