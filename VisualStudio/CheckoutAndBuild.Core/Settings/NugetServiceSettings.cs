@@ -1,0 +1,36 @@
+using System.ComponentModel;
+using CheckoutAndBuild.Core.Contracts;
+using CheckoutAndBuild.Core.Contracts.Settings;
+
+namespace CheckoutAndBuild.Core.Settings
+{
+	public class NugetServiceSettings : ISettingsProviderClass
+	{
+		[SettingsProperty(SettingsAvailability.GlobalWithProjectSpecificOverride, "Nuget.exe", "Path to Nuget.exe to use", ServiceId = ServiceIds.NugetRestoreServiceId)]
+		[DefaultValue("")]
+		[Description("Path to Nuget.exe to use")]
+		[DisplayName(@"Nuget.exe")]
+		[Category("Nuget")]
+		public string NugetExeLocation { get; set; }
+
+		[SettingsProperty(SettingsAvailability.GlobalWithProjectSpecificOverride, "NugetAction", "Command that nuget should use", ServiceId = ServiceIds.NugetRestoreServiceId)]
+		[DefaultValue(NugetAction.InstallAndRestore)]
+		[DisplayName("NugetAction")]
+		[Category("Nuget")]
+		public NugetAction NugetAction { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "RunParallel", "Should the restore operations be parallelized", ServiceId = ServiceIds.NugetRestoreServiceId)]
+		[DefaultValue(true)]
+		[DisplayName("RunParallel")]
+		[Category("Nuget")]
+		public bool RunParallel { get; set; }
+	}
+
+	public enum NugetAction
+	{
+		Restore,
+		Install,
+		InstallAndRestore,
+		Reinstall
+	}
+}
