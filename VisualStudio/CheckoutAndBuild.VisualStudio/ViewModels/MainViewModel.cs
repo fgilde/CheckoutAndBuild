@@ -12,9 +12,11 @@ using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Model;
 using CheckoutAndBuild.Core.Pipeline;
 using CheckoutAndBuild.Core.Plugins;
+using CheckoutAndBuild.Core.Scripting;
 using CheckoutAndBuild.Core.Services;
 using CheckoutAndBuild.Core.Settings;
 using CheckoutAndBuild.VisualStudio.Common;
+using CheckoutAndBuild.VisualStudio.ErrorList;
 using CheckoutAndBuild.VisualStudio.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.ViewModels
@@ -75,6 +77,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private string progressText;
 		private double progressValue;
 		private string lastError;
+		private string statusMessage;
 		private bool cleanEnabled;
 		private bool checkoutEnabled;
 		private bool restoreEnabled;
@@ -107,7 +110,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RemoveFolderCommand = new DelegateCommand(p => RemoveFolder(p as WorkingFolderViewModel), p => !IsRunning && p is WorkingFolderViewModel);
 			RefreshCommand = new DelegateCommand(async () => await RefreshAsync(), () => !IsRunning);
 			OpenSettingsCommand = new DelegateCommand(OpenGlobalSettings);
+			ExportBatchCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Batch), CanExportScript);
+			ExportPowershellCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Powershell), CanExportScript);
 		}
+
+		/// <summary>Error List sink; set by the tool window control (null in tests).</summary>
+		internal CoabErrorListProvider ErrorSink { get; set; }
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
 
@@ -119,6 +127,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand RemoveFolderCommand { get; }
 		public ICommand RefreshCommand { get; }
 		public ICommand OpenSettingsCommand { get; }
+		public ICommand ExportBatchCommand { get; }
+		public ICommand ExportPowershellCommand { get; }
 
 		/// <summary>Non-null while the settings "page" is shown instead of the main content.</summary>
 		public SettingsViewModel ActiveSettings
@@ -181,6 +191,13 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			get { return lastError; }
 			private set { SetProperty(ref lastError, value); }
+		}
+
+		/// <summary>Neutral status line (e.g. "Exported: c:\...\CheckoutAndBuild.bat").</summary>
+		public string StatusMessage
+		{
+			get { return statusMessage; }
+			private set { SetProperty(ref statusMessage, value); }
 		}
 
 		public bool IsCleanEnabled
@@ -448,6 +465,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private async Task RunPipelineAsync()
 		{
+			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			if (IsRunning)
 				return;
 			var models = AllSolutions().Select(s => (ISolutionProjectModel)s.Model).ToList();
@@ -456,6 +474,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 
 			LastError = null;
+			StatusMessage = null;
+			ErrorSink?.Clear();
 			IsRunning = true;
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
@@ -491,10 +511,13 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Runs a single service for a single solution (context menu: build/clean/test only).</summary>
 		internal async Task RunSingleServiceAsync(SolutionViewModel solution, IOperationService service)
 		{
+			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			if (IsRunning)
 				return;
 
 			LastError = null;
+			StatusMessage = null;
+			ErrorSink?.Clear();
 			IsRunning = true;
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
@@ -523,6 +546,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private void FinishRun()
 		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
 			cancellation?.Dispose();
 			cancellation = null;
 			IsRunning = false;
@@ -530,6 +554,36 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ProgressValue = 0;
 			foreach (var solution in AllSolutions())
 				solution.RefreshResult();
+			ReportResultsToErrorList();
+		}
+
+		/// <summary>Pushes the failures of the last run into the VS Error List (no-op without a sink).</summary>
+		private void ReportResultsToErrorList()
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			if (ErrorSink == null)
+				return;
+			try
+			{
+				foreach (var solution in AllSolutions())
+				{
+					// ponytail: Model.Result only keeps the LAST operation's result, so build errors
+					// vanish from the list when tests ran afterwards; keep per-service results if that hurts
+					switch (solution.Model.Result)
+					{
+						case BuildResult build when build.Errors.Count > 0:
+							ErrorSink.Report(build.Errors);
+							break;
+						case TestRunResult tests when tests.Failures.Count > 0:
+							ErrorSink.ReportTestFailures(solution.SolutionFileName, tests.Failures);
+							break;
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
 		}
 
 		private void OnPipelineProgress(PipelineProgress progress)
@@ -565,6 +619,39 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 
 			public void Report(PipelineProgress value) => report(value);
+		}
+
+		#endregion
+
+		#region script export
+
+		private bool CanExportScript() =>
+			!IsRunning && EnabledServices().Any() && AllSolutions().Any(s => s.IsIncluded);
+
+		private void ExportScript(ScriptExportType exportType)
+		{
+			bool batch = exportType == ScriptExportType.Batch;
+			var dialog = new Microsoft.Win32.SaveFileDialog
+			{
+				Filter = batch ? "Batch File|*.bat" : "PowerShell Script File|*.ps1",
+				FileName = batch ? "CheckoutAndBuild.bat" : "CheckoutAndBuild.ps1",
+				DefaultExt = batch ? ".bat" : ".ps1"
+			};
+			if (dialog.ShowDialog() != true)
+				return;
+
+			try
+			{
+				var models = AllSolutions().Select(s => (ISolutionProjectModel)s.Model).ToList();
+				ScriptExporter.ExportToFile(EnabledServices(), models, serviceSettings, exportType,
+					dialog.FileName, pluginHost.GetExportedValues<IScriptGenerator>());
+				LastError = null;
+				StatusMessage = "Exported: " + dialog.FileName;
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
 		}
 
 		#endregion

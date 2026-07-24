@@ -59,6 +59,19 @@
                         ToolTip="CheckoutAndBuild settings">
                     <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE713;" FontSize="12" />
                 </Button>
+                <Button Style="{StaticResource CoabIconButton}" Margin="4,0,0,0"
+                        Click="OnMoreClick"
+                        ToolTip="More actions">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE712;" FontSize="12" />
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Export as .bat…" Command="{Binding ExportBatchCommand}"
+                                      ToolTip="Export the enabled pipeline steps as a batch script" />
+                            <MenuItem Header="Export as .ps1…" Command="{Binding ExportPowershellCommand}"
+                                      ToolTip="Export the enabled pipeline steps as a PowerShell script" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
             </StackPanel>
             <WrapPanel VerticalAlignment="Center">
                 <TextBlock Text="Steps:" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7"
@@ -152,6 +165,14 @@
                    Foreground="{StaticResource CoabErrorBrush}"
                    TextWrapping="Wrap"
                    ToolTip="{Binding LastError}" />
+
+        <!-- ===== neutral status (e.g. exported script path) ===== -->
+        <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
+                   Text="{Binding StatusMessage}"
+                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+                   FontStyle="Italic" FontSize="11"
+                   TextWrapping="Wrap"
+                   ToolTip="{Binding StatusMessage}" />
 
         <!-- ===== working folders with their solutions ===== -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

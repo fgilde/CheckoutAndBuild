@@ -80,6 +80,7 @@
   <ItemGroup>
     <Compile Include="CheckoutAndBuildPackage.cs" />
     <Compile Include="Common\DelegateCommand.cs" />
+    <Compile Include="ErrorList\CoabErrorListProvider.cs" />
     <Compile Include="Options\CheckoutAndBuildOptionsPage.cs" />
     <Compile Include="Settings\SettingsUiFactory.cs" />
     <Compile Include="Settings\SettingsViewModel.cs" />
