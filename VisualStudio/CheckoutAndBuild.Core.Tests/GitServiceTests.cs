@@ -260,6 +260,133 @@ public sealed class GitServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateBranch_WithAndWithoutCheckout()
+    {
+        await git.CreateBranchAsync(repoDir, "feature/no-switch", checkout: false);
+        Assert.Equal("master", await git.GetCurrentBranchAsync(repoDir));
+
+        await git.CreateBranchAsync(repoDir, "feature/switch");
+        Assert.Equal("feature/switch", await git.GetCurrentBranchAsync(repoDir));
+
+        var branches = await git.GetBranchesAsync(repoDir);
+        Assert.Contains("feature/no-switch", branches);
+        Assert.Contains("feature/switch", branches);
+    }
+
+    [Fact]
+    public async Task DeleteBranch_UnmergedNeedsForce()
+    {
+        await git.CreateBranchAsync(repoDir, "merged", checkout: false);
+        await git.DeleteBranchAsync(repoDir, "merged");
+        Assert.DoesNotContain("merged", await git.GetBranchesAsync(repoDir));
+
+        await git.CreateBranchAsync(repoDir, "unmerged");
+        File.WriteAllText(Path.Combine(repoDir, "extra.txt"), "x");
+        Run("add .");
+        Run("commit -m extra");
+        await git.CheckoutBranchAsync(repoDir, "master");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => git.DeleteBranchAsync(repoDir, "unmerged"));
+        await git.DeleteBranchAsync(repoDir, "unmerged", force: true);
+        Assert.DoesNotContain("unmerged", await git.GetBranchesAsync(repoDir));
+    }
+
+    [Fact]
+    public async Task PushAndAheadBehind_AgainstLocalBareRemote()
+    {
+        var status = await git.GetAheadBehindAsync(repoDir);
+        Assert.False(status.HasUpstream);
+        Assert.Equal("master", status.Branch);
+
+        var bareDir = Path.Combine(Path.GetTempPath(), "coab-git-bare-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var init = await ProcessRunner.RunAsync("git", $"init --bare \"{bareDir}\"");
+            Assert.True(init.Success, init.StdErr);
+            Run($"remote add origin \"{bareDir}\"");
+
+            await git.PushAsync(repoDir, setUpstream: true);
+            status = await git.GetAheadBehindAsync(repoDir);
+            Assert.True(status.HasUpstream);
+            Assert.Equal(0, status.Ahead);
+            Assert.Equal(0, status.Behind);
+
+            File.WriteAllText(Path.Combine(repoDir, "README.md"), "ahead");
+            Run("commit -am ahead");
+            status = await git.GetAheadBehindAsync(repoDir, "master");
+            Assert.Equal(1, status.Ahead);
+            Assert.Equal(0, status.Behind);
+
+            await git.PushAsync(repoDir);
+            Run("reset --hard HEAD~1");
+            status = await git.GetAheadBehindAsync(repoDir);
+            Assert.Equal(0, status.Ahead);
+            Assert.Equal(1, status.Behind);
+        }
+        finally
+        {
+            try { Directory.Delete(bareDir, true); } catch { /* best effort */ }
+        }
+    }
+
+    [Fact]
+    public async Task GetHistory_FiltersByAuthorAndGrep()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        Run("-c user.name=OtherUser -c user.email=other@example.com commit -am \"fix: something else\"");
+
+        var byAuthor = await git.GetHistoryAsync(repoDir, author: "OtherUser");
+        var commit = Assert.Single(byAuthor);
+        Assert.Equal("OtherUser", commit.Author);
+
+        var byGrep = await git.GetHistoryAsync(repoDir, grep: "INITIAL");
+        commit = Assert.Single(byGrep);
+        Assert.Equal("initial", commit.Message);
+
+        var recent = await git.GetHistoryAsync(repoDir, sinceDays: 1);
+        Assert.Equal(2, recent.Count);
+    }
+
+    [Fact]
+    public async Task GetCommitFiles_ReturnsStatusAndPath()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        File.WriteAllText(Path.Combine(repoDir, "new.txt"), "x");
+        Run("add .");
+        Run("commit -m second");
+        var commits = await git.GetHistoryAsync(repoDir);
+
+        var files = await git.GetCommitFilesAsync(repoDir, commits[0].Sha);
+
+        Assert.Equal(2, files.Count);
+        var modified = files.Single(f => f.FilePath == "README.md");
+        Assert.Equal("M", modified.Status);
+        var added = files.Single(f => f.FilePath == "new.txt");
+        Assert.Equal("A", added.Status);
+    }
+
+    [Fact]
+    public async Task GetFileDiff_ContainsPatchForSingleFile()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        File.WriteAllText(Path.Combine(repoDir, "new.txt"), "x");
+        Run("add .");
+        Run("commit -m second");
+        var commits = await git.GetHistoryAsync(repoDir);
+
+        var diff = await git.GetFileDiffAsync(repoDir, commits[0].Sha, "README.md");
+
+        Assert.Contains("+changed", diff);
+        Assert.DoesNotContain("new.txt", diff);
+    }
+
+    [Fact]
+    public async Task GetConfiguredUser_ReturnsUserName()
+    {
+        Assert.Equal("TestUser", await git.GetConfiguredUserAsync(repoDir));
+    }
+
+    [Fact]
     public async Task GetStashDiff_ReturnsPatch()
     {
         File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");

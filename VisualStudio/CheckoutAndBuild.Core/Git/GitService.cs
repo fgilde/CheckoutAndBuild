@@ -60,6 +60,62 @@ namespace CheckoutAndBuild.Core.Git
             return RunGitAsync(repoDir, $"checkout \"{branch}\"", ct: ct);
         }
 
+        /// <summary>Creates a branch at HEAD ("git checkout -b" / "git branch").</summary>
+        public Task CreateBranchAsync(string repoDir, string name, bool checkout = true, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, checkout ? $"checkout -b \"{name}\"" : $"branch \"{name}\"", ct: ct);
+        }
+
+        /// <summary>Deletes a local branch ("git branch -d", with <paramref name="force"/> "-D").</summary>
+        public Task DeleteBranchAsync(string repoDir, string name, bool force = false, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, $"branch {(force ? "-D" : "-d")} \"{name}\"", ct: ct);
+        }
+
+        /// <summary>Pushes the current branch; with <paramref name="setUpstream"/> as "git push -u origin &lt;current&gt;".</summary>
+        public async Task PushAsync(string repoDir, Action<string> onOutput = null, bool setUpstream = false, CancellationToken ct = default)
+        {
+            if (setUpstream)
+            {
+                var branch = await GetCurrentBranchAsync(repoDir, ct).ConfigureAwait(false);
+                await RunGitAsync(repoDir, $"push -u origin \"{branch}\"", onOutput, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await RunGitAsync(repoDir, "push", onOutput, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>Ahead/behind of <paramref name="branch"/> (default: current) against its upstream. No upstream: (0,0) with HasUpstream=false.</summary>
+        public async Task<BranchSyncStatus> GetAheadBehindAsync(string repoDir, string branch = null, CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(branch))
+                branch = await GetCurrentBranchAsync(repoDir, ct).ConfigureAwait(false);
+
+            var upstream = await ProcessRunner.RunAsync("git",
+                GitArgs(repoDir, $"rev-parse --abbrev-ref \"{branch}@{{upstream}}\""), cancellationToken: ct).ConfigureAwait(false);
+            if (!upstream.Success)
+                return new BranchSyncStatus { Branch = branch, HasUpstream = false };
+
+            var result = await RunGitAsync(repoDir,
+                $"rev-list --left-right --count \"{branch}...{upstream.StdOut.Trim()}\"", ct: ct).ConfigureAwait(false);
+            var parts = result.StdOut.Trim().Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return new BranchSyncStatus
+            {
+                Branch = branch,
+                HasUpstream = true,
+                Ahead = parts.Length > 0 ? int.Parse(parts[0]) : 0,
+                Behind = parts.Length > 1 ? int.Parse(parts[1]) : 0
+            };
+        }
+
+        /// <summary>Configured "git config user.name" or null when unset.</summary>
+        public async Task<string> GetConfiguredUserAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, "config user.name"), cancellationToken: ct).ConfigureAwait(false);
+            return result.Success ? result.StdOut.Trim() : null;
+        }
+
         public async Task<IReadOnlyList<GitStash>> GetStashesAsync(string repoDir, CancellationToken ct = default)
         {
             var result = await RunGitAsync(repoDir, "stash list --format=" + StashListFormat, ct: ct).ConfigureAwait(false);
@@ -126,10 +182,18 @@ namespace CheckoutAndBuild.Core.Git
         // tab-separated: full hash, short hash, author, ISO date, subject
         private const string LogFormat = "%H%x09%h%x09%an%x09%ci%x09%s";
 
-        /// <summary>Latest commits of the current branch, newest first ("git log").</summary>
-        public async Task<IReadOnlyList<GitCommit>> GetHistoryAsync(string repoDir, int maxCount = 100, CancellationToken ct = default)
+        /// <summary>Latest commits of the current branch, newest first ("git log"), optionally filtered by author/age/message.</summary>
+        public async Task<IReadOnlyList<GitCommit>> GetHistoryAsync(string repoDir, int maxCount = 100,
+            string author = null, int? sinceDays = null, string grep = null, CancellationToken ct = default)
         {
-            var result = await RunGitAsync(repoDir, $"log --max-count={maxCount} --format={LogFormat}", ct: ct).ConfigureAwait(false);
+            var args = $"log --max-count={maxCount} --format={LogFormat}";
+            if (!string.IsNullOrEmpty(author))
+                args += $" -i --author=\"{author}\"";
+            if (sinceDays.HasValue)
+                args += $" --since={sinceDays.Value}.days";
+            if (!string.IsNullOrEmpty(grep))
+                args += $" -i --grep=\"{grep}\"";
+            var result = await RunGitAsync(repoDir, args, ct: ct).ConfigureAwait(false);
             var commits = new List<GitCommit>();
             foreach (var line in SplitLines(result.StdOut))
             {
@@ -152,6 +216,29 @@ namespace CheckoutAndBuild.Core.Git
         public async Task<string> GetCommitDetailsAsync(string repoDir, string sha, CancellationToken ct = default)
         {
             var result = await RunGitAsync(repoDir, $"show --stat \"{sha}\"", ct: ct).ConfigureAwait(false);
+            return result.StdOut;
+        }
+
+        /// <summary>Files changed by a commit ("git show --name-status").</summary>
+        public async Task<IReadOnlyList<GitCommitFile>> GetCommitFilesAsync(string repoDir, string sha, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"show --name-status --format= \"{sha}\"", ct: ct).ConfigureAwait(false);
+            var files = new List<GitCommitFile>();
+            foreach (var line in SplitLines(result.StdOut))
+            {
+                var parts = line.Split('\t');
+                if (parts.Length < 2)
+                    continue;
+                // rename/copy lines are "R100\told\tnew" — status letter only, last path wins
+                files.Add(new GitCommitFile(parts[0].Substring(0, 1), parts[parts.Length - 1]));
+            }
+            return files;
+        }
+
+        /// <summary>Diff of a single file within a commit ("git show &lt;sha&gt; -- &lt;file&gt;").</summary>
+        public async Task<string> GetFileDiffAsync(string repoDir, string sha, string filePath, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"show --format= \"{sha}\" -- \"{filePath}\"", ct: ct).ConfigureAwait(false);
             return result.StdOut;
         }
 

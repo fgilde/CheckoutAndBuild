@@ -21,6 +21,14 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 		/// <summary>Selects the repository and switches to the History tab (solution context menu).</summary>
 		internal System.Threading.Tasks.Task ShowHistoryAsync(string repositoryPath) => viewModel.ShowHistoryAsync(repositoryPath);
 
+		/// <summary>Double-click on a feed commit jumps to the History tab of its repository.</summary>
+		private async void OnFeedDoubleClick(object sender, MouseButtonEventArgs e)
+		{
+			var feedCommit = ((ListBox)sender).SelectedItem as FeedCommitViewModel;
+			if (feedCommit != null)
+				await viewModel.ShowCommitInHistoryAsync(feedCommit);
+		}
+
 		/// <summary>Double-click on a change opens the file in the editor.</summary>
 		private void OnChangeDoubleClick(object sender, MouseButtonEventArgs e)
 		{

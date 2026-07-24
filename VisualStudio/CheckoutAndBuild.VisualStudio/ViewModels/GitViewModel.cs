@@ -129,6 +129,87 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public string Creator => Stash.Creator;
 	}
 
+	/// <summary>One row of the Branches tab.</summary>
+	public class BranchViewModel : NotificationObject
+	{
+		private string syncBadge;
+
+		public BranchViewModel(string name, bool isCurrent)
+		{
+			Name = name;
+			IsCurrent = isCurrent;
+		}
+
+		public string Name { get; }
+		public bool IsCurrent { get; }
+
+		/// <summary>"↑n ↓m" against the upstream, null without one.</summary>
+		public string SyncBadge
+		{
+			get { return syncBadge; }
+			set { SetProperty(ref syncBadge, value); }
+		}
+	}
+
+	/// <summary>One row of the Sync tab (one repository).</summary>
+	public class RepoSyncViewModel : NotificationObject
+	{
+		private string branch;
+		private string syncBadge;
+		private string status;
+
+		public RepoSyncViewModel(GitRepositoryViewModel repository)
+		{
+			Repository = repository;
+		}
+
+		public GitRepositoryViewModel Repository { get; }
+		public string Name => Repository.Name;
+		public string Path => Repository.Path;
+		public bool HasUpstream { get; set; }
+
+		public string Branch
+		{
+			get { return branch; }
+			set { SetProperty(ref branch, value); }
+		}
+
+		public string SyncBadge
+		{
+			get { return syncBadge; }
+			set { SetProperty(ref syncBadge, value); }
+		}
+
+		/// <summary>Last per-repo error (or null).</summary>
+		public string Status
+		{
+			get { return status; }
+			set { SetProperty(ref status, value); }
+		}
+	}
+
+	/// <summary>One row of the Feed tab (commit + owning repository).</summary>
+	public class FeedCommitViewModel
+	{
+		public FeedCommitViewModel(GitRepositoryViewModel repository, GitCommit commit)
+		{
+			Repository = repository;
+			Commit = commit;
+			DateTimeOffset date;
+			SortDate = DateTimeOffset.TryParse(commit.Date, out date) ? date : DateTimeOffset.MinValue;
+		}
+
+		public GitRepositoryViewModel Repository { get; }
+		public GitCommit Commit { get; }
+		public DateTimeOffset SortDate { get; }
+
+		public string RepoName => Repository.Name;
+		public string ShortSha => Commit.ShortSha;
+		public string Author => Commit.Author;
+		public string Date => Commit.Date;
+		public string Message => Commit.Message;
+	}
+
 	/// <summary>Root view model of the "CheckoutAndBuild Git" tool window.</summary>
 	public class GitViewModel : NotificationObject
 	{
@@ -140,14 +221,26 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly ISettingsService settings;
 		private readonly SettingsContext globalContext = new SettingsContext();
 
+		private const int historyTabIndex = 2;
+		private const int syncTabIndex = 4;
+		private const int feedTabIndex = 5;
+		private static readonly int?[] periodDays = { null, 7, 30, 90 };
+
 		private GitRepositoryViewModel selectedRepository;
 		private ChangeViewModel selectedChange;
 		private StashViewModel selectedStash;
 		private GitCommit selectedCommit;
+		private GitCommitFile selectedCommitFile;
+		private BranchViewModel selectedBranch;
 		private string diffText;
 		private string stashDiffText;
-		private string commitDetailsText;
+		private string commitFileDiffText;
 		private string newStashMessage;
+		private string newBranchName;
+		private string historyGrep;
+		private string historyAuthor;
+		private bool onlyMine;
+		private int historyPeriodIndex;
 		private bool isBusy;
 		private Task loadTask;
 		private string lastError;
@@ -169,12 +262,33 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			StashApplyCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("apply")), () => SelectedStash != null && !IsBusy);
 			StashPopCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("pop")), () => SelectedStash != null && !IsBusy);
 			StashDropCommand = new DelegateCommand(() => RunSafe(StashDropAsync), () => SelectedStash != null && !IsBusy);
+
+			CheckoutBranchCommand = new DelegateCommand(() => RunSafe(CheckoutSelectedBranchAsync), () => SelectedBranch != null && !SelectedBranch.IsCurrent && !IsBusy);
+			CreateBranchCommand = new DelegateCommand(() => RunSafe(CreateBranchAsync), () => HasRepository && !string.IsNullOrWhiteSpace(NewBranchName) && !IsBusy);
+			DeleteBranchCommand = new DelegateCommand(() => RunSafe(DeleteBranchAsync), () => SelectedBranch != null && !SelectedBranch.IsCurrent && !IsBusy);
+			RefreshBranchesCommand = new DelegateCommand(() => RunSafe(LoadBranchesAsync), () => HasRepository && !IsBusy);
+
+			FetchRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "fetch")), p => !IsBusy);
+			PullRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "pull")), p => !IsBusy);
+			PushRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "push")), p => !IsBusy);
+			FetchAllCommand = new DelegateCommand(() => RunSafe(() => SyncAllAsync("fetch")), () => SyncRows.Count > 0 && !IsBusy);
+			PullAllCommand = new DelegateCommand(() => RunSafe(() => SyncAllAsync("pull")), () => SyncRows.Count > 0 && !IsBusy);
+			PushAllCommand = new DelegateCommand(() => RunSafe(() => SyncAllAsync("push")), () => SyncRows.Count > 0 && !IsBusy);
+			RefreshSyncCommand = new DelegateCommand(() => RunSafe(RefreshSyncAsync), () => !IsBusy);
+
+			RefreshHistoryCommand = new DelegateCommand(() => RunSafe(LoadHistoryAsync), () => HasRepository && !IsBusy);
+			CopyShaCommand = new DelegateCommand(() => { if (SelectedCommit != null) Clipboard.SetText(SelectedCommit.Sha); }, () => SelectedCommit != null);
+			RefreshFeedCommand = new DelegateCommand(() => RunSafe(RefreshFeedAsync), () => Repositories.Count > 0 && !IsBusy);
 		}
 
 		public ObservableCollection<GitRepositoryViewModel> Repositories { get; } = new ObservableCollection<GitRepositoryViewModel>();
 		public ObservableCollection<ChangeViewModel> Changes { get; } = new ObservableCollection<ChangeViewModel>();
 		public ObservableCollection<StashViewModel> Stashes { get; } = new ObservableCollection<StashViewModel>();
 		public ObservableCollection<GitCommit> Commits { get; } = new ObservableCollection<GitCommit>();
+		public ObservableCollection<GitCommitFile> CommitFiles { get; } = new ObservableCollection<GitCommitFile>();
+		public ObservableCollection<BranchViewModel> Branches { get; } = new ObservableCollection<BranchViewModel>();
+		public ObservableCollection<RepoSyncViewModel> SyncRows { get; } = new ObservableCollection<RepoSyncViewModel>();
+		public ObservableCollection<FeedCommitViewModel> FeedCommits { get; } = new ObservableCollection<FeedCommitViewModel>();
 
 		public ICommand RefreshCommand { get; }
 		public ICommand ExportPatchCommand { get; }
@@ -183,6 +297,20 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand StashApplyCommand { get; }
 		public ICommand StashPopCommand { get; }
 		public ICommand StashDropCommand { get; }
+		public ICommand CheckoutBranchCommand { get; }
+		public ICommand CreateBranchCommand { get; }
+		public ICommand DeleteBranchCommand { get; }
+		public ICommand RefreshBranchesCommand { get; }
+		public ICommand FetchRepoCommand { get; }
+		public ICommand PullRepoCommand { get; }
+		public ICommand PushRepoCommand { get; }
+		public ICommand FetchAllCommand { get; }
+		public ICommand PullAllCommand { get; }
+		public ICommand PushAllCommand { get; }
+		public ICommand RefreshSyncCommand { get; }
+		public ICommand RefreshHistoryCommand { get; }
+		public ICommand CopyShaCommand { get; }
+		public ICommand RefreshFeedCommand { get; }
 
 		private bool HasRepository => SelectedRepository != null;
 
@@ -229,19 +357,58 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				if (SetProperty(ref selectedCommit, value))
 				{
+					CommandManager.InvalidateRequerySuggested();
 					if (value != null)
-						RunSafe(LoadCommitDetailsAsync);
+						RunSafe(LoadCommitFilesAsync);
 					else
-						CommitDetailsText = null;
+					{
+						CommitFiles.Clear();
+						CommitFileDiffText = null;
+					}
 				}
 			}
 		}
 
-		/// <summary>Selected tab of the tool window (0 = Changes, 1 = Stashes, 2 = History).</summary>
+		public GitCommitFile SelectedCommitFile
+		{
+			get { return selectedCommitFile; }
+			set
+			{
+				if (SetProperty(ref selectedCommitFile, value))
+				{
+					if (value != null)
+						RunSafe(LoadCommitFileDiffAsync);
+					else
+						CommitFileDiffText = null;
+				}
+			}
+		}
+
+		public BranchViewModel SelectedBranch
+		{
+			get { return selectedBranch; }
+			set
+			{
+				if (SetProperty(ref selectedBranch, value))
+					CommandManager.InvalidateRequerySuggested();
+			}
+		}
+
+		/// <summary>Selected tab of the tool window (0 = Changes, 1 = Stashes, 2 = History, 3 = Branches, 4 = Sync, 5 = Feed).</summary>
 		public int SelectedTabIndex
 		{
 			get { return selectedTabIndex; }
-			set { SetProperty(ref selectedTabIndex, value); }
+			set
+			{
+				if (SetProperty(ref selectedTabIndex, value))
+				{
+					// lazy-load the multi-repo tabs on first visit
+					if (value == syncTabIndex && SyncRows.Count == 0)
+						RunSafe(RefreshSyncAsync);
+					else if (value == feedTabIndex && FeedCommits.Count == 0)
+						RunSafe(RefreshFeedAsync);
+				}
+			}
 		}
 
 		public string DiffText
@@ -250,10 +417,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			private set { SetProperty(ref diffText, value); }
 		}
 
-		public string CommitDetailsText
+		public string CommitFileDiffText
 		{
-			get { return commitDetailsText; }
-			private set { SetProperty(ref commitDetailsText, value); }
+			get { return commitFileDiffText; }
+			private set { SetProperty(ref commitFileDiffText, value); }
 		}
 
 		public string StashDiffText
@@ -267,6 +434,42 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			get { return newStashMessage; }
 			set { SetProperty(ref newStashMessage, value); }
 		}
+
+		public string NewBranchName
+		{
+			get { return newBranchName; }
+			set { SetProperty(ref newBranchName, value); }
+		}
+
+		/// <summary>Message filter for History and Feed ("git log --grep -i").</summary>
+		public string HistoryGrep
+		{
+			get { return historyGrep; }
+			set { SetProperty(ref historyGrep, value); }
+		}
+
+		/// <summary>Author filter for History and Feed (ignored while <see cref="OnlyMine"/> is set).</summary>
+		public string HistoryAuthor
+		{
+			get { return historyAuthor; }
+			set { SetProperty(ref historyAuthor, value); }
+		}
+
+		/// <summary>Filter History and Feed to commits of the configured "git config user.name".</summary>
+		public bool OnlyMine
+		{
+			get { return onlyMine; }
+			set { SetProperty(ref onlyMine, value); }
+		}
+
+		/// <summary>Index into All/7/30/90 days (History and Feed).</summary>
+		public int HistoryPeriodIndex
+		{
+			get { return historyPeriodIndex; }
+			set { SetProperty(ref historyPeriodIndex, value); }
+		}
+
+		private int? SinceDays => periodDays[historyPeriodIndex >= 0 && historyPeriodIndex < periodDays.Length ? historyPeriodIndex : 0];
 
 		public bool IsBusy
 		{
@@ -347,6 +550,14 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 								 ?? Repositories.FirstOrDefault();
 			if (SelectedRepository == null)
 				StatusMessage = "No git repositories found beneath the configured working folders.";
+
+			// multi-repo tabs: reload immediately when visible, otherwise lazily on next visit
+			SyncRows.Clear();
+			FeedCommits.Clear();
+			if (SelectedTabIndex == syncTabIndex)
+				await RefreshSyncAsync();
+			else if (SelectedTabIndex == feedTabIndex)
+				await RefreshFeedAsync();
 		}
 
 		private async Task RefreshRepositoryAsync()
@@ -369,26 +580,252 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Stashes.Add(new StashViewModel(stashes[i], i));
 			StashDiffText = null;
 
+			await LoadHistoryAsync();
+			await LoadBranchesAsync();
+		}
+
+		/// <summary>Resolves the effective author filter (OnlyMine wins over the author text box).</summary>
+		private async Task<string> GetEffectiveAuthorAsync(string repoDir)
+		{
+			if (OnlyMine)
+				return await git.GetConfiguredUserAsync(repoDir);
+			return string.IsNullOrWhiteSpace(HistoryAuthor) ? null : HistoryAuthor.Trim();
+		}
+
+		private async Task LoadHistoryAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
 			Commits.Clear();
+			CommitFiles.Clear();
+			CommitFileDiffText = null;
 			try
 			{
-				foreach (var commit in await git.GetHistoryAsync(repo.Path))
+				var author = await GetEffectiveAuthorAsync(repo.Path);
+				var grep = string.IsNullOrWhiteSpace(HistoryGrep) ? null : HistoryGrep.Trim();
+				foreach (var commit in await git.GetHistoryAsync(repo.Path, 100, author, SinceDays, grep))
 					Commits.Add(commit);
 			}
 			catch (InvalidOperationException)
 			{
 				// repository without commits — history stays empty
 			}
-			CommitDetailsText = null;
 		}
 
-		private async Task LoadCommitDetailsAsync()
+		private async Task LoadCommitFilesAsync()
 		{
 			var commit = SelectedCommit;
 			var repo = SelectedRepository;
 			if (commit == null || repo == null)
 				return;
-			CommitDetailsText = await git.GetCommitDetailsAsync(repo.Path, commit.Sha);
+			var files = await git.GetCommitFilesAsync(repo.Path, commit.Sha);
+			CommitFiles.Clear();
+			foreach (var file in files)
+				CommitFiles.Add(file);
+			CommitFileDiffText = null;
+		}
+
+		private async Task LoadCommitFileDiffAsync()
+		{
+			var file = SelectedCommitFile;
+			var commit = SelectedCommit;
+			var repo = SelectedRepository;
+			if (file == null || commit == null || repo == null)
+				return;
+			CommitFileDiffText = await git.GetFileDiffAsync(repo.Path, commit.Sha, file.FilePath);
+		}
+
+		// ponytail: ahead/behind is one git call per branch, sequential — batch via for-each-ref if repos with many branches feel slow
+		private async Task LoadBranchesAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			Branches.Clear();
+			foreach (var name in await git.GetBranchesAsync(repo.Path))
+				Branches.Add(new BranchViewModel(name, name == repo.Branch));
+			foreach (var branch in Branches.ToList())
+			{
+				var sync = await git.GetAheadBehindAsync(repo.Path, branch.Name);
+				branch.SyncBadge = FormatBadge(sync);
+			}
+		}
+
+		private static string FormatBadge(BranchSyncStatus sync)
+		{
+			return sync.HasUpstream ? $"↑{sync.Ahead} ↓{sync.Behind}" : null;
+		}
+
+		private async Task CheckoutSelectedBranchAsync()
+		{
+			var repo = SelectedRepository;
+			var branch = SelectedBranch;
+			if (repo == null || branch == null)
+				return;
+			await git.CheckoutBranchAsync(repo.Path, branch.Name);
+			StatusMessage = $"Checked out {branch.Name}.";
+			await RefreshRepositoryAsync();
+		}
+
+		private async Task CreateBranchAsync()
+		{
+			var repo = SelectedRepository;
+			var name = NewBranchName?.Trim();
+			if (repo == null || string.IsNullOrEmpty(name))
+				return;
+			await git.CreateBranchAsync(repo.Path, name);
+			NewBranchName = null;
+			StatusMessage = $"Created and checked out {name}.";
+			await RefreshRepositoryAsync();
+		}
+
+		private async Task DeleteBranchAsync()
+		{
+			var repo = SelectedRepository;
+			var branch = SelectedBranch;
+			if (repo == null || branch == null || branch.IsCurrent)
+				return;
+			if (MessageBox.Show($"Delete branch \"{branch.Name}\"?", "Delete branch",
+					MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+				return;
+			try
+			{
+				await git.DeleteBranchAsync(repo.Path, branch.Name);
+			}
+			catch (InvalidOperationException e)
+			{
+				if (MessageBox.Show($"{e.Message}\n\nForce delete (git branch -D)?", "Delete branch",
+						MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+					return;
+				await git.DeleteBranchAsync(repo.Path, branch.Name, force: true);
+			}
+			StatusMessage = $"Deleted {branch.Name}.";
+			await LoadBranchesAsync();
+		}
+
+		private async Task RefreshSyncAsync()
+		{
+			SyncRows.Clear();
+			foreach (var repo in Repositories)
+				SyncRows.Add(new RepoSyncViewModel(repo));
+			foreach (var row in SyncRows.ToList())
+				await UpdateSyncRowAsync(row);
+		}
+
+		private async Task UpdateSyncRowAsync(RepoSyncViewModel row)
+		{
+			try
+			{
+				row.Branch = await git.GetCurrentBranchAsync(row.Path);
+				var sync = await git.GetAheadBehindAsync(row.Path, row.Branch);
+				row.HasUpstream = sync.HasUpstream;
+				row.SyncBadge = sync.HasUpstream ? FormatBadge(sync) : "no upstream";
+				row.Status = null;
+			}
+			catch (Exception e)
+			{
+				row.Status = e.Message;
+			}
+		}
+
+		private async Task SyncRowActionAsync(RepoSyncViewModel row, string action)
+		{
+			if (row == null)
+				return;
+			StatusMessage = $"{action}: {row.Name}…";
+			try
+			{
+				await RunSyncActionAsync(row, action);
+				await UpdateSyncRowAsync(row);
+				StatusMessage = $"{action}: {row.Name} done.";
+			}
+			catch (Exception e)
+			{
+				row.Status = e.Message;
+				StatusMessage = $"{action}: {row.Name} failed.";
+			}
+			if (row.Repository == SelectedRepository && action != "fetch")
+				await RefreshRepositoryAsync();
+		}
+
+		private Task RunSyncActionAsync(RepoSyncViewModel row, string action)
+		{
+			switch (action)
+			{
+				case "fetch": return git.FetchAsync(row.Path);
+				case "pull": return git.PullAsync(row.Path);
+				default: return git.PushAsync(row.Path, setUpstream: !row.HasUpstream);
+			}
+		}
+
+		private async Task SyncAllAsync(string action)
+		{
+			var rows = SyncRows.ToList();
+			var errors = new List<string>();
+			for (int i = 0; i < rows.Count; i++)
+			{
+				var row = rows[i];
+				StatusMessage = $"{action} {row.Name} ({i + 1}/{rows.Count})…";
+				try
+				{
+					await RunSyncActionAsync(row, action);
+					await UpdateSyncRowAsync(row);
+				}
+				catch (Exception e)
+				{
+					row.Status = e.Message;
+					errors.Add($"{row.Name}: {e.Message}");
+				}
+			}
+			StatusMessage = $"{action} completed for {rows.Count} repositories" + (errors.Count > 0 ? $" ({errors.Count} failed)." : ".");
+			if (errors.Count > 0)
+				LastError = string.Join("\n", errors);
+			if (action != "fetch")
+				await RefreshRepositoryAsync();
+		}
+
+		private async Task RefreshFeedAsync()
+		{
+			var grep = string.IsNullOrWhiteSpace(HistoryGrep) ? null : HistoryGrep.Trim();
+			var list = new List<FeedCommitViewModel>();
+			foreach (var repo in Repositories.ToList())
+			{
+				try
+				{
+					var author = await GetEffectiveAuthorAsync(repo.Path);
+					foreach (var commit in await git.GetHistoryAsync(repo.Path, 30, author, SinceDays, grep))
+						list.Add(new FeedCommitViewModel(repo, commit));
+				}
+				catch (InvalidOperationException)
+				{
+					// repository without commits — skip
+				}
+			}
+			FeedCommits.Clear();
+			foreach (var entry in list.OrderByDescending(f => f.SortDate))
+				FeedCommits.Add(entry);
+			if (FeedCommits.Count == 0)
+				StatusMessage = "No commits match the current filters.";
+		}
+
+		/// <summary>Feed double-click: switches to the History tab of the commit's repository and selects it.</summary>
+		public Task ShowCommitInHistoryAsync(FeedCommitViewModel feedCommit)
+		{
+			if (feedCommit == null)
+				return Task.CompletedTask;
+			return GuardedAsync(async () =>
+			{
+				SelectedTabIndex = historyTabIndex;
+				if (!ReferenceEquals(SelectedRepository, feedCommit.Repository))
+				{
+					// set the backing field directly: the setter would kick off a concurrent fire-and-forget refresh
+					selectedRepository = feedCommit.Repository;
+					RaisePropertyChanged(nameof(SelectedRepository));
+					await RefreshRepositoryAsync();
+				}
+				SelectedCommit = Commits.FirstOrDefault(c => c.Sha == feedCommit.Commit.Sha);
+			});
 		}
 
 		private async Task LoadChangeDiffAsync()

@@ -299,10 +299,58 @@
             <!-- ================= History ================= -->
             <TabItem Header="History" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
+                    <!-- filter row -->
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.7" />
+                        <TextBox Width="130" VerticalContentAlignment="Center"
+                                 Text="{Binding HistoryGrep, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter commit messages (git log --grep, case-insensitive)" />
+                        <TextBlock Text="Author:" VerticalAlignment="Center" Margin="8,0,4,0" Opacity="0.7" />
+                        <TextBox Width="100" VerticalContentAlignment="Center"
+                                 Text="{Binding HistoryAuthor, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter by author name (case-insensitive, ignored while Only mine is checked)" />
+                        <CheckBox Style="{StaticResource CoabCheckBox}" Content="Only mine"
+                                  IsChecked="{Binding OnlyMine}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                  ToolTip="Only commits of the configured git user.name" />
+                        <ComboBox Width="90" Margin="8,0,0,0" VerticalAlignment="Center"
+                                  SelectedIndex="{Binding HistoryPeriodIndex}"
+                                  ToolTip="Limit history to a time range">
+                            <ComboBoxItem Content="All time" />
+                            <ComboBoxItem Content="7 days" />
+                            <ComboBoxItem Content="30 days" />
+                            <ComboBoxItem Content="90 days" />
+                        </ComboBox>
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Apply" Margin="8,0,0,0"
+                                Command="{Binding RefreshHistoryCommand}"
+                                ToolTip="Reload the history with the current filters" />
+                    </WrapPanel>
+
                     <Expander DockPanel.Dock="Bottom" Header="Commit Details" Margin="0,6,0,0"
                               Template="{StaticResource CoabExpanderTemplate}"
                               IsExpanded="True">
-                        <TextBox Style="{StaticResource CoabDiffBox}" Text="{Binding CommitDetailsText, Mode=OneWay}" />
+                        <DockPanel>
+                            <ListBox DockPanel.Dock="Top" Height="90" Margin="0,0,0,4"
+                                     ItemsSource="{Binding CommitFiles}"
+                                     SelectedItem="{Binding SelectedCommitFile}"
+                                     Background="Transparent"
+                                     BorderThickness="1"
+                                     BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}"
+                                     HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Background="Transparent" ToolTip="{Binding FilePath}">
+                                            <TextBlock DockPanel.Dock="Left" Text="{Binding Status}"
+                                                       FontWeight="Bold" Width="16"
+                                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                            <TextBlock Text="{Binding FilePath}" TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBox Style="{StaticResource CoabDiffBox}" Text="{Binding CommitFileDiffText, Mode=OneWay}" />
+                        </DockPanel>
                     </Expander>
 
                     <Grid>
@@ -326,6 +374,11 @@
                                  HorizontalContentAlignment="Stretch"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Copy SHA" Command="{Binding CopyShaCommand}" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel Background="Transparent">
@@ -338,6 +391,214 @@
                                         </DockPanel.ToolTip>
                                         <TextBlock DockPanel.Dock="Left" Text="{Binding ShortSha}"
                                                    FontFamily="Consolas" FontWeight="SemiBold" Width="64"
+                                                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                        <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Opacity="0.6" FontSize="11" VerticalAlignment="Center">
+                                            <Run Text="{Binding Date, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Author, Mode=OneWay}" />
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ================= Branches ================= -->
+            <TabItem Header="Branches" Style="{StaticResource CoabTabItem}">
+                <DockPanel>
+                    <!-- inline branch create -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
+                                Command="{Binding CreateBranchCommand}"
+                                Content="Create"
+                                ToolTip="Create a branch at the current HEAD and check it out (git checkout -b)" />
+                        <TextBlock Text="New branch:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
+                        <TextBox Text="{Binding NewBranchName, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Name of the new branch" />
+                    </DockPanel>
+
+                    <!-- branch actions -->
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Checkout"
+                                Command="{Binding CheckoutBranchCommand}"
+                                ToolTip="Check out the selected branch" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Delete"
+                                Command="{Binding DeleteBranchCommand}"
+                                ToolTip="Delete the selected local branch (offers force delete when unmerged)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Refresh"
+                                Command="{Binding RefreshBranchesCommand}"
+                                ToolTip="Reload branches and their ahead/behind state" />
+                    </StackPanel>
+
+                    <ListBox ItemsSource="{Binding Branches}"
+                             SelectedItem="{Binding SelectedBranch}"
+                             Background="Transparent" BorderThickness="0"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Checkout" Command="{Binding CheckoutBranchCommand}" />
+                                <MenuItem Header="Delete" Command="{Binding DeleteBranchCommand}" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Background="Transparent">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SyncBadge}"
+                                               Margin="8,0,0,0" FontSize="11" Opacity="0.7" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                               ToolTip="Commits ahead/behind the upstream branch" />
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                        <Setter Property="FontWeight" Value="Bold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ================= Sync ================= -->
+            <TabItem Header="Sync" Style="{StaticResource CoabTabItem}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Fetch All"
+                                Command="{Binding FetchAllCommand}"
+                                ToolTip="git fetch in every repository (sequential)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Pull All"
+                                Command="{Binding PullAllCommand}"
+                                ToolTip="git pull in every repository (sequential)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Push All"
+                                Command="{Binding PushAllCommand}"
+                                ToolTip="git push in every repository (sequential)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Refresh"
+                                Command="{Binding RefreshSyncCommand}"
+                                ToolTip="Reload branch and ahead/behind state of all repositories" />
+                    </StackPanel>
+
+                    <ListBox ItemsSource="{Binding SyncRows}"
+                             Background="Transparent" BorderThickness="0"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Background="Transparent" ToolTip="{Binding Path}">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" FontWeight="SemiBold"
+                                               Width="140" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Branch}" FontStyle="Italic"
+                                               Width="120" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding SyncBadge}" Width="80"
+                                               FontSize="11" Opacity="0.7" VerticalAlignment="Center"
+                                               ToolTip="Commits ahead/behind the upstream branch" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button Style="{StaticResource CoabLinkButton}" Content="Fetch"
+                                                Command="{Binding DataContext.FetchRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" ToolTip="git fetch" />
+                                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                        <Button Style="{StaticResource CoabLinkButton}" Content="Pull"
+                                                Command="{Binding DataContext.PullRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" ToolTip="git pull" />
+                                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                        <Button Style="{StaticResource CoabLinkButton}" Content="Push"
+                                                Command="{Binding DataContext.PushRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="git push (sets upstream automatically when missing)" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Status}" Margin="8,0" FontSize="11"
+                                               Foreground="{StaticResource CoabErrorBrush}"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               ToolTip="{Binding Status}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ================= Feed ================= -->
+            <TabItem Header="Feed" Style="{StaticResource CoabTabItem}">
+                <DockPanel>
+                    <!-- filter row (same bindings as History) -->
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.7" />
+                        <TextBox Width="130" VerticalContentAlignment="Center"
+                                 Text="{Binding HistoryGrep, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter commit messages (git log --grep, case-insensitive)" />
+                        <TextBlock Text="Author:" VerticalAlignment="Center" Margin="8,0,4,0" Opacity="0.7" />
+                        <TextBox Width="100" VerticalContentAlignment="Center"
+                                 Text="{Binding HistoryAuthor, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter by author name (case-insensitive, ignored while Only mine is checked)" />
+                        <CheckBox Style="{StaticResource CoabCheckBox}" Content="Only mine"
+                                  IsChecked="{Binding OnlyMine}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                  ToolTip="Only commits of the configured git user.name" />
+                        <ComboBox Width="90" Margin="8,0,0,0" VerticalAlignment="Center"
+                                  SelectedIndex="{Binding HistoryPeriodIndex}"
+                                  ToolTip="Limit the feed to a time range">
+                            <ComboBoxItem Content="All time" />
+                            <ComboBoxItem Content="7 days" />
+                            <ComboBoxItem Content="30 days" />
+                            <ComboBoxItem Content="90 days" />
+                        </ComboBox>
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Apply" Margin="8,0,0,0"
+                                Command="{Binding RefreshFeedCommand}"
+                                ToolTip="Reload the feed of all repositories with the current filters" />
+                    </WrapPanel>
+
+                    <Grid>
+                        <TextBlock Text="No commits found"
+                                   HorizontalAlignment="Center" Margin="0,10,0,0"
+                                   Opacity="0.6">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding FeedCommits.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ListBox ItemsSource="{Binding FeedCommits}"
+                                 Background="Transparent" BorderThickness="0"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ItemContainerStyle="{StaticResource CoabListBoxItem}"
+                                 MouseDoubleClick="OnFeedDoubleClick"
+                                 ToolTip="Double-click a commit to open it in the History tab of its repository">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Background="Transparent">
+                                        <DockPanel.ToolTip>
+                                            <TextBlock>
+                                                <Run Text="{Binding RepoName, Mode=OneWay}" FontWeight="Bold" /><LineBreak />
+                                                <Run Text="{Binding Commit.Sha, Mode=OneWay}" /><LineBreak />
+                                                <Run Text="{Binding Author, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Date, Mode=OneWay}" /><LineBreak />
+                                                <Run Text="{Binding Message, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </DockPanel.ToolTip>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding RepoName}"
+                                                   FontWeight="SemiBold" Width="120" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding ShortSha}"
+                                                   FontFamily="Consolas" Width="64"
                                                    Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
                                         <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Opacity="0.6" FontSize="11" VerticalAlignment="Center">
                                             <Run Text="{Binding Date, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Author, Mode=OneWay}" />
