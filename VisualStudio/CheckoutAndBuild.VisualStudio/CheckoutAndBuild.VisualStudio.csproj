@@ -51,8 +51,14 @@
     <WarningLevel>4</WarningLevel>
     <DeployExtension>false</DeployExtension>
   </PropertyGroup>
+  <PropertyGroup>
+    <!-- Team Explorer DLL ships with VS, not with the VSIX. Overridable via /p:TeamExplorerDllPath=... -->
+    <TeamExplorerDllPath Condition="'$(TeamExplorerDllPath)' == '' And Exists('$(DevEnvDir)CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Microsoft.TeamFoundation.Controls.dll')">$(DevEnvDir)CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Microsoft.TeamFoundation.Controls.dll</TeamExplorerDllPath>
+    <TeamExplorerDllPath Condition="'$(TeamExplorerDllPath)' == '' And Exists('C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Microsoft.TeamFoundation.Controls.dll')">C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer\Microsoft.TeamFoundation.Controls.dll</TeamExplorerDllPath>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing" />
@@ -62,6 +68,10 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="WindowsBase" />
+    <Reference Include="Microsoft.TeamFoundation.Controls" Condition="'$(TeamExplorerDllPath)' != ''">
+      <HintPath>$(TeamExplorerDllPath)</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265">
@@ -85,6 +95,10 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Settings\SettingsUiFactory.cs" />
+    <Compile Include="TeamExplorer\CoabHomeSection.cs" Condition="'$(TeamExplorerDllPath)' != ''" />
+    <Compile Include="TeamExplorer\CoabHomeSectionView.xaml.cs" Condition="'$(TeamExplorerDllPath)' != ''">
+      <DependentUpon>CoabHomeSectionView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Settings\SettingsViewModel.cs" />
     <Compile Include="Settings\SettingsView.xaml.cs">
       <DependentUpon>SettingsView.xaml</DependentUpon>
@@ -105,6 +119,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Themes\CoabStyles.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="TeamExplorer\CoabHomeSectionView.xaml" Condition="'$(TeamExplorerDllPath)' != ''">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

@@ -8,7 +8,7 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 {
 	public partial class MainToolWindowControl : UserControl
 	{
-		private readonly MainViewModel viewModel = new MainViewModel();
+		private readonly MainViewModel viewModel = MainViewModel.Shared;
 		private DateTime lastServicesPopupClose;
 
 		public MainToolWindowControl()

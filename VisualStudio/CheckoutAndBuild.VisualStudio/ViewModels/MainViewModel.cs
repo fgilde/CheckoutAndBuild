@@ -92,6 +92,14 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private bool buildEnabled;
 		private bool testEnabled;
 
+		private static MainViewModel shared;
+
+		/// <summary>
+		/// Shared UI instance so the tool window and the Team Explorer section show the same state.
+		/// Create/access on the UI thread only (the ctor captures the current dispatcher).
+		/// </summary>
+		public static MainViewModel Shared => shared ?? (shared = new MainViewModel());
+
 		public MainViewModel() : this(JsonSettingsService.CreateDefault())
 		{
 		}
