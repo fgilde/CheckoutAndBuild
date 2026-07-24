@@ -19,6 +19,7 @@ namespace CheckoutAndBuild.Core.WorkItems
 		public string Title => Fields.TryGetValue("System.Title", out string title) ? title : "";
 		public string WorkItemType => Fields.TryGetValue("System.WorkItemType", out string type) ? type : "";
 		public string State => Fields.TryGetValue("System.State", out string state) ? state : "";
+		public string AssignedTo => Fields.TryGetValue("System.AssignedTo", out string assigned) ? assigned : "";
 	}
 
 	/// <summary>
@@ -108,6 +109,9 @@ namespace CheckoutAndBuild.Core.WorkItems
 						{
 							if (field.Value.ValueKind == JsonValueKind.String)
 								data.Fields[field.Name] = field.Value.GetString();
+							else if (field.Value.ValueKind == JsonValueKind.Object
+								&& field.Value.TryGetProperty("displayName", out JsonElement displayName))
+								data.Fields[field.Name] = displayName.GetString(); // identity fields (AssignedTo, CreatedBy, ...)
 						}
 						result.Add(data);
 					}

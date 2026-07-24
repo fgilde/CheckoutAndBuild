@@ -22,9 +22,9 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 
 		private void OnResultDoubleClick(object sender, MouseButtonEventArgs e)
 		{
-			var match = ((ListView)sender).SelectedItem as WorkItemMatchViewModel;
-			if (match != null)
-				viewModel.OpenWorkItemCommand.Execute(match);
+			var selected = ((ListView)sender).SelectedItem;
+			if (selected != null)
+				viewModel.OpenWorkItemCommand.Execute(selected);
 		}
 	}
 }

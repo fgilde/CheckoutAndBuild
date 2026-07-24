@@ -67,6 +67,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			PreviewCommand = new DelegateCommand(async () => await PreviewAsync(), CanRun);
 			ExecuteCommand = new DelegateCommand(async () => await ExecuteAsync(), () => CanRun() && isPreviewVisible);
 			OpenWorkItemCommand = new DelegateCommand(OpenWorkItem);
+			RunQueryCommand = new DelegateCommand(async () => await RunQueryAsync(), CanConnect);
+			NewWorkItemCommand = new DelegateCommand(NewWorkItem, CanConnect);
 		}
 
 		public ObservableCollection<WorkItemMatchViewModel> Results { get; } = new ObservableCollection<WorkItemMatchViewModel>();
@@ -143,12 +145,88 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { SetProperty(ref isPreviewVisible, value); }
 		}
 
-		private bool CanRun() =>
+		private bool CanRun() => CanConnect() && !string.IsNullOrWhiteSpace(searchTerm);
+
+		private bool CanConnect() =>
 			!isBusy &&
-			!string.IsNullOrWhiteSpace(searchTerm) &&
 			!string.IsNullOrWhiteSpace(organizationUrl) &&
 			!string.IsNullOrWhiteSpace(project) &&
 			!string.IsNullOrWhiteSpace(pat);
+
+		#region query view (replacement for the old WorkItemsSection/dashboards)
+
+		private const string allTypesFilter = "(All)";
+		private IReadOnlyList<WorkItemData> lastQueryItems = new WorkItemData[0];
+		private string selectedQueryType = allTypesFilter;
+
+		public ObservableCollection<WorkItemData> QueryResults { get; } = new ObservableCollection<WorkItemData>();
+
+		/// <summary>"(All)" plus the distinct work item types of the last query result.</summary>
+		public ObservableCollection<string> QueryTypes { get; } = new ObservableCollection<string> { allTypesFilter };
+
+		public ICommand RunQueryCommand { get; }
+		public ICommand NewWorkItemCommand { get; }
+
+		public string SelectedQueryType
+		{
+			get { return selectedQueryType; }
+			set
+			{
+				if (SetProperty(ref selectedQueryType, value))
+					ApplyQueryTypeFilter();
+			}
+		}
+
+		private async System.Threading.Tasks.Task RunQueryAsync()
+		{
+			IsBusy = true;
+			try
+			{
+				using (var client = CreateClient())
+				{
+					StatusText = "Running query...";
+					IReadOnlyList<int> ids = await client.QueryIdsAsync(Wiql);
+					StatusText = $"Loading {ids.Count} work items...";
+					lastQueryItems = await client.GetWorkItemsAsync(ids);
+				}
+
+				string previous = selectedQueryType;
+				QueryTypes.Clear();
+				QueryTypes.Add(allTypesFilter);
+				foreach (string type in lastQueryItems.Select(w => w.WorkItemType).Where(t => t.Length > 0).Distinct().OrderBy(t => t))
+					QueryTypes.Add(type);
+				selectedQueryType = QueryTypes.Contains(previous) ? previous : allTypesFilter;
+				RaisePropertyChanged(nameof(SelectedQueryType));
+
+				ApplyQueryTypeFilter();
+				StatusText = $"{lastQueryItems.Count} work item(s).";
+			}
+			catch (Exception ex)
+			{
+				StatusText = ex.Message;
+			}
+			finally
+			{
+				IsBusy = false;
+			}
+		}
+
+		private void ApplyQueryTypeFilter()
+		{
+			QueryResults.Clear();
+			foreach (var item in lastQueryItems.Where(w => selectedQueryType == allTypesFilter || w.WorkItemType == selectedQueryType))
+				QueryResults.Add(item);
+		}
+
+		/// <summary>Opens the browser on the "create work item" page for the selected type (Bug when unfiltered).</summary>
+		private void NewWorkItem()
+		{
+			string type = selectedQueryType == allTypesFilter ? "Bug" : selectedQueryType;
+			string url = $"{OrganizationUrl.TrimEnd('/')}/{Uri.EscapeDataString(Project)}/_workitems/create/{Uri.EscapeDataString(type)}";
+			System.Diagnostics.Process.Start(url);
+		}
+
+		#endregion
 
 		private async System.Threading.Tasks.Task PreviewAsync()
 		{
@@ -220,10 +298,15 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private void OpenWorkItem(object parameter)
 		{
-			if (!(parameter is WorkItemMatchViewModel match))
-				return;
+			int id;
+			switch (parameter)
+			{
+				case WorkItemMatchViewModel match: id = match.Id; break;
+				case WorkItemData data: id = data.Id; break;
+				default: return;
+			}
 			using (var client = CreateClient())
-				System.Diagnostics.Process.Start(client.GetWorkItemUrl(match.Id));
+				System.Diagnostics.Process.Start(client.GetWorkItemUrl(id));
 		}
 
 		private WorkItemClient CreateClient() => new WorkItemClient(OrganizationUrl, Project, pat);
