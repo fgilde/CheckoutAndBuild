@@ -115,6 +115,25 @@ public sealed class SettingsServiceTests : IDisposable
 	}
 
 	[Fact]
+	public void RenameProfile_MovesAllKeysAndLeavesOtherProfilesAlone()
+	{
+		var service = CreateService();
+		var nightlyRepo = new SettingsContext { Profile = "Nightly", RepositoryPath = repoContext.RepositoryPath };
+		var nightlyGlobal = new SettingsContext { Profile = "Nightly" };
+		service.Set("maxNodeCount", nightlyRepo, 16);
+		service.Set("msbuildPath", nightlyGlobal, @"C:\msbuild.exe");
+		service.Set("maxNodeCount", repoContext, 2);
+
+		service.RenameProfile("Nightly", "Weekly");
+
+		var weeklyRepo = new SettingsContext { Profile = "Weekly", RepositoryPath = repoContext.RepositoryPath };
+		Assert.Equal(16, service.Get<int>("maxNodeCount", weeklyRepo));
+		Assert.Equal(@"C:\msbuild.exe", service.Get<string>("msbuildPath", new SettingsContext { Profile = "Weekly" }));
+		Assert.Equal(0, service.Get("maxNodeCount", nightlyRepo, 0));
+		Assert.Equal(2, service.Get<int>("maxNodeCount", repoContext));
+	}
+
+	[Fact]
 	public void Set_CreatesFile()
 	{
 		var service = CreateService();

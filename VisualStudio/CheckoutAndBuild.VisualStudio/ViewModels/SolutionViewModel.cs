@@ -26,7 +26,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly MainViewModel owner;
 		private readonly Dispatcher dispatcher;
 		private OperationInfo observedOperation;
-		private readonly Dictionary<string, bool> serviceOverrides;
+		private Dictionary<string, bool> serviceOverrides;
 
 		public SolutionViewModel(SolutionProjectModel model, MainViewModel owner, Dispatcher dispatcher)
 		{
@@ -34,7 +34,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
 			this.dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
-			serviceOverrides = owner.Settings.Get<Dictionary<string, bool>>(ServicesKey, owner.GlobalContext)
+			serviceOverrides = owner.Settings.Get<Dictionary<string, bool>>(ServicesKey, owner.ProfileContext)
 				?? new Dictionary<string, bool>();
 			ApplyBuildOptionsToModel();
 
@@ -175,7 +175,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private void SetServiceEnabled(string key, bool value)
 		{
 			serviceOverrides[key] = value;
-			owner.Settings.Set(ServicesKey, owner.GlobalContext, serviceOverrides);
+			owner.Settings.Set(ServicesKey, owner.ProfileContext, serviceOverrides);
 			RefreshServiceFlags();
 		}
 
@@ -192,14 +192,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(ServicesCaptionSmall));
 		}
 
+		/// <summary>Re-reads the profile-scoped per-solution state after a profile switch.</summary>
+		internal void ReloadProfileScopedState()
+		{
+			serviceOverrides = owner.Settings.Get<Dictionary<string, bool>>(ServicesKey, owner.ProfileContext)
+				?? new Dictionary<string, bool>();
+			ApplyBuildOptionsToModel();
+			RefreshServiceFlags();
+			RaisePropertyChanged(nameof(BuildPropertiesCaption));
+			RaisePropertyChanged(nameof(BuildTargetsCaption));
+		}
+
 		/// <summary>Pushes the persisted build properties/targets into the pipeline model.</summary>
 		private void ApplyBuildOptionsToModel()
 		{
-			var properties = owner.Settings.Get<Dictionary<string, string>>(BuildPropertiesKey, owner.GlobalContext);
+			var properties = owner.Settings.Get<Dictionary<string, string>>(BuildPropertiesKey, owner.ProfileContext);
 			Model.BuildProperties.Clear();
 			foreach (var pair in properties ?? new Dictionary<string, string>())
 				Model.BuildProperties[pair.Key] = pair.Value;
-			Model.SetBuildTargets(owner.Settings.Get<List<string>>(BuildTargetsKey, owner.GlobalContext));
+			Model.SetBuildTargets(owner.Settings.Get<List<string>>(BuildTargetsKey, owner.ProfileContext));
 		}
 
 		/// <summary>Key/value grid dialog; saved on close (old DictionaryEdit behavior).</summary>
@@ -236,7 +247,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var result = new Dictionary<string, string>();
 			foreach (var row in rows.Where(r => !string.IsNullOrWhiteSpace(r.Key)))
 				result[row.Key.Trim()] = row.Value ?? string.Empty;
-			owner.Settings.Set(BuildPropertiesKey, owner.GlobalContext, result);
+			owner.Settings.Set(BuildPropertiesKey, owner.ProfileContext, result);
 			ApplyBuildOptionsToModel();
 			RaisePropertyChanged(nameof(BuildPropertiesCaption));
 		}
@@ -264,7 +275,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				.Select(t => t.Trim())
 				.Where(t => t.Length > 0)
 				.ToList();
-			owner.Settings.Set(BuildTargetsKey, owner.GlobalContext, targets);
+			owner.Settings.Set(BuildTargetsKey, owner.ProfileContext, targets);
 			ApplyBuildOptionsToModel();
 			RaisePropertyChanged(nameof(BuildTargetsCaption));
 		}

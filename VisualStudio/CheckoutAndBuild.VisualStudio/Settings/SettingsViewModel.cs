@@ -21,13 +21,15 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 	public class SettingsViewModel
 	{
 		public SettingsViewModel(ISettingsService settings, string title, string solutionPath, Action close,
-			IEnumerable<Type> settingsClasses = null)
+			IEnumerable<Type> settingsClasses = null, string profile = null)
 		{
 			Title = title;
 			IsProjectSpecific = solutionPath != null;
 			CloseCommand = new DelegateCommand(close ?? (() => { }));
 
 			var context = new SettingsContext { RepositoryPath = solutionPath };
+			if (!string.IsNullOrEmpty(profile))
+				context.Profile = profile;
 			foreach (Type settingsClass in settingsClasses ?? SettingsUiFactory.SettingsClasses)
 			{
 				var entries = SettingsUiFactory.GetEditableProperties(settingsClass, IsProjectSpecific)

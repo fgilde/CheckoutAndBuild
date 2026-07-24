@@ -5,6 +5,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using CheckoutAndBuild.Core.Contracts;
@@ -58,12 +60,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 	public class MainViewModel : NotificationObject
 	{
 		private const string workingFoldersKey = "WorkingFolders";
+		private const string currentProfileKey = "CurrentProfile";
+		private const string profilesKey = "Profiles";
 		private const int maxScanDepth = 3;
 		private static readonly string[] skippedDirectories = { ".git", ".vs", "bin", "obj", "node_modules", "packages" };
 
 		private readonly Dispatcher dispatcher;
 		private readonly ISettingsService settings;
 		private readonly SettingsContext globalContext = new SettingsContext();
+		private readonly SettingsContext profileContext = new SettingsContext();
+		private string currentProfile;
 		private readonly ServiceSettingsAdapter serviceSettings;
 		private readonly PipelineRunner pipelineRunner = new PipelineRunner();
 
@@ -108,14 +114,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			dispatcher = Dispatcher.CurrentDispatcher;
 			settings = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-			serviceSettings = new ServiceSettingsAdapter(settings, globalContext);
+
+			// working profiles: list + last selection are global; profileContext scopes everything else
+			Profiles = new ObservableCollection<string>(
+				settings.Get<List<string>>(profilesKey, globalContext) ?? new List<string>());
+			if (!Profiles.Contains(SettingsContext.DefaultProfile))
+				Profiles.Insert(0, SettingsContext.DefaultProfile);
+			currentProfile = settings.Get(currentProfileKey, globalContext, SettingsContext.DefaultProfile);
+			if (!Profiles.Contains(currentProfile))
+				currentProfile = SettingsContext.DefaultProfile;
+			profileContext.Profile = currentProfile;
+
+			serviceSettings = new ServiceSettingsAdapter(settings, profileContext);
 
 			// default: everything on except Clean + Test (matches the old default roughly)
-			cleanEnabled = settings.Get("Services.Clean", globalContext, false);
-			checkoutEnabled = settings.Get("Services.Checkout", globalContext, true);
-			restoreEnabled = settings.Get("Services.Restore", globalContext, true);
-			buildEnabled = settings.Get("Services.Build", globalContext, true);
-			testEnabled = settings.Get("Services.Test", globalContext, false);
+			cleanEnabled = settings.Get("Services.Clean", profileContext, false);
+			checkoutEnabled = settings.Get("Services.Checkout", profileContext, true);
+			restoreEnabled = settings.Get("Services.Restore", profileContext, true);
+			buildEnabled = settings.Get("Services.Build", profileContext, true);
+			testEnabled = settings.Get("Services.Test", profileContext, false);
 
 			RunCommand = new DelegateCommand(async () => await RunPipelineAsync(),
 				() => !IsRunning && AllSolutions().Any(s => s.IsIncluded && s.HasAnyServiceEnabled));
@@ -128,6 +145,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			OpenSettingsCommand = new DelegateCommand(OpenGlobalSettings);
 			ExportBatchCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Batch), CanExportScript);
 			ExportPowershellCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Powershell), CanExportScript);
+			AddProfileCommand = new DelegateCommand(AddProfile, () => !IsRunning);
+			RenameProfileCommand = new DelegateCommand(RenameProfile,
+				() => !IsRunning && CurrentProfile != SettingsContext.DefaultProfile);
+			DeleteProfileCommand = new DelegateCommand(DeleteProfile,
+				() => !IsRunning && CurrentProfile != SettingsContext.DefaultProfile);
 		}
 
 		/// <summary>Error List sink; set by the tool window control (null in tests).</summary>
@@ -136,10 +158,45 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Settings store, shared with the solution view models (per-solution overrides).</summary>
 		internal ISettingsService Settings => settings;
 
-		/// <summary>Global (unscoped) settings context.</summary>
-		internal SettingsContext GlobalContext => globalContext;
+		/// <summary>
+		/// Settings context of the current working profile. Shared mutable instance: switching the
+		/// profile updates it in place, so the solution view models and the ServiceSettingsAdapter
+		/// always read/write the active profile's scope.
+		/// </summary>
+		internal SettingsContext ProfileContext => profileContext;
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
+
+		/// <summary>All working profile names; always contains at least "Default".</summary>
+		public ObservableCollection<string> Profiles { get; }
+
+		/// <summary>
+		/// Active working profile. Every solution-related setting (included, priority, services,
+		/// build properties/targets, step flags, SettingsProperty values) is scoped by it;
+		/// the working folders themselves are shared between profiles.
+		/// </summary>
+		public string CurrentProfile
+		{
+			get { return currentProfile; }
+			set
+			{
+				if (string.IsNullOrEmpty(value) || value == currentProfile)
+					return;
+				if (IsRunning || !Profiles.Contains(value))
+				{
+					// snap the ComboBox back to the real value
+					dispatcher.BeginInvoke(new Action(() => RaisePropertyChanged(nameof(CurrentProfile))));
+					return;
+				}
+				if (SetProperty(ref currentProfile, value))
+				{
+					settings.Set(currentProfileKey, globalContext, value);
+					profileContext.Profile = value;
+					ReloadProfileScopedState();
+					CommandManager.InvalidateRequerySuggested();
+				}
+			}
+		}
 
 		/// <summary>Flat list of all excluded solutions across all working folders ("Excluded" area).</summary>
 		public ObservableCollection<SolutionViewModel> ExcludedSolutions { get; } = new ObservableCollection<SolutionViewModel>();
@@ -154,6 +211,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand OpenSettingsCommand { get; }
 		public ICommand ExportBatchCommand { get; }
 		public ICommand ExportPowershellCommand { get; }
+		public ICommand AddProfileCommand { get; }
+		public ICommand RenameProfileCommand { get; }
+		public ICommand DeleteProfileCommand { get; }
 
 		/// <summary>Non-null while the settings "page" is shown instead of the main content.</summary>
 		public SettingsViewModel ActiveSettings
@@ -166,14 +226,14 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public void OpenGlobalSettings()
 		{
 			ActiveSettings = new SettingsViewModel(settings, "Settings", null, CloseSettings,
-				SettingsUiFactory.GetSettingsClasses(pluginHost));
+				SettingsUiFactory.GetSettingsClasses(pluginHost), CurrentProfile);
 		}
 
 		/// <summary>Opens the solution-scoped settings editor (solution context menu).</summary>
 		internal void OpenSolutionSettings(SolutionViewModel solution)
 		{
 			ActiveSettings = new SettingsViewModel(settings, $"Settings — {solution.SolutionFileName}", solution.ItemPath, CloseSettings,
-				SettingsUiFactory.GetSettingsClasses(pluginHost));
+				SettingsUiFactory.GetSettingsClasses(pluginHost), CurrentProfile);
 		}
 
 		private void CloseSettings() => ActiveSettings = null;
@@ -230,31 +290,31 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public bool IsCleanEnabled
 		{
 			get { return cleanEnabled; }
-			set { if (SetProperty(ref cleanEnabled, value)) { settings.Set("Services.Clean", globalContext, value); RefreshSolutionServiceFlags(); } }
+			set { if (SetProperty(ref cleanEnabled, value)) { settings.Set("Services.Clean", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsCheckoutEnabled
 		{
 			get { return checkoutEnabled; }
-			set { if (SetProperty(ref checkoutEnabled, value)) { settings.Set("Services.Checkout", globalContext, value); RefreshSolutionServiceFlags(); } }
+			set { if (SetProperty(ref checkoutEnabled, value)) { settings.Set("Services.Checkout", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsRestoreEnabled
 		{
 			get { return restoreEnabled; }
-			set { if (SetProperty(ref restoreEnabled, value)) { settings.Set("Services.Restore", globalContext, value); RefreshSolutionServiceFlags(); } }
+			set { if (SetProperty(ref restoreEnabled, value)) { settings.Set("Services.Restore", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsBuildEnabled
 		{
 			get { return buildEnabled; }
-			set { if (SetProperty(ref buildEnabled, value)) { settings.Set("Services.Build", globalContext, value); RefreshSolutionServiceFlags(); } }
+			set { if (SetProperty(ref buildEnabled, value)) { settings.Set("Services.Build", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsTestEnabled
 		{
 			get { return testEnabled; }
-			set { if (SetProperty(ref testEnabled, value)) { settings.Set("Services.Test", globalContext, value); RefreshSolutionServiceFlags(); } }
+			set { if (SetProperty(ref testEnabled, value)) { settings.Set("Services.Test", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		/// <summary>Global step checkboxes are the fallback of the per-solution flags: re-raise them all.</summary>
@@ -313,6 +373,129 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild plugin load failed: " + e.Message);
 			}
 		}
+
+		#region working profiles
+
+		private void AddProfile()
+		{
+			string name = PromptForProfileName("Add Profile", string.Empty);
+			if (name == null)
+				return;
+			string existing = Profiles.FirstOrDefault(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase));
+			if (existing == null)
+			{
+				Profiles.Add(name);
+				PersistProfiles();
+			}
+			CurrentProfile = existing ?? name;
+		}
+
+		private void RenameProfile()
+		{
+			string oldName = CurrentProfile;
+			if (oldName == SettingsContext.DefaultProfile)
+				return;
+			string name = PromptForProfileName("Rename Profile", oldName);
+			if (name == null || name == oldName
+				|| Profiles.Any(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase)))
+				return;
+
+			settings.RenameProfile(oldName, name);
+			Profiles[Profiles.IndexOf(oldName)] = name;
+			PersistProfiles();
+			// keys were moved along, so no ReloadProfileScopedState needed
+			currentProfile = name;
+			profileContext.Profile = name;
+			settings.Set(currentProfileKey, globalContext, name);
+			RaisePropertyChanged(nameof(CurrentProfile));
+		}
+
+		private void DeleteProfile()
+		{
+			string name = CurrentProfile;
+			if (name == SettingsContext.DefaultProfile)
+				return;
+			if (MessageBox.Show($"Delete profile '{name}'?", "CheckoutAndBuild",
+					MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+				return;
+
+			// ponytail: lazy delete — the profile's settings stay in the store, only the list entry goes
+			CurrentProfile = SettingsContext.DefaultProfile;
+			Profiles.Remove(name);
+			PersistProfiles();
+		}
+
+		private void PersistProfiles()
+		{
+			settings.Set(profilesKey, globalContext, Profiles.ToList());
+		}
+
+		/// <summary>
+		/// Re-reads all profile-scoped values (step flags + per-solution state) after a profile
+		/// switch. No file rescan: the solutions stay, only their stored settings are re-read.
+		/// </summary>
+		private void ReloadProfileScopedState()
+		{
+			cleanEnabled = settings.Get("Services.Clean", profileContext, false);
+			checkoutEnabled = settings.Get("Services.Checkout", profileContext, true);
+			restoreEnabled = settings.Get("Services.Restore", profileContext, true);
+			buildEnabled = settings.Get("Services.Build", profileContext, true);
+			testEnabled = settings.Get("Services.Test", profileContext, false);
+			RaisePropertyChanged(nameof(IsCleanEnabled));
+			RaisePropertyChanged(nameof(IsCheckoutEnabled));
+			RaisePropertyChanged(nameof(IsRestoreEnabled));
+			RaisePropertyChanged(nameof(IsBuildEnabled));
+			RaisePropertyChanged(nameof(IsTestEnabled));
+
+			foreach (var solution in AllSolutions().ToList())
+			{
+				solution.IsIncluded = settings.Get($"IsIncluded:{solution.ItemPath}", profileContext, true);
+				solution.BuildPriority = GetInitialBuildPriority(solution.Model);
+				solution.ReloadProfileScopedState();
+			}
+			foreach (var folder in WorkingFolders)
+			{
+				folder.Resort();
+				folder.IncludedSolutions.Refresh();
+			}
+		}
+
+		/// <summary>Small modal name editor (analog to the solution option dialogs). Returns null on cancel/empty.</summary>
+		private static string PromptForProfileName(string title, string initialValue)
+		{
+			var textBox = new TextBox { Text = initialValue, Margin = new Thickness(8, 4, 8, 0) };
+			var ok = new Button { Content = "OK", Width = 72, Margin = new Thickness(0, 8, 8, 8), IsDefault = true };
+			var cancel = new Button { Content = "Cancel", Width = 72, Margin = new Thickness(0, 8, 8, 8), IsCancel = true };
+			var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+			buttons.Children.Add(ok);
+			buttons.Children.Add(cancel);
+			var panel = new StackPanel();
+			panel.Children.Add(new TextBlock { Text = "Profile name:", Margin = new Thickness(8, 8, 8, 0), Opacity = 0.7 });
+			panel.Children.Add(textBox);
+			panel.Children.Add(buttons);
+
+			var window = new Window
+			{
+				Title = title,
+				Content = panel,
+				Width = 340,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			window.Loaded += (s, e) => { textBox.Focus(); textBox.SelectAll(); };
+			ok.Click += (s, e) => window.DialogResult = true;
+			if (window.ShowDialog() != true)
+				return null;
+
+			// "$" is the settings key separator and must not appear in a profile name
+			string name = textBox.Text?.Trim().Replace("$", string.Empty);
+			return string.IsNullOrEmpty(name) ? null : name;
+		}
+
+		#endregion
 
 		#region working folders
 
@@ -380,7 +563,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				var found = ScanForSolutions(path);
 				foreach (var model in found)
 				{
-					model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", globalContext, true);
+					model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", profileContext, true);
 					model.BuildPriority = GetInitialBuildPriority(model);
 				}
 				return found;
@@ -400,7 +583,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Stored priority wins; without one, a plugin IDefaultBuildPriorityManager may supply the default.</summary>
 		private int GetInitialBuildPriority(ISolutionProjectModel model)
 		{
-			int stored = settings.Get($"BuildPriority:{model.ItemPath}", globalContext, int.MinValue);
+			int stored = settings.Get($"BuildPriority:{model.ItemPath}", profileContext, int.MinValue);
 			if (stored != int.MinValue)
 				return stored;
 			try
@@ -434,7 +617,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var solution = (SolutionViewModel)sender;
 			if (e.PropertyName == nameof(SolutionViewModel.IsIncluded))
 			{
-				settings.Set($"IsIncluded:{solution.ItemPath}", globalContext, solution.IsIncluded);
+				settings.Set($"IsIncluded:{solution.ItemPath}", profileContext, solution.IsIncluded);
 				if (solution.IsIncluded)
 					ExcludedSolutions.Remove(solution);
 				else if (!ExcludedSolutions.Contains(solution))
@@ -443,7 +626,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			else if (e.PropertyName == nameof(SolutionViewModel.BuildPriority))
 			{
-				settings.Set($"BuildPriority:{solution.ItemPath}", globalContext, solution.BuildPriority);
+				settings.Set($"BuildPriority:{solution.ItemPath}", profileContext, solution.BuildPriority);
 				WorkingFolders.FirstOrDefault(f => f.Solutions.Contains(solution))?.Resort();
 			}
 		}

@@ -72,6 +72,39 @@
                     </Button.ContextMenu>
                 </Button>
             </StackPanel>
+            <!-- working profile selector (settings scope; folders are shared between profiles) -->
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
+                <ComboBox ItemsSource="{Binding Profiles}"
+                          SelectedItem="{Binding CurrentProfile}"
+                          MinWidth="90" FontSize="11"
+                          VerticalAlignment="Center"
+                          ToolTip="Working profile">
+                    <ComboBox.Style>
+                        <Style TargetType="ComboBox">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ComboBox.Style>
+                </ComboBox>
+                <Button Style="{StaticResource CoabIconButton}" Margin="2,0,0,0"
+                        Click="OnMoreClick"
+                        ToolTip="Manage working profiles">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE712;" FontSize="12" />
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="New profile…" Command="{Binding AddProfileCommand}"
+                                      ToolTip="Create a new working profile" />
+                            <MenuItem Header="Rename profile…" Command="{Binding RenameProfileCommand}"
+                                      ToolTip="Rename the current profile (keeps its settings)" />
+                            <MenuItem Header="Delete profile…" Command="{Binding DeleteProfileCommand}"
+                                      ToolTip="Remove the current profile ('Default' cannot be deleted)" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+            </StackPanel>
             <WrapPanel VerticalAlignment="Center">
                 <TextBlock Text="Steps:" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7"
                            ToolTip="Pipeline steps executed for every included solution" />

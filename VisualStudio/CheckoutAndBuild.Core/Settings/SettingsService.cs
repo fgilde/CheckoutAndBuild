@@ -9,6 +9,10 @@ namespace CheckoutAndBuild.Core.Settings
 	{
 		T Get<T>(string key, SettingsContext context, T defaultValue = default);
 		void Set<T>(string key, SettingsContext context, T value);
+
+		/// <summary>Moves every stored key of <paramref name="oldProfile"/> to <paramref name="newProfile"/> (profile rename keeps its settings).</summary>
+		void RenameProfile(string oldProfile, string newProfile);
+
 		void Save();
 	}
 
@@ -66,6 +70,24 @@ namespace CheckoutAndBuild.Core.Settings
 			lock (syncRoot)
 			{
 				values[BuildKey(key, context)] = JsonSerializer.SerializeToElement(value);
+				SaveCore();
+			}
+		}
+
+		public void RenameProfile(string oldProfile, string newProfile)
+		{
+			if (string.IsNullOrEmpty(oldProfile) || string.IsNullOrEmpty(newProfile) || oldProfile == newProfile)
+				return;
+			lock (syncRoot)
+			{
+				string oldPrefix = oldProfile + keySeparator;
+				foreach (string key in new List<string>(values.Keys))
+				{
+					if (!key.StartsWith(oldPrefix, StringComparison.Ordinal))
+						continue;
+					values[newProfile + keySeparator + key.Substring(oldPrefix.Length)] = values[key];
+					values.Remove(key);
+				}
 				SaveCore();
 			}
 		}

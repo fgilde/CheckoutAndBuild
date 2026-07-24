@@ -36,9 +36,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public LoggerVerbosity LogLevel => LoggerVerbosity.Minimal;
 
 		public T GetSettingsFromProvider<T>() where T : ISettingsProviderClass, new()
-			=> SettingsUiFactory.CreateSettings<T>(settings);
+			=> SettingsUiFactory.CreateSettings<T>(settings, null, context.Profile);
 
 		public T GetSettingsFromProvider<T>(ISolutionProjectModel solutionProject) where T : ISettingsProviderClass, new()
-			=> SettingsUiFactory.CreateSettings<T>(settings, solutionProject?.ItemPath);
+			=> SettingsUiFactory.CreateSettings<T>(settings, solutionProject?.ItemPath, context.Profile);
 	}
 }

@@ -123,11 +123,12 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 		/// override properties read solution-scoped (falling back to global); Global-only properties
 		/// always read the global value. Mirrors the old SettingsService.GetSettingsFromProvider.
 		/// </summary>
-		public static T CreateSettings<T>(ISettingsService settings, string solutionPath = null)
+		public static T CreateSettings<T>(ISettingsService settings, string solutionPath = null, string profile = null)
 			where T : ISettingsProviderClass, new()
 		{
-			var globalContext = new SettingsContext();
-			var solutionContext = solutionPath == null ? null : new SettingsContext { RepositoryPath = solutionPath };
+			profile = string.IsNullOrEmpty(profile) ? SettingsContext.DefaultProfile : profile;
+			var globalContext = new SettingsContext { Profile = profile };
+			var solutionContext = solutionPath == null ? null : new SettingsContext { Profile = profile, RepositoryPath = solutionPath };
 			var instance = new T();
 			foreach (PropertyInfo property in GetSettingsProperties(typeof(T)))
 			{
