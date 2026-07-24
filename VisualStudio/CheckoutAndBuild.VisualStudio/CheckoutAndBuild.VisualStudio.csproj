@@ -74,6 +74,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CheckoutAndBuildPackage.cs" />
+    <Compile Include="Common\DelegateCommand.cs" />
+    <Compile Include="ViewModels\MainViewModel.cs" />
+    <Compile Include="ViewModels\ServiceSettingsAdapter.cs" />
+    <Compile Include="ViewModels\SolutionViewModel.cs" />
     <Compile Include="ToolWindows\MainToolWindow.cs" />
     <Compile Include="ToolWindows\MainToolWindowControl.xaml.cs">
       <DependentUpon>MainToolWindowControl.xaml</DependentUpon>
