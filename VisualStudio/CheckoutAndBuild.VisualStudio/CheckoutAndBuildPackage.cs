@@ -3,6 +3,8 @@ using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using CheckoutAndBuild.Core.Settings;
+using CheckoutAndBuild.VisualStudio.Common;
 using CheckoutAndBuild.VisualStudio.ErrorList;
 using CheckoutAndBuild.VisualStudio.Options;
 using CheckoutAndBuild.VisualStudio.ToolWindows;
@@ -49,6 +51,8 @@ namespace CheckoutAndBuild.VisualStudio
 		{
 			Instance = this;
 			await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+
+			CoabOutputPane.Initialize(this, JsonSettingsService.CreateDefault());
 
 			if (await GetServiceAsync(typeof(IMenuCommandService)) is OleMenuCommandService commandService)
 			{

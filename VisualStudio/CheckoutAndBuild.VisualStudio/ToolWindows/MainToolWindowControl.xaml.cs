@@ -18,6 +18,23 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			viewModel.ErrorSink = CheckoutAndBuildPackage.Instance?.ErrorListProvider;
 			DataContext = viewModel;
 			Loaded += async (sender, e) => await viewModel.LoadAsync();
+			PreviewKeyDown += OnPreviewKeyDown;
+		}
+
+		/// <summary>Ctrl+E focuses the filter box (old SearchBox shortcut); Esc in the box clears it.</summary>
+		private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+		{
+			if (e.Key == System.Windows.Input.Key.E
+				&& (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+			{
+				filterBox.Focus();
+				filterBox.SelectAll();
+				e.Handled = true;
+			}
+			else if (e.Key == System.Windows.Input.Key.Escape && filterBox.IsKeyboardFocused)
+			{
+				filterBox.Clear();
+			}
 		}
 
 		/// <summary>Opens the global settings view (used by the Tools → Options page).</summary>

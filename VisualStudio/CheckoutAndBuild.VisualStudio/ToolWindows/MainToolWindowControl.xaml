@@ -68,6 +68,20 @@
                                       ToolTip="Export the enabled pipeline steps as a batch script" />
                             <MenuItem Header="Export as .ps1…" Command="{Binding ExportPowershellCommand}"
                                       ToolTip="Export the enabled pipeline steps as a PowerShell script" />
+                            <Separator />
+                            <MenuItem Header="Sort by">
+                                <MenuItem Header="Build Priority" IsChecked="{Binding IsSortByPriority, Mode=OneWay}"
+                                          Command="{Binding SetSortModeCommand}" CommandParameter="BuildPriority" />
+                                <MenuItem Header="Name" IsChecked="{Binding IsSortByName, Mode=OneWay}"
+                                          Command="{Binding SetSortModeCommand}" CommandParameter="Name" />
+                                <MenuItem Header="Services" IsChecked="{Binding IsSortByServices, Mode=OneWay}"
+                                          Command="{Binding SetSortModeCommand}" CommandParameter="Services" />
+                                <MenuItem Header="Project Type" IsChecked="{Binding IsSortByProjectType, Mode=OneWay}"
+                                          Command="{Binding SetSortModeCommand}" CommandParameter="ProjectType" />
+                                <Separator />
+                                <MenuItem Header="Descending" IsChecked="{Binding SortDescending, Mode=OneWay}"
+                                          Command="{Binding ToggleSortDescendingCommand}" />
+                            </MenuItem>
                         </ContextMenu>
                     </Button.ContextMenu>
                 </Button>
@@ -191,6 +205,11 @@
             </Button>
         </Grid>
 
+        <!-- ===== filter box (Ctrl+E) ===== -->
+        <TextBox DockPanel.Dock="Top" x:Name="filterBox" Margin="0,0,0,6" FontSize="11"
+                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Filter solutions by name (Ctrl+E focuses this box, Esc clears)" />
+
         <!-- ===== last error ===== -->
         <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
                    Text="{Binding LastError}"
@@ -218,7 +237,23 @@
                                   HorizontalContentAlignment="Stretch"
                                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
                             <Expander.Header>
-                                <DockPanel x:Name="folderHeader" LastChildFill="True" Background="Transparent">
+                                <DockPanel x:Name="folderHeader" LastChildFill="True" Background="Transparent"
+                                           Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}">
+                                    <DockPanel.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Add Solution…"
+                                                      Command="{Binding PlacementTarget.Tag.AddSolutionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"
+                                                      ToolTip="Add solutions outside the folder scan" />
+                                            <MenuItem Header="Merge to One Solution"
+                                                      Command="{Binding PlacementTarget.Tag.MergeFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"
+                                                      ToolTip="Merge all included solutions of this folder into one !Merged_Build_*.sln" />
+                                            <MenuItem Header="Open in File Explorer"
+                                                      Command="{Binding PlacementTarget.Tag.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}" />
+                                        </ContextMenu>
+                                    </DockPanel.ContextMenu>
                                     <Button DockPanel.Dock="Right" Margin="8,0,4,0"
                                             Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                             CommandParameter="{Binding}"
@@ -292,8 +327,26 @@
                                                     <MenuItem Header="Clean only" Command="{Binding CleanOnlyCommand}" />
                                                     <MenuItem Header="Test only" Command="{Binding TestOnlyCommand}" />
                                                     <Separator />
+                                                    <MenuItem Header="Start" Command="{Binding StartCommand}"
+                                                              ToolTip="Run the built executable of this solution" />
+                                                    <MenuItem Header="Start and Attach Debugger" Command="{Binding StartDebuggerCommand}"
+                                                              ToolTip="Run the built executable and attach the VS debugger" />
+                                                    <MenuItem Header="Restart" Command="{Binding RestartCommand}"
+                                                              ToolTip="Stop running instances, then start again" />
+                                                    <MenuItem Header="Stop" Command="{Binding StopCommand}"
+                                                              ToolTip="Kill processes running from this solution's output directories" />
+                                                    <Separator />
                                                     <MenuItem Header="Open Solution" Command="{Binding OpenSolutionCommand}"
                                                               ToolTip="Open this solution in the current Visual Studio instance" />
+                                                    <MenuItem Header="Open with" ItemsSource="{Binding OpenWithOptions}"
+                                                              ToolTip="Open this solution in another Visual Studio">
+                                                        <MenuItem.ItemContainerStyle>
+                                                            <Style TargetType="MenuItem">
+                                                                <Setter Property="Header" Value="{Binding Header}" />
+                                                                <Setter Property="Command" Value="{Binding Command}" />
+                                                            </Style>
+                                                        </MenuItem.ItemContainerStyle>
+                                                    </MenuItem>
                                                     <MenuItem Header="Open in File Explorer" Command="{Binding OpenInExplorerCommand}" />
                                                     <MenuItem Header="Open Output Directory" Command="{Binding OpenOutputDirectoryCommand}"
                                                               ToolTip="Open the first existing project output directory" />
@@ -301,8 +354,23 @@
                                                               ToolTip="Show the git history of this solution's repository" />
                                                     <MenuItem Header="Copy Full Path" Command="{Binding CopyFullPathCommand}" />
                                                     <Separator />
+                                                    <MenuItem Header="Show Errors…" Command="{Binding ShowErrorsCommand}"
+                                                              ToolTip="Errors of the last failed run, with retry" />
                                                     <MenuItem Header="Settings…" Command="{Binding SettingsCommand}"
                                                               ToolTip="Solution-specific settings (override the global settings)" />
+                                                    <MenuItem Header="Remove from list" Command="{Binding RemoveFromListCommand}"
+                                                              ToolTip="Remove this manually added solution again">
+                                                        <MenuItem.Style>
+                                                            <Style TargetType="MenuItem">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCustom}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </MenuItem.Style>
+                                                    </MenuItem>
                                                 </ContextMenu>
                                             </Grid.ContextMenu>
                                             <Grid.RowDefinitions>
@@ -435,12 +503,15 @@
                                                           VerticalAlignment="Center"
                                                           ToolTip="{Binding ResultText}"
                                                           Visibility="{Binding HasSucceeded, Converter={StaticResource BoolToVis}}" />
-                                                    <Path Data="{StaticResource CoabErrorGeometry}"
-                                                          Fill="{StaticResource CoabErrorBrush}"
-                                                          Stretch="Uniform" Width="9" Height="9"
-                                                          VerticalAlignment="Center"
-                                                          ToolTip="{Binding ResultText}"
-                                                          Visibility="{Binding HasFailed, Converter={StaticResource BoolToVis}}" />
+                                                    <Button Style="{StaticResource CoabIconButton}"
+                                                            Command="{Binding ShowErrorsCommand}"
+                                                            ToolTip="Show the errors of the last run (with retry)"
+                                                            Visibility="{Binding HasFailed, Converter={StaticResource BoolToVis}}">
+                                                        <Path Data="{StaticResource CoabErrorGeometry}"
+                                                              Fill="{StaticResource CoabErrorBrush}"
+                                                              Stretch="Uniform" Width="9" Height="9"
+                                                              VerticalAlignment="Center" />
+                                                    </Button>
                                                     <TextBlock Text="{Binding ResultText}"
                                                                Margin="4,0,0,0" MaxWidth="240" FontSize="11"
                                                                VerticalAlignment="Center"

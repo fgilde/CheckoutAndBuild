@@ -91,6 +91,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CheckoutAndBuildPackage.cs" />
+    <Compile Include="Common\CoabOutputPane.cs" />
     <Compile Include="Common\DelegateCommand.cs" />
     <Compile Include="ErrorList\CoabErrorListProvider.cs" />
     <Compile Include="Options\CheckoutAndBuildOptionsPage.cs">

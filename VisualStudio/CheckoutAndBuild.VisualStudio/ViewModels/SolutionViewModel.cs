@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CheckoutAndBuild.Core.Contracts;
+using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Model;
 using CheckoutAndBuild.Core.Services;
 using CheckoutAndBuild.VisualStudio.Common;
@@ -51,6 +52,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			EditBuildTargetsCommand = new DelegateCommand(EditBuildTargets);
 
 			OpenSolutionCommand = new DelegateCommand(OpenSolution);
+			RemoveFromListCommand = new DelegateCommand(() => owner.RemoveCustomSolution(this), () => IsCustom && !owner.IsRunning);
+			StartCommand = new DelegateCommand(() => StartExecutable(attachDebugger: false), () => FindExecutable() != null);
+			StartDebuggerCommand = new DelegateCommand(() => StartExecutable(attachDebugger: true), () => FindExecutable() != null);
+			StopCommand = new DelegateCommand(StopExecutable, () => FindExecutable() != null);
+			RestartCommand = new DelegateCommand(() => { StopExecutable(); StartExecutable(attachDebugger: false); }, () => FindExecutable() != null);
+			ShowErrorsCommand = new DelegateCommand(ShowErrors, () => HasFailed);
 			OpenInExplorerCommand = new DelegateCommand(
 				() => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{ItemPath}\""));
 			OpenOutputDirectoryCommand = new DelegateCommand(
@@ -78,6 +85,190 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				.Select(p => p.OutputPath)
 				.FirstOrDefault(p => !string.IsNullOrEmpty(p) && Directory.Exists(p));
 		}
+
+		/// <summary>True when the solution was added manually via "Add Solution…" (removable again).</summary>
+		public bool IsCustom { get; set; }
+
+		#region start/stop of the built executable (old Start/Stop/Restart commands)
+
+		private string executablePath;
+		private bool executableSearched;
+
+		/// <summary>First built .exe of the solution's projects (cached; refreshed after each run via RefreshResult).</summary>
+		internal string FindExecutable()
+		{
+			if (executableSearched)
+				return executablePath;
+			executableSearched = true;
+			executablePath = Model.Projects
+				.Where(p => !string.IsNullOrEmpty(p.OutputPath))
+				.Select(p => Path.Combine(p.OutputPath, (p.AssemblyName ?? p.Name) + ".exe"))
+				.FirstOrDefault(File.Exists);
+			return executablePath;
+		}
+
+		private void StartExecutable(bool attachDebugger)
+		{
+			string exe = FindExecutable();
+			if (exe == null)
+				return;
+			try
+			{
+				var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+				{
+					WorkingDirectory = Path.GetDirectoryName(exe)
+				});
+				if (attachDebugger && process != null)
+					AttachDebugger(process.Id);
+				owner.LastError = null;
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
+			}
+		}
+
+		private static void AttachDebugger(int processId)
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			var dte = Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
+			if (dte == null)
+				return;
+			foreach (EnvDTE.Process process in dte.Debugger.LocalProcesses)
+			{
+				if (process.ProcessID == processId)
+				{
+					process.Attach();
+					return;
+				}
+			}
+		}
+
+		/// <summary>Kills every process running from this solution's output directories.</summary>
+		private void StopExecutable()
+		{
+			try
+			{
+				var outputDirs = Model.Projects
+					.Select(p => p.OutputPath)
+					.Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p));
+				CheckoutAndBuild.Core.Execution.RunningProcessHelper.KillProcessesInDirectories(outputDirs);
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
+			}
+		}
+
+		/// <summary>Opens the solution in another installed VS (or a new instance of the current one).</summary>
+		private void OpenWith(VsInstance instance)
+		{
+			try
+			{
+				string devenv = instance?.ProductPath
+					?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+				if (devenv != null)
+					System.Diagnostics.Process.Start(devenv, $"\"{ItemPath}\"");
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
+			}
+		}
+
+		#endregion
+
+		#region error dialog with retry (old BuildErrorsViewModel)
+
+		private sealed class ErrorRow
+		{
+			public string Location { get; set; }
+			public string Message { get; set; }
+			public string File { get; set; }
+			public int Line { get; set; }
+		}
+
+		/// <summary>Error list dialog for the last failed run; double-click opens the file, Retry re-runs the failed service.</summary>
+		private void ShowErrors()
+		{
+			object result = Model.Result ?? Model.ErrorContent;
+			var rows = new List<ErrorRow>();
+			IOperationService retryService = null;
+			switch (result)
+			{
+				case BuildResult build:
+					rows.AddRange(build.Errors.Select(e => new ErrorRow
+					{
+						Location = $"{Path.GetFileName(e.File)}({e.Line})",
+						Message = $"{(e.IsWarning ? "warning" : "error")} {e.Code}: {e.Message}",
+						File = e.File,
+						Line = e.Line
+					}));
+					retryService = owner.BuildOperation;
+					break;
+				case TestRunResult tests:
+					rows.AddRange(tests.Failures.Select(f => new ErrorRow
+					{
+						Location = f.TestName,
+						Message = f.Message,
+						File = null
+					}));
+					retryService = owner.TestOperation;
+					break;
+				case Exception exception:
+					rows.Add(new ErrorRow { Location = SolutionFileName, Message = exception.Message });
+					break;
+				default:
+					return;
+			}
+
+			var list = new ListView { ItemsSource = rows, Margin = new Thickness(8) };
+			var view = new GridView();
+			view.Columns.Add(new GridViewColumn { Header = "Where", Width = 220, DisplayMemberBinding = new System.Windows.Data.Binding(nameof(ErrorRow.Location)) });
+			view.Columns.Add(new GridViewColumn { Header = "Message", Width = 420, DisplayMemberBinding = new System.Windows.Data.Binding(nameof(ErrorRow.Message)) });
+			list.View = view;
+			list.MouseDoubleClick += (s, e) =>
+			{
+				if (list.SelectedItem is ErrorRow row && row.File != null && File.Exists(row.File))
+					OpenFileAtLine(row.File, row.Line);
+			};
+
+			var retry = new Button { Content = "Retry Operation", Padding = new Thickness(12, 3, 12, 3), Margin = new Thickness(0, 0, 8, 8), HorizontalAlignment = HorizontalAlignment.Right };
+			var panel = new DockPanel();
+			DockPanel.SetDock(retry, Dock.Bottom);
+			if (retryService != null)
+				panel.Children.Add(retry);
+			panel.Children.Add(list);
+
+			var window = CreateOptionsWindow($"Errors — {SolutionFileName}", panel, 380);
+			window.Width = 700;
+			retry.Click += async (s, e) =>
+			{
+				window.Close();
+				await owner.RunSingleServiceAsync(this, retryService);
+			};
+			window.ShowDialog();
+		}
+
+		private static void OpenFileAtLine(string file, int line)
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			try
+			{
+				Microsoft.VisualStudio.Shell.VsShellUtilities.OpenDocument(
+					Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider, file,
+					Guid.Empty, out _, out _, out var frame, out var textView);
+				frame?.Show();
+				textView?.SetCaretPos(Math.Max(0, line - 1), 0);
+				textView?.CenterLines(Math.Max(0, line - 1), 1);
+			}
+			catch (Exception)
+			{
+				// file may be gone — the dialog row is informational either way
+			}
+		}
+
+		#endregion
 
 		public SolutionProjectModel Model { get; }
 
@@ -374,13 +565,34 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand SettingsCommand { get; }
 		public ICommand DecreasePriorityCommand { get; }
 		public ICommand OpenSolutionCommand { get; }
+		public ICommand RemoveFromListCommand { get; }
+
+		/// <summary>"Open with…" submenu: a new instance of the current VS plus every installed VS.</summary>
+		public IEnumerable<OpenWithOption> OpenWithOptions
+		{
+			get
+			{
+				yield return new OpenWithOption("New Visual Studio instance", new DelegateCommand(() => OpenWith(null)));
+				foreach (var instance in owner.VsInstances)
+					yield return new OpenWithOption(instance.DisplayName, new DelegateCommand(() => OpenWith(instance)));
+			}
+		}
+		public ICommand StartCommand { get; }
+		public ICommand StartDebuggerCommand { get; }
+		public ICommand StopCommand { get; }
+		public ICommand RestartCommand { get; }
+		public ICommand ShowErrorsCommand { get; }
 		public ICommand OpenInExplorerCommand { get; }
 		public ICommand OpenOutputDirectoryCommand { get; }
 		public ICommand ShowHistoryCommand { get; }
 		public ICommand CopyFullPathCommand { get; }
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>
-		public void RefreshResult() => OnUI(RaiseStatus);
+		public void RefreshResult() => OnUI(() =>
+		{
+			executableSearched = false; // a build may have produced/removed the exe
+			RaiseStatus();
+		});
 
 		public void Detach() => Model.PropertyChanged -= OnModelPropertyChanged;
 
@@ -476,5 +688,18 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 	{
 		public string Key { get; set; }
 		public string Value { get; set; }
+	}
+
+	/// <summary>One entry of the "Open with…" submenu.</summary>
+	public sealed class OpenWithOption
+	{
+		public OpenWithOption(string header, ICommand command)
+		{
+			Header = header;
+			Command = command;
+		}
+
+		public string Header { get; }
+		public ICommand Command { get; }
 	}
 }

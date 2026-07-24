@@ -23,15 +23,27 @@ using CheckoutAndBuild.VisualStudio.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.ViewModels
 {
+	/// <summary>Sort orders of the solution lists (old sort context menu).</summary>
+	public enum SolutionSortMode
+	{
+		BuildPriority,
+		Name,
+		Services,
+		ProjectType
+	}
+
 	/// <summary>One working folder with the solutions found beneath it.</summary>
 	public class WorkingFolderViewModel : NotificationObject
 	{
-		public WorkingFolderViewModel(string path)
+		private readonly MainViewModel owner;
+
+		public WorkingFolderViewModel(string path, MainViewModel owner)
 		{
 			Path = path;
+			this.owner = owner;
 			IncludedSolutions = new System.Windows.Data.ListCollectionView(Solutions)
 			{
-				Filter = item => ((SolutionViewModel)item).IsIncluded
+				Filter = item => ((SolutionViewModel)item).IsIncluded && owner.MatchesFilter((SolutionViewModel)item)
 			};
 		}
 
@@ -45,11 +57,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Filtered live view of <see cref="Solutions"/> for the "Included" area.</summary>
 		public ICollectionView IncludedSolutions { get; }
 
-		/// <summary>Sorts in place by build priority, then name.</summary>
+		/// <summary>Sorts in place by the owner's sort mode/direction.</summary>
 		public void Resort()
 		{
-			var sorted = Solutions.OrderBy(s => s.BuildPriority)
-				.ThenBy(s => s.SolutionFileName, StringComparer.OrdinalIgnoreCase).ToList();
+			var sorted = owner.SortSolutions(Solutions).ToList();
 			for (int target = 0; target < sorted.Count; target++)
 			{
 				int current = Solutions.IndexOf(sorted[target]);
@@ -153,6 +164,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private const string workingFoldersKey = "WorkingFolders";
 		private const string currentProfileKey = "CurrentProfile";
 		private const string profilesKey = "Profiles";
+		private const string sortModeKey = "SortMode";
+		private const string sortDescendingKey = "SortDescending";
 		private const int maxScanDepth = 3;
 		private static readonly string[] skippedDirectories = { ".git", ".vs", "bin", "obj", "node_modules", "packages" };
 
@@ -188,6 +201,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private bool restoreEnabled;
 		private bool buildEnabled;
 		private bool testEnabled;
+		private string filterText;
+		private SolutionSortMode sortMode;
+		private bool sortDescending;
 
 		private static MainViewModel shared;
 
@@ -236,6 +252,20 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			OpenSettingsCommand = new DelegateCommand(OpenGlobalSettings);
 			ExportBatchCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Batch), CanExportScript);
 			ExportPowershellCommand = new DelegateCommand(() => ExportScript(ScriptExportType.Powershell), CanExportScript);
+			sortMode = settings.Get(sortModeKey, globalContext, SolutionSortMode.BuildPriority);
+			sortDescending = settings.Get(sortDescendingKey, globalContext, false);
+
+			AddSolutionCommand = new DelegateCommand(async p => await AddSolutionAsync(p as WorkingFolderViewModel),
+				p => !IsRunning && p is WorkingFolderViewModel);
+			RemoveCustomSolutionCommand = new DelegateCommand(p => RemoveCustomSolution(p as SolutionViewModel),
+				p => !IsRunning && (p as SolutionViewModel)?.IsCustom == true);
+			MergeFolderCommand = new DelegateCommand(p => MergeFolder(p as WorkingFolderViewModel),
+				p => !IsRunning && (p as WorkingFolderViewModel)?.Solutions.Count(s => s.IsIncluded) > 1);
+			SetSortModeCommand = new DelegateCommand(p => SetSortMode(p));
+			OpenFolderCommand = new DelegateCommand(
+				p => System.Diagnostics.Process.Start("explorer.exe", $"\"{((WorkingFolderViewModel)p).Path}\""),
+				p => p is WorkingFolderViewModel);
+			ToggleSortDescendingCommand = new DelegateCommand(() => { SortDescending = !SortDescending; });
 			AddProfileCommand = new DelegateCommand(AddProfile, () => !IsRunning);
 			RenameProfileCommand = new DelegateCommand(RenameProfile,
 				() => !IsRunning && CurrentProfile != SettingsContext.DefaultProfile);
@@ -345,6 +375,110 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand AddProfileCommand { get; }
 		public ICommand RenameProfileCommand { get; }
 		public ICommand DeleteProfileCommand { get; }
+		public ICommand AddSolutionCommand { get; }
+		public ICommand RemoveCustomSolutionCommand { get; }
+		public ICommand MergeFolderCommand { get; }
+		public ICommand OpenFolderCommand { get; }
+		public ICommand SetSortModeCommand { get; }
+		public ICommand ToggleSortDescendingCommand { get; }
+
+		#region filter + sort
+
+		/// <summary>Filter over the solution names (search box, Ctrl+E).</summary>
+		public string FilterText
+		{
+			get { return filterText; }
+			set
+			{
+				if (SetProperty(ref filterText, value))
+				{
+					foreach (var folder in WorkingFolders)
+						folder.IncludedSolutions.Refresh();
+				}
+			}
+		}
+
+		internal bool MatchesFilter(SolutionViewModel solution) =>
+			string.IsNullOrEmpty(filterText)
+			|| solution.SolutionFileName.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0;
+
+		public SolutionSortMode SortMode
+		{
+			get { return sortMode; }
+			set
+			{
+				if (SetProperty(ref sortMode, value))
+				{
+					settings.Set(sortModeKey, globalContext, value);
+					RaiseSortFlags();
+					ResortAll();
+				}
+			}
+		}
+
+		public bool SortDescending
+		{
+			get { return sortDescending; }
+			set
+			{
+				if (SetProperty(ref sortDescending, value))
+				{
+					settings.Set(sortDescendingKey, globalContext, value);
+					ResortAll();
+				}
+			}
+		}
+
+		// checkable menu flags (avoids an enum converter in XAML)
+		public bool IsSortByPriority => sortMode == SolutionSortMode.BuildPriority;
+		public bool IsSortByName => sortMode == SolutionSortMode.Name;
+		public bool IsSortByServices => sortMode == SolutionSortMode.Services;
+		public bool IsSortByProjectType => sortMode == SolutionSortMode.ProjectType;
+
+		private void RaiseSortFlags()
+		{
+			RaisePropertyChanged(nameof(IsSortByPriority));
+			RaisePropertyChanged(nameof(IsSortByName));
+			RaisePropertyChanged(nameof(IsSortByServices));
+			RaisePropertyChanged(nameof(IsSortByProjectType));
+		}
+
+		private void SetSortMode(object parameter)
+		{
+			if (parameter is string name && Enum.TryParse(name, out SolutionSortMode mode))
+				SortMode = mode;
+		}
+
+		private void ResortAll()
+		{
+			foreach (var folder in WorkingFolders)
+				folder.Resort();
+		}
+
+		/// <summary>Sort order used by the working folder lists (secondary key: name).</summary>
+		internal IEnumerable<SolutionViewModel> SortSolutions(IEnumerable<SolutionViewModel> solutions)
+		{
+			IOrderedEnumerable<SolutionViewModel> ordered;
+			switch (sortMode)
+			{
+				case SolutionSortMode.Name:
+					ordered = solutions.OrderBy(s => s.SolutionFileName, StringComparer.OrdinalIgnoreCase);
+					break;
+				case SolutionSortMode.Services:
+					ordered = solutions.OrderBy(s => s.ServicesCaption, StringComparer.OrdinalIgnoreCase);
+					break;
+				case SolutionSortMode.ProjectType:
+					ordered = solutions.OrderBy(s => s.Model.IsDelphiProject ? 1 : 0);
+					break;
+				default:
+					ordered = solutions.OrderBy(s => s.BuildPriority);
+					break;
+			}
+			var result = ordered.ThenBy(s => s.SolutionFileName, StringComparer.OrdinalIgnoreCase);
+			return sortDescending ? result.Reverse() : (IEnumerable<SolutionViewModel>)result;
+		}
+
+		#endregion
 
 		/// <summary>Non-null while the settings "page" is shown instead of the main content.</summary>
 		public SettingsViewModel ActiveSettings
@@ -476,6 +610,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 			loadStarted = true;
 			await LoadPluginsAsync();
+			try
+			{
+				var instances = await Task.Run(() => VsWhere.GetInstances());
+				foreach (var instance in instances)
+					VsInstances.Add(instance);
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild vswhere failed: " + e.Message);
+			}
 			try
 			{
 				var folders = settings.Get<List<string>>(workingFoldersKey, globalContext) ?? new List<string>();
@@ -696,12 +840,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private async Task AddFolderCoreAsync(string path)
 		{
-			var folder = new WorkingFolderViewModel(path);
+			var folder = new WorkingFolderViewModel(path, this);
 			WorkingFolders.Add(folder);
 
+			var customPaths = settings.Get<List<string>>(CustomSolutionsKey(path), globalContext) ?? new List<string>();
 			var models = await Task.Run(() =>
 			{
 				var found = ScanForSolutions(path);
+				var scannedPaths = new HashSet<string>(found.Select(m => m.ItemPath), StringComparer.OrdinalIgnoreCase);
+				foreach (string custom in customPaths.Where(File.Exists).Where(p => !scannedPaths.Contains(p)))
+				{
+					try
+					{
+						found.Add(SolutionParser.Parse(custom));
+					}
+					catch (Exception)
+					{
+						// unparsable custom solution: skip it
+					}
+				}
 				foreach (var model in found)
 				{
 					// branch not loaded yet at this point: read profile-scoped; OnRepositoryBranchChanged re-applies
@@ -713,7 +870,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 			foreach (var model in models)
 			{
-				var solution = new SolutionViewModel(model, this, dispatcher);
+				var solution = new SolutionViewModel(model, this, dispatcher)
+				{
+					IsCustom = customPaths.Contains(model.ItemPath, StringComparer.OrdinalIgnoreCase)
+				};
 				solution.PropertyChanged += OnSolutionPropertyChanged;
 				folder.Solutions.Add(solution);
 				if (!solution.IsIncluded)
@@ -765,6 +925,98 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			settings.Set(workingFoldersKey, globalContext, WorkingFolders.Select(f => f.Path).ToList());
 		}
+
+		private static string CustomSolutionsKey(string folderPath) => "CustomSolutions:" + folderPath;
+
+		/// <summary>Adds solutions outside the folder scan via multi-select file dialog (old AddSolution).</summary>
+		private async Task AddSolutionAsync(WorkingFolderViewModel folder)
+		{
+			if (folder == null)
+				return;
+			var dialog = new Microsoft.Win32.OpenFileDialog
+			{
+				Filter = "Solution files|*.sln",
+				Multiselect = true,
+				Title = "Add solutions to " + folder.Path
+			};
+			if (dialog.ShowDialog() != true)
+				return;
+
+			var custom = settings.Get<List<string>>(CustomSolutionsKey(folder.Path), globalContext) ?? new List<string>();
+			var existing = new HashSet<string>(folder.Solutions.Select(s => s.ItemPath), StringComparer.OrdinalIgnoreCase);
+			bool added = false;
+			foreach (string file in dialog.FileNames.Where(f => !existing.Contains(f)))
+			{
+				SolutionProjectModel model;
+				try
+				{
+					model = await Task.Run(() => SolutionParser.Parse(file));
+				}
+				catch (Exception e)
+				{
+					LastError = $"{System.IO.Path.GetFileName(file)}: {e.Message}";
+					continue;
+				}
+				model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", profileContext, true);
+				model.BuildPriority = GetInitialBuildPriority(model, profileContext);
+				var solution = new SolutionViewModel(model, this, dispatcher) { IsCustom = true };
+				solution.PropertyChanged += OnSolutionPropertyChanged;
+				folder.Solutions.Add(solution);
+				if (!solution.IsIncluded)
+					InsertExcluded(solution);
+				custom.Add(file);
+				added = true;
+			}
+			if (added)
+			{
+				settings.Set(CustomSolutionsKey(folder.Path), globalContext, custom);
+				folder.Resort();
+				folder.IncludedSolutions.Refresh();
+			}
+		}
+
+		/// <summary>Removes a manually added solution from its folder list again.</summary>
+		internal void RemoveCustomSolution(SolutionViewModel solution)
+		{
+			if (solution == null)
+				return;
+			var folder = WorkingFolders.FirstOrDefault(f => f.Solutions.Contains(solution));
+			if (folder == null)
+				return;
+			solution.PropertyChanged -= OnSolutionPropertyChanged;
+			solution.Detach();
+			folder.Solutions.Remove(solution);
+			ExcludedSolutions.Remove(solution);
+
+			var custom = settings.Get<List<string>>(CustomSolutionsKey(folder.Path), globalContext) ?? new List<string>();
+			custom.RemoveAll(p => string.Equals(p, solution.ItemPath, StringComparison.OrdinalIgnoreCase));
+			settings.Set(CustomSolutionsKey(folder.Path), globalContext, custom);
+		}
+
+		/// <summary>Merges all included solutions of the folder into one !Merged_Build_*.sln (old "Merge to One Solution").</summary>
+		private void MergeFolder(WorkingFolderViewModel folder)
+		{
+			if (folder == null)
+				return;
+			var paths = folder.Solutions.Where(s => s.IsIncluded).Select(s => s.ItemPath).ToList();
+			if (paths.Count < 2)
+				return;
+			try
+			{
+				string output = System.IO.Path.Combine(folder.Path,
+					"!Merged_Build_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".sln");
+				CheckoutAndBuild.Core.Merge.SolutionMerger.Merge(paths, output);
+				LastError = null;
+				StatusMessage = "Merged solution: " + output;
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
+		}
+
+		/// <summary>Installed VS instances for the "Open with…" submenu (loaded once in LoadAsync).</summary>
+		public ObservableCollection<VsInstance> VsInstances { get; } = new ObservableCollection<VsInstance>();
 
 		private void OnSolutionPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
