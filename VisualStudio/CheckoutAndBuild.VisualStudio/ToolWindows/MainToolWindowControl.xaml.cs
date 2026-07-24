@@ -1,0 +1,94 @@
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using CheckoutAndBuild.VisualStudio.ViewModels;
+
+namespace CheckoutAndBuild.VisualStudio.ToolWindows
+{
+	public partial class MainToolWindowControl : UserControl
+	{
+		private readonly MainViewModel viewModel = MainViewModel.Shared;
+		private DateTime lastServicesPopupClose;
+
+		public MainToolWindowControl()
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			InitializeComponent();
+			viewModel.ErrorSink = CheckoutAndBuildPackage.Instance?.ErrorListProvider;
+			DataContext = viewModel;
+			Loaded += async (sender, e) => await viewModel.LoadAsync();
+			PreviewKeyDown += OnPreviewKeyDown;
+		}
+
+		/// <summary>Ctrl+E focuses the filter box (old SearchBox shortcut); Esc in the box clears it.</summary>
+		private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+		{
+			if (e.Key == System.Windows.Input.Key.E
+				&& (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+			{
+				filterBox.Focus();
+				filterBox.SelectAll();
+				e.Handled = true;
+			}
+			else if (e.Key == System.Windows.Input.Key.Escape && filterBox.IsKeyboardFocused)
+			{
+				filterBox.Clear();
+			}
+		}
+
+		/// <summary>Opens the global settings view (used by the Tools → Options page).</summary>
+		internal void ShowSettings() => viewModel.OpenGlobalSettings();
+
+		/// <summary>
+		/// Opens the per-solution services popover. StaysOpen=False closes the popup on the mouse-down
+		/// of the very click that should toggle it shut, so a click arriving right after a close is
+		/// swallowed instead of instantly reopening (old ProjectViewModel.canOpenPopup behavior).
+		/// </summary>
+		private void OnServicesLinkClick(object sender, RoutedEventArgs e)
+		{
+			if (!((sender as FrameworkElement)?.Tag is Popup popup))
+				return;
+			if ((DateTime.UtcNow - lastServicesPopupClose).TotalMilliseconds < 250)
+				return;
+			popup.Closed -= OnServicesPopupClosed;
+			popup.Closed += OnServicesPopupClosed;
+			popup.IsOpen = true;
+		}
+
+		private void OnServicesPopupClosed(object sender, EventArgs e) => lastServicesPopupClose = DateTime.UtcNow;
+
+		/// <summary>
+		/// Branch link in a working folder header: loads the branches lazily and opens them as a
+		/// drop-down below the link; the current branch is checked, clicking another one checks it out.
+		/// </summary>
+		private async void OnBranchLinkClick(object sender, RoutedEventArgs e)
+		{
+			if (!((sender as FrameworkElement)?.DataContext is RepositoryBranchViewModel repository))
+				return;
+			var button = (Button)sender;
+			var branches = await repository.GetBranchesAsync();
+			if (branches.Count == 0)
+				return;
+
+			var menu = new ContextMenu { PlacementTarget = button, Placement = PlacementMode.Bottom };
+			foreach (string branch in branches)
+			{
+				var item = new MenuItem { Header = branch, IsChecked = branch == repository.CurrentBranch };
+				string target = branch;
+				item.Click += async (s, args) => await repository.CheckoutAsync(target);
+				menu.Items.Add(item);
+			}
+			menu.IsOpen = true;
+		}
+
+		/// <summary>Opens the "More" drop-down (context menu) below the toolbar button.</summary>
+		private void OnMoreClick(object sender, RoutedEventArgs e)
+		{
+			var button = (Button)sender;
+			button.ContextMenu.PlacementTarget = button;
+			button.ContextMenu.Placement = PlacementMode.Bottom;
+			button.ContextMenu.IsOpen = true;
+		}
+	}
+}

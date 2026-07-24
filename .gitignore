@@ -1,14 +1,12 @@
-﻿################################################################################
+################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/CheckoutAndBuild2/v16
-/CheckoutAndBuild2/bin
-/CheckoutAndBuild2/obj
-/CheckoutAndBuild2.Contracts/bin
-/CheckoutAndBuild2.Contracts/obj
-/CheckoutAndBuild2.CP.Plugin/bin
-/CheckoutAndBuild2.CP.Plugin/obj
-/packages
-/SolutionPacker/bin
-/SolutionPacker/obj
+[Bb]in/
+[Oo]bj/
+.vs/
+/Legacy/packages
+*.csproj.user
+UpgradeLog*.htm
+[Bb]ackup/
+TestResults/

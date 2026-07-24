@@ -1,0 +1,314 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0">
+
+    <!-- ================= Icon geometries (ported from FG.CheckoutAndBuild2.Common.Pathes) ================= -->
+    <Geometry x:Key="CoabPlayGeometry">M0,0L226.984205022454,114.765510559082 453.999997869134,229.468978881836 226.984205022454,344.234497070313 0,459 0,229.468978881836z</Geometry>
+    <Geometry x:Key="CoabPauseGeometry">M27.270001,0L44.310001,0 44.310001,48.643002 27.270001,48.643002z M0,0L17.040001,0 17.040001,48.643002 0,48.643002z</Geometry>
+    <Geometry x:Key="CoabStopGeometry">M0,0L48,0 48,48 0,48z</Geometry>
+    <Geometry x:Key="CoabCancelGeometry">M19.85228,12.08996L12.093,19.849201 24.242323,31.997846 12.094,44.145998 19.852051,51.904958 32.001186,39.756277 44.150543,51.904958 51.909,44.145994 39.760246,31.997501 51.909,19.849201 44.15049,12.08996 32.001431,24.238849z M32,0C49.671021,3.1599484E-07 64,14.329407 64,31.998501 64,49.677606 49.671021,63.997003 32,63.997003 14.328003,63.997003 0,49.677606 0,31.998501 0,14.329407 14.328003,3.1599484E-07 32,0z</Geometry>
+    <Geometry x:Key="CoabSuccessGeometry">M465.398469957348,2.284039510414E-06C482.459535631177,-7.61341652832925E-07 499.520570787427,-7.61341652832925E-07 516.589754137036,2.284039510414E-06 519.715974840161,4.35931638350303 504.222078355786,9.83137658705527 495.651124986645,15.5573039399605 369.009920152661,100.241870437763 263.848604234692,210.585139785908 169.875505479809,318.99998048415 112.043924364087,266.893931900166 60.7961788501707,210.390620742939 0,160.277934585713 10.2915821399656,149.517451797627 23.4670200672117,140.696284805439 39.5505962696043,133.819682632588 67.6463871326414,148.99883607497 91.5659046497312,162.881587539814 125.526414903637,179.184352432392 130.292497667309,181.463908706806 162.467790636059,196.205531631611 165.214326890942,196.065074478291 171.321382555005,195.740977798603 187.712007555005,176.40232423415 197.793550523755,168.061854873798 270.811983140942,107.610042129658 375.722932847973,39.4010119782906 465.398469957348,2.284039510414E-06z</Geometry>
+    <Geometry x:Key="CoabErrorGeometry">M136.264,1.3E-05C171.176,-0.014697,206.123,12.0088,232.825,36.1147L430.955,214.979 621.741,42.8592C675.011,-5.3526 761.527,-5.22901 814.664,42.6238 867.667,90.5943 867.801,168.697 814.53,216.785L623.744,389.023 803.448,551.255C856.719,599.349 856.587,677.328 803.314,725.299 750.311,773.27 663.93,773.393 610.66,725.299L430.955,563.067 243.907,731.932C190.503,780.143 104.254,779.902 51.1172,731.932 -2.01967,683.961 -2.28695,606.099 51.1172,558.005L238.165,389.023 39.9028,210.035C-13.3677,161.947 -13.2341,83.9617 39.9028,36.1147 66.4712,12.0677 101.351,0.014729 136.264,1.3E-05z</Geometry>
+    <Geometry x:Key="CoabPlusGeometry">M20,0L28,0 28,20 48,20 48,28 28,28 28,48 20,48 20,28 0,28 0,20 20,20z</Geometry>
+    <Geometry x:Key="CoabRefreshGeometry">M24,6C14,6 6,14 6,24 6,34 14,42 24,42 32,42 39,36.5 41.2,29L35,29C33,33.6 28.9,36.5 24,36.5 17,36.5 11.5,31 11.5,24 11.5,17 17,11.5 24,11.5 27.5,11.5 30.6,12.9 32.9,15.1L27,21 42,21 42,6 36.9,11.1C33.6,7.9 29,6 24,6z</Geometry>
+    <Geometry x:Key="CoabBranchGeometry">M1,3 A2,2 0 1 0 5,3 A2,2 0 1 0 1,3 Z M1,13 A2,2 0 1 0 5,13 A2,2 0 1 0 1,13 Z M11,3 A2,2 0 1 0 15,3 A2,2 0 1 0 11,3 Z M2.4,5 L3.6,5 3.6,11 2.4,11 Z M12.4,5 L13.6,5 13.6,7.2 12.4,7.2 Z M3.6,6 L12.4,6 12.4,7.2 3.6,7.2 Z</Geometry>
+    <Geometry x:Key="CoabUpGeometry">M0,4L3.5,0 7,4z</Geometry>
+    <Geometry x:Key="CoabDownGeometry">M0,0L3.5,4 7,0z</Geometry>
+
+    <!-- ================= Operation status colors (old look: Green / Firebrick / LightSteelBlue track) ================= -->
+    <SolidColorBrush x:Key="CoabSuccessBrush" Color="Green" />
+    <SolidColorBrush x:Key="CoabErrorBrush" Color="Firebrick" />
+    <SolidColorBrush x:Key="CoabProgressTrackBrush" Color="LightSteelBlue" />
+
+    <!-- ================= Default icon path style ================= -->
+    <Style x:Key="CoabIcon" TargetType="Path">
+        <Setter Property="Fill" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="Height" Value="10" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ================= Flat VS-themed button (main actions, ported flat look) ================= -->
+    <Style x:Key="CoabButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ButtonTextBrushKey}}" />
+        <Setter Property="Background" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemButtonFaceBrushKey}}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMouseOverBackgroundBeginBrushKey}}" />
+                            <Setter TargetName="Bd" Property="BorderBrush"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarBorderBrushKey}}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMouseDownBackgroundBeginBrushKey}}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= Borderless icon button (toolbar / hover actions) ================= -->
+    <Style x:Key="CoabIconButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="4,3" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderThickness="1"
+                            BorderBrush="Transparent"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMouseOverBackgroundBeginBrushKey}}" />
+                            <Setter TargetName="Bd" Property="BorderBrush"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarBorderBrushKey}}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= Tiny priority spinner button ================= -->
+    <Style x:Key="CoabSpinnerButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="14" />
+        <Setter Property="Height" Value="9" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMouseOverBackgroundBeginBrushKey}}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.3" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= Link-look button (ported DropDownTextLink optic: link color, underline on hover) ================= -->
+    <Style x:Key="CoabLinkButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Padding" Value="2,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                        <Border x:Name="line"
+                                VerticalAlignment="Bottom"
+                                Visibility="Hidden"
+                                Height="1"
+                                HorizontalAlignment="Stretch"
+                                Background="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="line" Property="Visibility" Value="Visible" />
+                            <Setter Property="Foreground"
+                                    Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextHoverBrushKey}}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= Themed checkbox for the steps row ================= -->
+    <Style x:Key="CoabCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+        <Setter Property="Margin" Value="0,0,10,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- ================= Flat progress bar (ported COABProgressBar) ================= -->
+    <Style x:Key="COABProgressBar" TargetType="{x:Type ProgressBar}">
+        <Setter Property="Background" Value="{StaticResource CoabProgressTrackBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource CoabSuccessBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ProgressBar}">
+                    <Grid Background="{TemplateBinding Background}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Determinate" />
+                                <VisualState x:Name="Indeterminate">
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetName="PART_Indicator"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         From="0.3" To="1" Duration="0:0:0.8"
+                                                         AutoReverse="True" />
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Border x:Name="PART_Track"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" />
+                        <Border x:Name="PART_Indicator"
+                                BorderThickness="0"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="PART_Indicator" Property="HorizontalAlignment" Value="Stretch" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= Subtle expander (ported ExpanderTemplate: thin lines, rotating triangle) ================= -->
+    <Style x:Key="CoabExpanderToggleButtonStyle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                    <Border x:Name="Bd"
+                            CornerRadius="2"
+                            Background="{TemplateBinding Background}"
+                            Margin="{TemplateBinding Margin}"
+                            SnapsToDevicePixels="True">
+                        <Viewbox x:Name="viewBox"
+                                 VerticalAlignment="Center"
+                                 HorizontalAlignment="Center"
+                                 Margin="4,0,3,0"
+                                 Height="8"
+                                 RenderTransformOrigin="0.5, 0.5">
+                            <Viewbox.RenderTransform>
+                                <RotateTransform Angle="0" />
+                            </Viewbox.RenderTransform>
+                            <Path Fill="{TemplateBinding Foreground}"
+                                  Stretch="Fill"
+                                  Data="M0,0L496.000005990267,315 0,630z" />
+                        </Viewbox>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="viewBox" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="45" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground"
+                        Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextHoverBrushKey}}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <ControlTemplate x:Key="CoabExpanderTemplate" TargetType="{x:Type Expander}">
+        <DockPanel>
+            <Border x:Name="Bd"
+                    DockPanel.Dock="Top"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="0,1,0,1"
+                    Margin="0,-1,0,0"
+                    SnapsToDevicePixels="True"
+                    Height="25">
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ToggleButton x:Name="Expander"
+                                  Style="{StaticResource CoabExpanderToggleButtonStyle}"
+                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                  ClickMode="Press" />
+                    <ContentPresenter x:Name="PART_Header"
+                                      ContentSource="Header"
+                                      TextElement.FontWeight="Medium"
+                                      Grid.Column="1"
+                                      TextElement.Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                </Grid>
+            </Border>
+            <ContentPresenter x:Name="ItemsHost" Margin="0,2,0,7" />
+        </DockPanel>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="PART_Header" Property="Opacity" Value="0.5" />
+                <Setter TargetName="Expander" Property="Opacity" Value="0.5" />
+            </Trigger>
+            <Trigger Property="IsExpanded" Value="False">
+                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- ================= Vertical separator for action rows ================= -->
+    <Style x:Key="CoabVerticalSeparator" TargetType="Separator">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Width="1"
+                            Margin="6,2"
+                            Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarToolBarSeparatorBrushKey}}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

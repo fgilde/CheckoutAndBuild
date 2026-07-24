@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+
+  <Commands package="guidCheckoutAndBuildPackage">
+    <Groups>
+      <Group guid="guidCheckoutAndBuildCmdSet" id="ErrorListGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ERRORLIST" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowMainWindow" priority="0x0100" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowGitWindow" priority="0x0101" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild Git</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowWorkItemWindow" priority="0x0102" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild Work Items</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidClearErrors" priority="0x0100" type="Button">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="ErrorListGroup" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <Strings>
+          <ButtonText>Clear CheckoutAndBuild Errors</ButtonText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="guidCheckoutAndBuildPackage" value="{13646d50-ef88-4777-9d09-e55b321cd24f}" />
+    <GuidSymbol name="guidCheckoutAndBuildCmdSet" value="{874acff0-be59-4dfc-8975-d77d0b75b5fe}">
+      <IDSymbol name="cmdidShowMainWindow" value="0x0100" />
+      <IDSymbol name="cmdidClearErrors" value="0x0200" />
+      <IDSymbol name="cmdidShowGitWindow" value="0x0300" />
+      <IDSymbol name="cmdidShowWorkItemWindow" value="0x0400" />
+      <IDSymbol name="ErrorListGroup" value="0x1020" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
