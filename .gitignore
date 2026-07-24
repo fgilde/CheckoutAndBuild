@@ -9,3 +9,4 @@
 *.csproj.user
 UpgradeLog*.htm
 [Bb]ackup/
+TestResults/
