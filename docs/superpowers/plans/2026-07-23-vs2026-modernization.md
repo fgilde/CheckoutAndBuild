@@ -224,7 +224,19 @@
 
 - Task 4.1: ✅ `WorkItemClient` in Core — rohe REST-API über HttpClient + PAT (Basic auth) statt der TeamFoundation-NuGets (weniger Abhängigkeiten, Rider-tauglich): WIQL-Query (flat+tree), Felddefinitionen, workitemsbatch (200er-Chunks), JSON-Patch-Update. 7 Tests mit Fake-HttpMessageHandler.
 - Task 4.2: ✅ WorkItem Search&Replace als eigenes ToolWindow (`WorkItemToolWindow`, View → Other Windows → "CheckoutAndBuild Work Items"): Verbindung (Org-URL/Projekt/PAT DPAPI-geschützt persistiert), WIQL-Editor, Preview mit Trefferliste + gematchten Feldern, Replace All, Doppelklick öffnet WorkItem im Browser.
-- Task 4.3: Recent-Changes/User-Dashboard nur auf User-Wunsch (offen).
+- Task 4.3: ✅ Query-Tab im WorkItem-Fenster als Dashboard-Ersatz (WIQL-Liste mit Typ-Filter, AssignedTo, New-WorkItem-Link, Browser-Open).
+
+## Feature-Gap-Runde nach Legacy-Umzug — KOMPLETT (2026-07-25)
+
+Nach dem Umzug der Alt-Projekte nach `Legacy/` wurden alle verbliebenen Lücken zur alten Extension geschlossen (User-Entscheid: alles):
+
+- Pre/Post-Service-Scripts laufen jetzt wirklich (PipelineRunner, pro Service+Solution, mit Argumenten).
+- Delphi-Build via rsvars.bat+msbuild (`DelphiPath`-Setting), BuildMode.MergedBuild (SolutionMerger + Ein-Build), ThreadPriority→Prozesspriorität, LogLevel→msbuild-/v:, KillDependendProcesses (Prozesse in Output-Ordnern killen), NugetAction.Reinstall (packages-Ordner löschen + force restore), TrackLiveOutput; TFVC-Relikt PromptForMerge entfernt.
+- Main-Fenster: Filterbox (Ctrl+E), Sortiermenü (Priority/Name/Services/Typ, auf/ab, persistiert), Add Solution… pro Folder (persistiert, Remove from list), Start/Start+Debugger(DTE)/Restart/Stop der gebauten Exe, Open with… (vswhere-VS-Liste + neue Instanz), Folder-Menü mit Merge to One Solution, Fehler-Dialog (Doppelklick öffnet Datei, Retry Operation).
+- Settings: Export/Import (.coab-JSON, Merge), Copy Profile, Reset All; Plugin-Verwaltung (Install aus zip/vsix/dll, Remove, Open Folder, Load-Errors).
+- Git-Fenster: Apply Patch (--3way), Force Push (--force-with-lease + Confirm), Branch-Vorschlag aus WorkItem (Prefix wip/feature/bugfix/hotfix + id + Titel-Slug via REST).
+- Output-Pane "CheckoutAndBuild" (CoabLog aus Core, LogLevel-gefiltert).
+- 103/103 Tests grün. Bewusst weggelassen: alle TFVC-Features, TE-Sections-Management, Auto-Update/Gallery (Marketplace), WorkItem-Story-Card-Druck (war schon in Legacy unreferenziert).
 
 ## Phase 5 — Rider (separater Plan nach Phase-2-Review)
 
