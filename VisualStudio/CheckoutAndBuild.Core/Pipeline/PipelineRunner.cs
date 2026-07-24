@@ -49,6 +49,8 @@ namespace CheckoutAndBuild.Core.Pipeline
                     ServiceCount = orderedServices.Count
                 });
 
+                RunCustomActions(context, service, includedProjects, isPre: true, i, orderedServices.Count);
+
                 try
                 {
                     await service.ExecuteAsync(includedProjects, context.Settings, cancellation).ConfigureAwait(false);
@@ -64,6 +66,8 @@ namespace CheckoutAndBuild.Core.Pipeline
                         $"Error in {service.OperationName}-Service: {e.Message}");
                 }
 
+                RunCustomActions(context, service, includedProjects, isPre: false, i, orderedServices.Count);
+
                 if (service.ServiceId == buildServiceId && !string.IsNullOrEmpty(context.PostBuildScript)
                     && !cancellation.IsCancellationRequested)
                 {
@@ -71,6 +75,33 @@ namespace CheckoutAndBuild.Core.Pipeline
                     if (result.ExitCode != 0)
                         ReportError(context, service.OperationName, i, orderedServices.Count,
                             $"Post-build script '{context.PostBuildScript}' failed with exit code {result.ExitCode}. {result.StdErr}".TrimEnd());
+                }
+            }
+        }
+
+        /// <summary>Runs all plugin custom actions for one service; a failing action is reported and skipped.</summary>
+        private static void RunCustomActions(PipelineContext context, IOperationService service,
+            IReadOnlyList<ISolutionProjectModel> projects, bool isPre, int index, int count)
+        {
+            if (context.CustomActions == null)
+                return;
+
+            foreach (var action in context.CustomActions)
+            {
+                foreach (var project in projects)
+                {
+                    try
+                    {
+                        if (isPre)
+                            action.RunPreAction(service, project, context.Settings);
+                        else
+                            action.RunPostAction(service, project, null, context.Settings);
+                    }
+                    catch (Exception e)
+                    {
+                        ReportError(context, service.OperationName, index, count,
+                            $"Custom action {action.GetType().Name} ({(isPre ? "pre" : "post")} {service.OperationName}) failed: {e.Message}");
+                    }
                 }
             }
         }

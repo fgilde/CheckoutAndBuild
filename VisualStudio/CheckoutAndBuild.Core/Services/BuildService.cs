@@ -50,6 +50,9 @@ namespace CheckoutAndBuild.Core.Services
 		public override int Order => ServicePriorities.BuildServicePriority;
 		public override string OperationName => "Build";
 
+		/// <summary>Plugin providers contributing extra default /p: properties per project (wired by the host; default: none). Explicit model properties win.</summary>
+		public IReadOnlyCollection<IProjectBuildPropertiesProvider> BuildPropertiesProviders { get; set; }
+
 		protected override async Task ExecuteCoreAsync(IReadOnlyList<ISolutionProjectModel> solutionProjects, IServiceSettings settings, PausableCancellationTokenSource cancellation)
 		{
 			var buildSettings = GetSettings<BuildServiceSettings>(settings);
@@ -134,12 +137,23 @@ namespace CheckoutAndBuild.Core.Services
 			}
 		}
 
-		private static void GetBuildCommand(ISolutionProjectModel model, IServiceSettings settings, out string exe, out string args)
+		private void GetBuildCommand(ISolutionProjectModel model, IServiceSettings settings, out string exe, out string args)
 		{
 			var buildSettings = GetSettings<BuildServiceSettings>(settings, model);
 			string targets = string.Join(";", model.BuildTargets ?? new[] { "Build" });
-			var properties = new StringBuilder();
+
+			var merged = new Dictionary<string, string>();
+			foreach (var provider in BuildPropertiesProviders ?? Enumerable.Empty<IProjectBuildPropertiesProvider>())
+			{
+				var defaults = provider.GetDefaultBuildProperties(model, settings);
+				foreach (var pair in defaults ?? new Dictionary<string, string>())
+					merged[pair.Key] = pair.Value;
+			}
 			foreach (var pair in model.BuildProperties ?? new Dictionary<string, string>())
+				merged[pair.Key] = pair.Value;
+
+			var properties = new StringBuilder();
+			foreach (var pair in merged)
 				properties.Append($" /p:{pair.Key}=\"{pair.Value}\"");
 
 			string msbuild = VsWhere.MsBuildPath;

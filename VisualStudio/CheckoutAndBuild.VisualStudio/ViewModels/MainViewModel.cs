@@ -11,6 +11,7 @@ using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Model;
 using CheckoutAndBuild.Core.Pipeline;
+using CheckoutAndBuild.Core.Plugins;
 using CheckoutAndBuild.Core.Services;
 using CheckoutAndBuild.Core.Settings;
 using CheckoutAndBuild.VisualStudio.Common;
@@ -56,6 +57,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly SettingsContext globalContext = new SettingsContext();
 		private readonly ServiceSettingsAdapter serviceSettings;
 		private readonly PipelineRunner pipelineRunner = new PipelineRunner();
+
+		private readonly PluginHost pluginHost = new PluginHost();
+		private IDefaultBuildPriorityManager priorityManager;
 
 		private readonly CleanService cleanService = new CleanService();
 		private readonly GitCheckoutService checkoutService = new GitCheckoutService();
@@ -215,6 +219,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			if (loadStarted)
 				return;
 			loadStarted = true;
+			await LoadPluginsAsync();
 			try
 			{
 				var folders = settings.Get<List<string>>(workingFoldersKey, globalContext) ?? new List<string>();
@@ -224,6 +229,37 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			catch (Exception e)
 			{
 				LastError = e.Message;
+			}
+		}
+
+		/// <summary>
+		/// Loads MEF plugins from &lt;ExtensionDir&gt;\Plugins plus the optional "PluginDirectories"
+		/// setting (semicolon-separated) on a background thread; failures only go to the trace log.
+		/// </summary>
+		private async Task LoadPluginsAsync()
+		{
+			try
+			{
+				var directories = new List<string>();
+				string extensionDir = Path.GetDirectoryName(typeof(MainViewModel).Assembly.Location);
+				if (!string.IsNullOrEmpty(extensionDir))
+					directories.Add(Path.Combine(extensionDir, "Plugins"));
+				string configured = settings.Get<string>("PluginDirectories", globalContext);
+				if (!string.IsNullOrEmpty(configured))
+					directories.AddRange(configured.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(d => d.Trim()));
+
+				IServiceProvider hostServices = Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider;
+				await Task.Run(() => pluginHost.LoadAsync(directories, hostServices));
+
+				buildService.BuildPropertiesProviders = pluginHost.GetExportedValues<IProjectBuildPropertiesProvider>().ToList();
+				priorityManager = pluginHost.GetExportedValues<IDefaultBuildPriorityManager>().FirstOrDefault();
+
+				foreach (string error in pluginHost.Errors)
+					System.Diagnostics.Trace.WriteLine("CheckoutAndBuild plugin load: " + error);
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild plugin load failed: " + e.Message);
 			}
 		}
 
@@ -294,7 +330,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				foreach (var model in found)
 				{
 					model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", globalContext, true);
-					model.BuildPriority = settings.Get($"BuildPriority:{model.ItemPath}", globalContext, 0);
+					model.BuildPriority = GetInitialBuildPriority(model);
 				}
 				return found;
 			});
@@ -306,6 +342,23 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				folder.Solutions.Add(solution);
 			}
 			folder.Resort();
+		}
+
+		/// <summary>Stored priority wins; without one, a plugin IDefaultBuildPriorityManager may supply the default.</summary>
+		private int GetInitialBuildPriority(ISolutionProjectModel model)
+		{
+			int stored = settings.Get($"BuildPriority:{model.ItemPath}", globalContext, int.MinValue);
+			if (stored != int.MinValue)
+				return stored;
+			try
+			{
+				return priorityManager?.GetDefaultBuildPriority(model) ?? 0;
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild priority manager failed: " + e.Message);
+				return 0;
+			}
 		}
 
 		private void DetachSolutions(WorkingFolderViewModel folder)
@@ -411,7 +464,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Settings = serviceSettings,
 				PreBuildScript = serviceSettings.PreBuildScriptPath,
 				PostBuildScript = serviceSettings.PostBuildScriptPath,
-				Progress = new DelegateProgress(OnPipelineProgress)
+				Progress = new DelegateProgress(OnPipelineProgress),
+				CustomActions = pluginHost.GetExportedValues<ICustomAction>().ToList()
 			};
 
 			try

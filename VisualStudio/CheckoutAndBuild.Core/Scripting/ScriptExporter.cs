@@ -18,9 +18,11 @@ namespace CheckoutAndBuild.Core.Scripting
 		public static string Export(IEnumerable<IOperationService> services,
 			IReadOnlyList<ISolutionProjectModel> projects,
 			IServiceSettings settings,
-			ScriptExportType exportType)
+			ScriptExportType exportType,
+			IEnumerable<IScriptGenerator> scriptGenerators = null)
 		{
 			var included = projects.Where(p => p.IsIncluded).OrderBy(p => p.BuildPriority).ToList();
+			var generators = (scriptGenerators ?? Enumerable.Empty<IScriptGenerator>()).ToList();
 			var builder = new StringBuilder();
 
 			if (exportType == ScriptExportType.Batch)
@@ -32,11 +34,18 @@ namespace CheckoutAndBuild.Core.Scripting
 				.OrderBy(s => s.Order))
 			{
 				string script = service.GetScript(included, settings, exportType);
-				if (string.IsNullOrWhiteSpace(script))
+				string pre = Concat(generators.Select(g => g.GeneratePreScriptCode(service, included, settings, exportType)));
+				string post = Concat(generators.Select(g => g.GeneratePostScriptCode(service, included, settings, exportType)));
+				if (string.IsNullOrWhiteSpace(script) && string.IsNullOrWhiteSpace(pre) && string.IsNullOrWhiteSpace(post))
 					continue;
 				builder.AppendLine();
 				builder.AppendLine(Comment(exportType, $"--- {service.OperationName} ---"));
-				builder.AppendLine(script.TrimEnd());
+				if (!string.IsNullOrWhiteSpace(pre))
+					builder.AppendLine(pre);
+				if (!string.IsNullOrWhiteSpace(script))
+					builder.AppendLine(script.TrimEnd());
+				if (!string.IsNullOrWhiteSpace(post))
+					builder.AppendLine(post);
 			}
 
 			return builder.ToString();
@@ -46,10 +55,17 @@ namespace CheckoutAndBuild.Core.Scripting
 			IReadOnlyList<ISolutionProjectModel> projects,
 			IServiceSettings settings,
 			ScriptExportType exportType,
-			string filePath)
+			string filePath,
+			IEnumerable<IScriptGenerator> scriptGenerators = null)
 		{
-			File.WriteAllText(filePath, Export(services, projects, settings, exportType));
+			File.WriteAllText(filePath, Export(services, projects, settings, exportType, scriptGenerators));
 			return filePath;
+		}
+
+		private static string Concat(IEnumerable<string> parts)
+		{
+			return string.Join(Environment.NewLine,
+				parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.TrimEnd()));
 		}
 
 		private static string Comment(ScriptExportType type, string text) =>

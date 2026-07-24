@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
+using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Contracts.Settings;
 
 namespace CheckoutAndBuild.Core.Pipeline
 {
     public sealed class PipelineContext
     {
+        /// <summary>Plugin custom actions run before/after every service for every included project (default: none).</summary>
+        public IReadOnlyCollection<ICustomAction> CustomActions { get; set; }
+
         /// <summary>Optional path to a .bat/.cmd/.ps1 run before any service; non-zero exit aborts the pipeline.</summary>
         public string PreBuildScript { get; set; }
 

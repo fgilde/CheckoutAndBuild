@@ -146,6 +146,38 @@ public class PipelineRunnerTests
         Assert.Equal(new[] { 0, 1 }, reports.Where(r => r.Error == null).Select(r => r.ServiceIndex));
     }
 
+    [Fact]
+    public async Task CustomActions_RunBeforeAndAfterEachService_InOrder()
+    {
+        var log = new List<string>();
+        var service = new FakeService("svc", 1, log);
+
+        using var pcs = new PausableCancellationTokenSource();
+        await Runner.RunAsync(new[] { Project(1) }, new[] { service },
+            new PipelineContext { CustomActions = new[] { new RecordingAction(log) } }, pcs);
+
+        Assert.Equal(new[] { "pre:svc", "svc", "post:svc" }, log);
+    }
+
+    [Fact]
+    public async Task CustomAction_Failure_ReportedToProgress_ServiceStillRuns()
+    {
+        var log = new List<string>();
+        var reports = new List<PipelineProgress>();
+        var service = new FakeService("svc", 1, log);
+
+        using var pcs = new PausableCancellationTokenSource();
+        await Runner.RunAsync(new[] { Project(1) }, new[] { service },
+            new PipelineContext
+            {
+                CustomActions = new ICustomAction[] { new ThrowingAction() },
+                Progress = new CollectingProgress(reports)
+            }, pcs);
+
+        Assert.Equal(new[] { "svc" }, log);
+        Assert.Equal(2, reports.Count(r => r.Error != null && r.Error.Contains("ThrowingAction"))); // pre + post
+    }
+
     private static string WriteTempCmd(string body)
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".cmd");
@@ -161,6 +193,20 @@ public class PipelineRunnerTests
         private readonly List<PipelineProgress> reports;
         public CollectingProgress(List<PipelineProgress> reports) => this.reports = reports;
         public void Report(PipelineProgress value) { lock (reports) reports.Add(value); }
+    }
+
+    private sealed class RecordingAction : ICustomAction
+    {
+        private readonly List<string> log;
+        public RecordingAction(List<string> log) => this.log = log;
+        public void RunPreAction(IOperationService service, ISolutionProjectModel solutionFile, IServiceSettings settings) => log.Add($"pre:{service.OperationName}");
+        public void RunPostAction(IOperationService service, ISolutionProjectModel solutionFile, object result, IServiceSettings settings) => log.Add($"post:{service.OperationName}");
+    }
+
+    private sealed class ThrowingAction : ICustomAction
+    {
+        public void RunPreAction(IOperationService service, ISolutionProjectModel solutionFile, IServiceSettings settings) => throw new InvalidOperationException("boom");
+        public void RunPostAction(IOperationService service, ISolutionProjectModel solutionFile, object result, IServiceSettings settings) => throw new InvalidOperationException("boom");
     }
 
     private sealed class FakeService : IOperationService
