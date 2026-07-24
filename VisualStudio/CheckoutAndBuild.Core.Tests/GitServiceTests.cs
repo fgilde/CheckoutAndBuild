@@ -214,6 +214,52 @@ public sealed class GitServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetHistory_ReturnsCommitsNewestFirst()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        Run("commit -am second");
+
+        var commits = await git.GetHistoryAsync(repoDir);
+
+        Assert.Equal(2, commits.Count);
+        Assert.Equal("second", commits[0].Message);
+        Assert.Equal("initial", commits[1].Message);
+        foreach (var commit in commits)
+        {
+            Assert.Equal(40, commit.Sha.Length);
+            Assert.StartsWith(commit.ShortSha, commit.Sha);
+            Assert.Equal("TestUser", commit.Author);
+            Assert.False(string.IsNullOrEmpty(commit.Date));
+        }
+    }
+
+    [Fact]
+    public async Task GetHistory_RespectsMaxCount()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        Run("commit -am second");
+
+        var commits = await git.GetHistoryAsync(repoDir, maxCount: 1);
+
+        var commit = Assert.Single(commits);
+        Assert.Equal("second", commit.Message);
+    }
+
+    [Fact]
+    public async Task GetCommitDetails_ContainsMessageAndStat()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        Run("commit -am second");
+        var commits = await git.GetHistoryAsync(repoDir);
+
+        var details = await git.GetCommitDetailsAsync(repoDir, commits[0].Sha);
+
+        Assert.Contains(commits[0].ShortSha, details);
+        Assert.Contains("second", details);
+        Assert.Contains("README.md", details);
+    }
+
+    [Fact]
     public async Task GetStashDiff_ReturnsPatch()
     {
         File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");

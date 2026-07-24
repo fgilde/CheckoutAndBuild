@@ -27,11 +27,18 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public WorkingFolderViewModel(string path)
 		{
 			Path = path;
+			IncludedSolutions = new System.Windows.Data.ListCollectionView(Solutions)
+			{
+				Filter = item => ((SolutionViewModel)item).IsIncluded
+			};
 		}
 
 		public string Path { get; }
 
 		public ObservableCollection<SolutionViewModel> Solutions { get; } = new ObservableCollection<SolutionViewModel>();
+
+		/// <summary>Filtered live view of <see cref="Solutions"/> for the "Included" area.</summary>
+		public ICollectionView IncludedSolutions { get; }
 
 		/// <summary>Sorts in place by build priority, then name.</summary>
 		public void Resort()
@@ -75,6 +82,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private bool isPaused;
 		private bool loadStarted;
 		private string progressText;
+		private string lastProgressText;
 		private double progressValue;
 		private string lastError;
 		private string statusMessage;
@@ -118,6 +126,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		internal CoabErrorListProvider ErrorSink { get; set; }
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
+
+		/// <summary>Flat list of all excluded solutions across all working folders ("Excluded" area).</summary>
+		public ObservableCollection<SolutionViewModel> ExcludedSolutions { get; } = new ObservableCollection<SolutionViewModel>();
 
 		public ICommand RunCommand { get; }
 		public ICommand PauseCommand { get; }
@@ -357,6 +368,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				var solution = new SolutionViewModel(model, this, dispatcher);
 				solution.PropertyChanged += OnSolutionPropertyChanged;
 				folder.Solutions.Add(solution);
+				if (!solution.IsIncluded)
+					InsertExcluded(solution);
 			}
 			folder.Resort();
 		}
@@ -384,6 +397,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				solution.PropertyChanged -= OnSolutionPropertyChanged;
 				solution.Detach();
+				ExcludedSolutions.Remove(solution);
 			}
 		}
 
@@ -398,12 +412,27 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			if (e.PropertyName == nameof(SolutionViewModel.IsIncluded))
 			{
 				settings.Set($"IsIncluded:{solution.ItemPath}", globalContext, solution.IsIncluded);
+				if (solution.IsIncluded)
+					ExcludedSolutions.Remove(solution);
+				else if (!ExcludedSolutions.Contains(solution))
+					InsertExcluded(solution);
+				WorkingFolders.FirstOrDefault(f => f.Solutions.Contains(solution))?.IncludedSolutions.Refresh();
 			}
 			else if (e.PropertyName == nameof(SolutionViewModel.BuildPriority))
 			{
 				settings.Set($"BuildPriority:{solution.ItemPath}", globalContext, solution.BuildPriority);
 				WorkingFolders.FirstOrDefault(f => f.Solutions.Contains(solution))?.Resort();
 			}
+		}
+
+		/// <summary>Inserts alphabetically into the flat excluded list.</summary>
+		private void InsertExcluded(SolutionViewModel solution)
+		{
+			int index = 0;
+			while (index < ExcludedSolutions.Count
+				&& string.Compare(ExcludedSolutions[index].SolutionFileName, solution.SolutionFileName, StringComparison.OrdinalIgnoreCase) < 0)
+				index++;
+			ExcludedSolutions.Insert(index, solution);
 		}
 
 		private static List<SolutionProjectModel> ScanForSolutions(string root)
@@ -450,17 +479,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#region pipeline execution
 
-		private void Pause()
-		{
-			cancellation?.Pause();
-			IsPaused = true;
-			ProgressText = "Paused";
-		}
+		private void Pause() => cancellation?.Pause();
 
-		private void Resume()
+		private void Resume() => cancellation?.Resume();
+
+		/// <summary>
+		/// PausableCancellationTokenSource.PausedChanged: updates IsPaused and re-raises the status
+		/// of every solution so busy rows show "Paused" (orange) while the pipeline is held.
+		/// </summary>
+		private void OnPausedChanged(object sender, bool paused)
 		{
-			cancellation?.Resume();
-			IsPaused = false;
+			if (!dispatcher.CheckAccess())
+			{
+				dispatcher.BeginInvoke(new Action(() => OnPausedChanged(sender, paused)));
+				return;
+			}
+			IsPaused = paused;
+			ProgressText = paused ? "Paused" : lastProgressText;
+			foreach (var solution in AllSolutions())
+				solution.RefreshResult();
 		}
 
 		private async Task RunPipelineAsync()
@@ -479,6 +516,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IsRunning = true;
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
+			cancellation.PausedChanged += OnPausedChanged;
 			var context = new PipelineContext
 			{
 				Settings = serviceSettings,
@@ -521,7 +559,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IsRunning = true;
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
-			ProgressText = $"{service.OperationName}: {solution.SolutionFileName}";
+			cancellation.PausedChanged += OnPausedChanged;
+			ProgressText = lastProgressText = $"{service.OperationName}: {solution.SolutionFileName}";
 			ProgressValue = 0;
 
 			try
@@ -590,7 +629,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			dispatcher.BeginInvoke(new Action(() =>
 			{
-				ProgressText = $"{progress.OperationName} ({progress.ServiceIndex + 1}/{progress.ServiceCount})";
+				lastProgressText = $"{progress.OperationName} ({progress.ServiceIndex + 1}/{progress.ServiceCount})";
+				ProgressText = IsPaused ? "Paused" : lastProgressText;
 				if (progress.ServiceCount > 0)
 					ProgressValue = (progress.ServiceIndex + 1) * 100.0 / progress.ServiceCount;
 				if (!string.IsNullOrEmpty(progress.Error))

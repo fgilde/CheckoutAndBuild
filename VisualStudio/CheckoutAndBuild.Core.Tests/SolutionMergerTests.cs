@@ -117,7 +117,13 @@ public class SolutionMergerTests : IDisposable
     {
         string merged = MergeFixtures();
 
-        var result = await ProcessRunner.RunAsync("dotnet", $"build \"{merged}\"", outputDir);
+        // nested dotnet build must not wait on the outer test run's MSBuild server (deadlocks for ~15min)
+        var env = new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER"] = "1",
+            ["MSBUILDDISABLENODEREUSE"] = "1"
+        };
+        var result = await ProcessRunner.RunAsync("dotnet", $"build \"{merged}\"", outputDir, environment: env);
 
         Assert.True(result.Success, "dotnet build failed:\n" + result.StdOut + result.StdErr);
     }

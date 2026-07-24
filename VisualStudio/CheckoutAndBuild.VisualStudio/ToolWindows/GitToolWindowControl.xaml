@@ -127,7 +127,8 @@
                    TextWrapping="Wrap"
                    ToolTip="{Binding StatusMessage}" />
 
-        <TabControl Background="Transparent" BorderThickness="0" Padding="0,6,0,0">
+        <TabControl Background="Transparent" BorderThickness="0" Padding="0,6,0,0"
+                    SelectedIndex="{Binding SelectedTabIndex}">
 
             <!-- ================= Changes ================= -->
             <TabItem Header="Changes" Style="{StaticResource CoabTabItem}">
@@ -289,6 +290,60 @@
                                             </Grid>
                                         </StackPanel.ToolTip>
                                     </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+            <!-- ================= History ================= -->
+            <TabItem Header="History" Style="{StaticResource CoabTabItem}">
+                <DockPanel>
+                    <Expander DockPanel.Dock="Bottom" Header="Commit Details" Margin="0,6,0,0"
+                              Template="{StaticResource CoabExpanderTemplate}"
+                              IsExpanded="True">
+                        <TextBox Style="{StaticResource CoabDiffBox}" Text="{Binding CommitDetailsText, Mode=OneWay}" />
+                    </Expander>
+
+                    <Grid>
+                        <TextBlock Text="No commits found"
+                                   HorizontalAlignment="Center" Margin="0,10,0,0"
+                                   Opacity="0.6">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Commits.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ListBox ItemsSource="{Binding Commits}"
+                                 SelectedItem="{Binding SelectedCommit}"
+                                 Background="Transparent" BorderThickness="0"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Background="Transparent">
+                                        <DockPanel.ToolTip>
+                                            <TextBlock>
+                                                <Run Text="{Binding Sha, Mode=OneWay}" FontWeight="Bold" /><LineBreak />
+                                                <Run Text="{Binding Author, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Date, Mode=OneWay}" /><LineBreak />
+                                                <Run Text="{Binding Message, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </DockPanel.ToolTip>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding ShortSha}"
+                                                   FontFamily="Consolas" FontWeight="SemiBold" Width="64"
+                                                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                        <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Opacity="0.6" FontSize="11" VerticalAlignment="Center">
+                                            <Run Text="{Binding Date, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Author, Mode=OneWay}" />
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

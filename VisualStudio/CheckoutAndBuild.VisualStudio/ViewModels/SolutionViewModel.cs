@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -37,6 +39,34 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IncreasePriorityCommand = new DelegateCommand(() => BuildPriority = Math.Max(0, BuildPriority - 1), () => !owner.IsRunning && BuildPriority > 0);
 			DecreasePriorityCommand = new DelegateCommand(() => BuildPriority = BuildPriority + 1, () => !owner.IsRunning);
 			SettingsCommand = new DelegateCommand(() => owner.OpenSolutionSettings(this));
+
+			OpenSolutionCommand = new DelegateCommand(OpenSolution);
+			OpenInExplorerCommand = new DelegateCommand(
+				() => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{ItemPath}\""));
+			OpenOutputDirectoryCommand = new DelegateCommand(
+				() => System.Diagnostics.Process.Start("explorer.exe", $"\"{FirstExistingOutputPath()}\""),
+				() => FirstExistingOutputPath() != null);
+			ShowHistoryCommand = new DelegateCommand(
+				() => CheckoutAndBuildPackage.Instance?.ShowGitHistory(Model.GitRepositoryRoot),
+				() => Model.GitRepositoryRoot != null);
+			CopyFullPathCommand = new DelegateCommand(() => Clipboard.SetText(ItemPath));
+		}
+
+		/// <summary>Opens the solution in this Visual Studio instance.</summary>
+		private void OpenSolution()
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			var solution = Microsoft.VisualStudio.Shell.Package.GetGlobalService(
+				typeof(Microsoft.VisualStudio.Shell.Interop.SVsSolution)) as Microsoft.VisualStudio.Shell.Interop.IVsSolution;
+			solution?.OpenSolutionFile(0, ItemPath);
+		}
+
+		/// <summary>First project output directory (Debug) that exists on disk, or null.</summary>
+		private string FirstExistingOutputPath()
+		{
+			return Model.Projects
+				.Select(p => p.OutputPath)
+				.FirstOrDefault(p => !string.IsNullOrEmpty(p) && Directory.Exists(p));
 		}
 
 		public SolutionProjectModel Model { get; }
@@ -60,7 +90,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public bool IsBusy => Model.IsBusy;
 
-		public string StatusText => Model.CurrentOperation?.StatusText ?? string.Empty;
+		public string StatusText => owner.IsPaused && IsBusy ? "Paused" : Model.CurrentOperation?.StatusText ?? string.Empty;
 
 		public double Progress => Model.CurrentOperation?.Progress ?? 0;
 
@@ -70,6 +100,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			get
 			{
+				if (owner.IsPaused && IsBusy)
+					return Brushes.Orange;
 				var operation = Model.CurrentOperation;
 				if (operation != null)
 					return BrushFromName(operation.ColorName);
@@ -129,6 +161,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand IncreasePriorityCommand { get; }
 		public ICommand SettingsCommand { get; }
 		public ICommand DecreasePriorityCommand { get; }
+		public ICommand OpenSolutionCommand { get; }
+		public ICommand OpenInExplorerCommand { get; }
+		public ICommand OpenOutputDirectoryCommand { get; }
+		public ICommand ShowHistoryCommand { get; }
+		public ICommand CopyFullPathCommand { get; }
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>
 		public void RefreshResult() => OnUI(RaiseStatus);

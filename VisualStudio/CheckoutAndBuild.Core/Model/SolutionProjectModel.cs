@@ -56,7 +56,10 @@ namespace CheckoutAndBuild.Core.Model
 
 		public bool IsDelphiProject => string.Equals(Path.GetExtension(ItemPath), ".groupproj", StringComparison.OrdinalIgnoreCase);
 
-		public bool IsGitSourceControlled => FindGitRoot(SolutionFolder) != null;
+		public bool IsGitSourceControlled => GitRepositoryRoot != null;
+
+		/// <summary>Root directory of the git repository containing the solution, or null.</summary>
+		public string GitRepositoryRoot => FindGitRoot(SolutionFolder);
 
 		public OperationInfo CurrentOperation
 		{

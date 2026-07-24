@@ -123,6 +123,38 @@ namespace CheckoutAndBuild.Core.Git
             return result.StdOut;
         }
 
+        // tab-separated: full hash, short hash, author, ISO date, subject
+        private const string LogFormat = "%H%x09%h%x09%an%x09%ci%x09%s";
+
+        /// <summary>Latest commits of the current branch, newest first ("git log").</summary>
+        public async Task<IReadOnlyList<GitCommit>> GetHistoryAsync(string repoDir, int maxCount = 100, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"log --max-count={maxCount} --format={LogFormat}", ct: ct).ConfigureAwait(false);
+            var commits = new List<GitCommit>();
+            foreach (var line in SplitLines(result.StdOut))
+            {
+                var parts = line.Split(new[] { '\t' }, 5);
+                if (parts.Length < 5)
+                    continue;
+                commits.Add(new GitCommit
+                {
+                    Sha = parts[0],
+                    ShortSha = parts[1],
+                    Author = parts[2],
+                    Date = parts[3],
+                    Message = parts[4]
+                });
+            }
+            return commits;
+        }
+
+        /// <summary>Commit details with file stat ("git show --stat").</summary>
+        public async Task<string> GetCommitDetailsAsync(string repoDir, string sha, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"show --stat \"{sha}\"", ct: ct).ConfigureAwait(false);
+            return result.StdOut;
+        }
+
         /// <summary>Working-tree status ("git status --porcelain=v1 -z").</summary>
         public async Task<IReadOnlyList<GitChange>> GetStatusAsync(string repoDir, CancellationToken ct = default)
         {

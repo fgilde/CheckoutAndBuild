@@ -143,13 +143,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private GitRepositoryViewModel selectedRepository;
 		private ChangeViewModel selectedChange;
 		private StashViewModel selectedStash;
+		private GitCommit selectedCommit;
 		private string diffText;
 		private string stashDiffText;
+		private string commitDetailsText;
 		private string newStashMessage;
 		private bool isBusy;
-		private bool loadStarted;
+		private Task loadTask;
 		private string lastError;
 		private string statusMessage;
+		private int selectedTabIndex;
 
 		public GitViewModel() : this(JsonSettingsService.CreateDefault())
 		{
@@ -171,6 +174,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ObservableCollection<GitRepositoryViewModel> Repositories { get; } = new ObservableCollection<GitRepositoryViewModel>();
 		public ObservableCollection<ChangeViewModel> Changes { get; } = new ObservableCollection<ChangeViewModel>();
 		public ObservableCollection<StashViewModel> Stashes { get; } = new ObservableCollection<StashViewModel>();
+		public ObservableCollection<GitCommit> Commits { get; } = new ObservableCollection<GitCommit>();
 
 		public ICommand RefreshCommand { get; }
 		public ICommand ExportPatchCommand { get; }
@@ -218,10 +222,38 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
+		public GitCommit SelectedCommit
+		{
+			get { return selectedCommit; }
+			set
+			{
+				if (SetProperty(ref selectedCommit, value))
+				{
+					if (value != null)
+						RunSafe(LoadCommitDetailsAsync);
+					else
+						CommitDetailsText = null;
+				}
+			}
+		}
+
+		/// <summary>Selected tab of the tool window (0 = Changes, 1 = Stashes, 2 = History).</summary>
+		public int SelectedTabIndex
+		{
+			get { return selectedTabIndex; }
+			set { SetProperty(ref selectedTabIndex, value); }
+		}
+
 		public string DiffText
 		{
 			get { return diffText; }
 			private set { SetProperty(ref diffText, value); }
+		}
+
+		public string CommitDetailsText
+		{
+			get { return commitDetailsText; }
+			private set { SetProperty(ref commitDetailsText, value); }
 		}
 
 		public string StashDiffText
@@ -261,10 +293,22 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Discovers the repositories once (tool window Loaded). Safe to call multiple times.</summary>
 		public Task LoadAsync()
 		{
-			if (loadStarted)
-				return Task.CompletedTask;
-			loadStarted = true;
-			return GuardedAsync(RefreshAllAsync);
+			return loadTask ?? (loadTask = GuardedAsync(RefreshAllAsync));
+		}
+
+		/// <summary>Selects the repository containing <paramref name="repositoryPath"/> and switches to the History tab.</summary>
+		public async Task ShowHistoryAsync(string repositoryPath)
+		{
+			await LoadAsync();
+			var repo = Repositories.FirstOrDefault(r => string.Equals(r.Path, repositoryPath, StringComparison.OrdinalIgnoreCase));
+			if (repo == null)
+			{
+				// repo lives outside the configured working folders — add it on the fly
+				repo = new GitRepositoryViewModel(repositoryPath);
+				Repositories.Add(repo);
+			}
+			SelectedTabIndex = 2;
+			SelectedRepository = repo;
 		}
 
 		/// <summary>Fire-and-forget wrapper: every failure lands in the status line instead of crashing WPF.</summary>
@@ -324,6 +368,27 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			for (int i = 0; i < stashes.Count; i++)
 				Stashes.Add(new StashViewModel(stashes[i], i));
 			StashDiffText = null;
+
+			Commits.Clear();
+			try
+			{
+				foreach (var commit in await git.GetHistoryAsync(repo.Path))
+					Commits.Add(commit);
+			}
+			catch (InvalidOperationException)
+			{
+				// repository without commits — history stays empty
+			}
+			CommitDetailsText = null;
+		}
+
+		private async Task LoadCommitDetailsAsync()
+		{
+			var commit = SelectedCommit;
+			var repo = SelectedRepository;
+			if (commit == null || repo == null)
+				return;
+			CommitDetailsText = await git.GetCommitDetailsAsync(repo.Path, commit.Sha);
 		}
 
 		private async Task LoadChangeDiffAsync()

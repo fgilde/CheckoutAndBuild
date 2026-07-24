@@ -106,6 +106,17 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showgitwindow");
 		}
 
+		/// <summary>Shows the git tool window on the History tab with the given repository selected.</summary>
+		internal void ShowGitHistory(string repositoryPath)
+		{
+			JoinableTaskFactory.RunAsync(async () =>
+			{
+				var window = await ShowToolWindowAsync(typeof(GitToolWindow), 0, true, DisposalToken);
+				if (window?.Content is GitToolWindowControl control)
+					await control.ShowHistoryAsync(repositoryPath);
+			}).FileAndForget("checkoutandbuild/showgithistory");
+		}
+
 		/// <summary>Shows the tool window with the settings view opened (Tools → Options link).</summary>
 		internal void ShowMainWindowSettings()
 		{
