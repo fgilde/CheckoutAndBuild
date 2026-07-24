@@ -102,6 +102,7 @@
     <Compile Include="TeamExplorer\CoabHomeSectionView.xaml.cs" Condition="'$(TeamExplorerDllPath)' != ''">
       <DependentUpon>CoabHomeSectionView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Settings\SettingsMaintenance.cs" />
     <Compile Include="Settings\SettingsViewModel.cs" />
     <Compile Include="Settings\SettingsView.xaml.cs">
       <DependentUpon>SettingsView.xaml</DependentUpon>

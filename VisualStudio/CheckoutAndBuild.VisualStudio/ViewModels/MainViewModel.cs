@@ -490,8 +490,28 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Opens the global settings editor (gear button, Tools → Options page).</summary>
 		public void OpenGlobalSettings()
 		{
-			ActiveSettings = new SettingsViewModel(settings, "Settings", null, CloseSettings,
+			var viewModel = new SettingsViewModel(settings, "Settings", null, CloseSettings,
 				SettingsUiFactory.GetSettingsClasses(pluginHost), CurrentProfile);
+			if (settings is JsonSettingsService jsonSettings)
+				viewModel.Maintenance = new MaintenanceViewModel(jsonSettings,
+					() => Profiles.ToList(), () => CurrentProfile, ReloadAfterStoreChange);
+			viewModel.Plugins = new PluginsViewModel(pluginHost.Errors);
+			ActiveSettings = viewModel;
+		}
+
+		/// <summary>Re-reads everything from the store after an import/copy/reset.</summary>
+		private void ReloadAfterStoreChange()
+		{
+			Profiles.Clear();
+			foreach (string profile in settings.Get<List<string>>(profilesKey, globalContext) ?? new List<string>())
+				Profiles.Add(profile);
+			if (!Profiles.Contains(SettingsContext.DefaultProfile))
+				Profiles.Insert(0, SettingsContext.DefaultProfile);
+			string stored = settings.Get(currentProfileKey, globalContext, SettingsContext.DefaultProfile);
+			currentProfile = Profiles.Contains(stored) ? stored : SettingsContext.DefaultProfile;
+			profileContext.Profile = currentProfile;
+			RaisePropertyChanged(nameof(CurrentProfile));
+			ReloadProfileScopedState();
 		}
 
 		/// <summary>Opens the solution-scoped settings editor (solution context menu).</summary>

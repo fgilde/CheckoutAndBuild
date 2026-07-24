@@ -100,6 +100,60 @@ namespace CheckoutAndBuild.Core.Settings
 			}
 		}
 
+		/// <summary>Writes the whole store to a portable .coab/.json file (old settings export).</summary>
+		public void ExportTo(string exportFilePath)
+		{
+			lock (syncRoot)
+			{
+				File.WriteAllText(exportFilePath, JsonSerializer.Serialize(values, new JsonSerializerOptions { WriteIndented = true }));
+			}
+		}
+
+		/// <summary>Merges an exported file into this store (imported keys win). Returns the number of imported keys.</summary>
+		public int ImportFrom(string importFilePath)
+		{
+			var imported = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(File.ReadAllText(importFilePath))
+						   ?? new Dictionary<string, JsonElement>();
+			lock (syncRoot)
+			{
+				foreach (var pair in imported)
+					values[pair.Key] = pair.Value;
+				SaveCore();
+			}
+			return imported.Count;
+		}
+
+		/// <summary>Copies every key of one profile onto another (target values are overwritten). Returns the copied key count.</summary>
+		public int CopyProfile(string sourceProfile, string targetProfile)
+		{
+			if (string.IsNullOrEmpty(sourceProfile) || string.IsNullOrEmpty(targetProfile) || sourceProfile == targetProfile)
+				return 0;
+			lock (syncRoot)
+			{
+				string sourcePrefix = sourceProfile + keySeparator;
+				int copied = 0;
+				foreach (string key in new List<string>(values.Keys))
+				{
+					if (!key.StartsWith(sourcePrefix, StringComparison.Ordinal))
+						continue;
+					values[targetProfile + keySeparator + key.Substring(sourcePrefix.Length)] = values[key];
+					copied++;
+				}
+				SaveCore();
+				return copied;
+			}
+		}
+
+		/// <summary>Wipes the whole store ("Reset all settings").</summary>
+		public void ResetAll()
+		{
+			lock (syncRoot)
+			{
+				values.Clear();
+				SaveCore();
+			}
+		}
+
 		/// <summary>Most specific first: branch-scoped, repo-scoped, global.</summary>
 		private static IEnumerable<string> GetCandidateKeys(string key, SettingsContext context)
 		{

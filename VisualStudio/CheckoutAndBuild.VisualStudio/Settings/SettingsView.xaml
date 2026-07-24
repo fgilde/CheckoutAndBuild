@@ -113,6 +113,7 @@
                    Visibility="{Binding IsProjectSpecific, Converter={StaticResource BoolToVis}}" />
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
             <ItemsControl ItemsSource="{Binding Groups}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -129,6 +130,84 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <!-- ===== plugins (global page only) ===== -->
+            <Expander IsExpanded="False" Margin="0,0,0,4"
+                      Template="{StaticResource CoabExpanderTemplate}"
+                      HorizontalContentAlignment="Stretch"
+                      DataContext="{Binding Plugins}"
+                      Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
+                <Expander.Style>
+                    <Style TargetType="Expander">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Expander.Style>
+                <Expander.Header>
+                    <TextBlock Text="Plugins" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Expander.Header>
+                <StackPanel Margin="16,2,0,0">
+                    <ListBox ItemsSource="{Binding Items}" MaxHeight="120" Margin="0,4"
+                             Background="Transparent"
+                             Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
+                             x:Name="pluginList" />
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <Button Content="Install…" Padding="10,2" Margin="0,0,6,0" Style="{StaticResource CoabButton}"
+                                Command="{Binding InstallCommand}"
+                                ToolTip="Install a plugin from a .zip/.vsix package or a single .dll" />
+                        <Button Content="Remove" Padding="10,2" Margin="0,0,6,0" Style="{StaticResource CoabButton}"
+                                Command="{Binding RemoveCommand}"
+                                CommandParameter="{Binding SelectedItem, ElementName=pluginList}" />
+                        <Button Content="Open Folder" Padding="10,2" Style="{StaticResource CoabButton}"
+                                Command="{Binding OpenFolderCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Status}" FontStyle="Italic" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding LoadErrors}" Foreground="{StaticResource CoabErrorBrush}"
+                               FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                               Visibility="{Binding HasLoadErrors, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </Expander>
+
+            <!-- ===== maintenance: export/import/copy/reset (global page only) ===== -->
+            <Expander IsExpanded="False" Margin="0,0,0,4"
+                      Template="{StaticResource CoabExpanderTemplate}"
+                      HorizontalContentAlignment="Stretch"
+                      DataContext="{Binding Maintenance}"
+                      Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
+                <Expander.Style>
+                    <Style TargetType="Expander">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Expander.Style>
+                <Expander.Header>
+                    <TextBlock Text="Import / Export" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Expander.Header>
+                <StackPanel Margin="16,6,0,0">
+                    <WrapPanel>
+                        <Button Content="Export Settings…" Padding="10,2" Margin="0,0,6,4" Style="{StaticResource CoabButton}"
+                                Command="{Binding ExportCommand}"
+                                ToolTip="Save all settings as a portable .coab file" />
+                        <Button Content="Import Settings…" Padding="10,2" Margin="0,0,6,4" Style="{StaticResource CoabButton}"
+                                Command="{Binding ImportCommand}"
+                                ToolTip="Merge settings from a .coab file into the store" />
+                        <Button Content="Copy Profile…" Padding="10,2" Margin="0,0,6,4" Style="{StaticResource CoabButton}"
+                                Command="{Binding CopyProfileCommand}"
+                                ToolTip="Copy all settings from one working profile to another" />
+                        <Button Content="Reset All…" Padding="10,2" Margin="0,0,6,4" Style="{StaticResource CoabButton}"
+                                Command="{Binding ResetAllCommand}"
+                                ToolTip="Delete every stored CheckoutAndBuild setting" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding Status}" FontStyle="Italic" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Expander>
+            </StackPanel>
         </ScrollViewer>
     </DockPanel>
 </UserControl>

@@ -46,6 +46,12 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 
 		public ICommand CloseCommand { get; }
 
+		/// <summary>Export/Import/Copy/Reset section; set for the global settings page only.</summary>
+		public MaintenanceViewModel Maintenance { get; set; }
+
+		/// <summary>Plugin management section; set for the global settings page only.</summary>
+		public PluginsViewModel Plugins { get; set; }
+
 		public ObservableCollection<SettingsGroupViewModel> Groups { get; } = new ObservableCollection<SettingsGroupViewModel>();
 	}
 
