@@ -1,0 +1,118 @@
+<UserControl x:Class="CheckoutAndBuild.VisualStudio.ToolWindows.WorkItemToolWindowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vsshell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             Background="{DynamicResource {x:Static vsshell:VsBrushes.WindowKey}}"
+             Foreground="{DynamicResource {x:Static vsshell:VsBrushes.WindowTextKey}}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/CheckoutAndBuild.VisualStudio;component/Themes/CoabStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <Style x:Key="FormLabel" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="0,0,6,4" />
+                <Setter Property="Opacity" Value="0.7" />
+            </Style>
+            <Style x:Key="FormInput" TargetType="Control">
+                <Setter Property="Margin" Value="0,0,0,4" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+
+        <!-- ===== connection + query ===== -->
+        <Expander DockPanel.Dock="Top" Header="Connection &amp; Query" IsExpanded="True" Margin="0,0,0,6">
+            <Grid Margin="12,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}" Text="Organization URL:" />
+                <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInput}"
+                         Text="{Binding OrganizationUrl, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="https://dev.azure.com/myorg or https://server/tfs/DefaultCollection" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}" Text="Project:" />
+                <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInput}"
+                         Text="{Binding Project, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabel}" Text="Personal Access Token:" />
+                <PasswordBox Grid.Row="2" Grid.Column="1" x:Name="patBox" Style="{StaticResource FormInput}"
+                             PasswordChanged="OnPatChanged"
+                             ToolTip="PAT with Work Items read &amp; write scope (stored DPAPI-protected per user)" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabel}" Text="WIQL Query:" VerticalAlignment="Top" />
+                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,4"
+                         Text="{Binding Wiql, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44" MaxHeight="90"
+                         VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11"
+                         ToolTip="@project resolves to the project above" />
+            </Grid>
+        </Expander>
+
+        <!-- ===== search / replace ===== -->
+        <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabel}" Text="Search term:" />
+            <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInput}"
+                     Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabel}" Text="Replace term:" />
+            <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInput}"
+                     Text="{Binding ReplaceTerm, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,6">
+            <Button Padding="12,3" Margin="0,0,6,0" Command="{Binding PreviewCommand}" Content="Preview" />
+            <Button Padding="12,3" Command="{Binding ExecuteCommand}" Content="Replace All"
+                    ToolTip="Replaces the search term in all matched fields of all listed work items" />
+        </StackPanel>
+
+        <ProgressBar DockPanel.Dock="Top" Height="4" Margin="0,0,0,4"
+                     Style="{StaticResource COABProgressBar}"
+                     IsIndeterminate="True"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+
+        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,4" Text="{Binding StatusText}" TextWrapping="Wrap" />
+
+        <!-- ===== preview list ===== -->
+        <ListView ItemsSource="{Binding Results}"
+                  Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVis}}"
+                  Background="Transparent"
+                  Foreground="{DynamicResource {x:Static vsshell:VsBrushes.ToolWindowTextKey}}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}"
+                  MouseDoubleClick="OnResultDoubleClick"
+                  ToolTip="Double-click opens the work item in the browser">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="ID" Width="60" DisplayMemberBinding="{Binding Id}" />
+                    <GridViewColumn Header="Type" Width="90" DisplayMemberBinding="{Binding WorkItemType}" />
+                    <GridViewColumn Header="Title" Width="280" DisplayMemberBinding="{Binding Title}" />
+                    <GridViewColumn Header="State" Width="80" DisplayMemberBinding="{Binding State}" />
+                    <GridViewColumn Header="Matched Fields" Width="200" DisplayMemberBinding="{Binding MatchedFields}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</UserControl>

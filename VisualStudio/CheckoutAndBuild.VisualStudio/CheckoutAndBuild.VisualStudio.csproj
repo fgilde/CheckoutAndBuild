@@ -61,6 +61,8 @@
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Design" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
@@ -107,6 +109,7 @@
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ServiceSettingsAdapter.cs" />
     <Compile Include="ViewModels\SolutionViewModel.cs" />
+    <Compile Include="ViewModels\WorkItemSearchReplaceViewModel.cs" />
     <Compile Include="ToolWindows\GitToolWindow.cs" />
     <Compile Include="ToolWindows\GitToolWindowControl.xaml.cs">
       <DependentUpon>GitToolWindowControl.xaml</DependentUpon>
@@ -114,6 +117,10 @@
     <Compile Include="ToolWindows\MainToolWindow.cs" />
     <Compile Include="ToolWindows\MainToolWindowControl.xaml.cs">
       <DependentUpon>MainToolWindowControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ToolWindows\WorkItemToolWindow.cs" />
+    <Compile Include="ToolWindows\WorkItemToolWindowControl.xaml.cs">
+      <DependentUpon>WorkItemToolWindowControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -135,6 +142,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="ToolWindows\MainToolWindowControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ToolWindows\WorkItemToolWindowControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

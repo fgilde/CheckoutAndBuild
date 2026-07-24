@@ -17,6 +17,7 @@ namespace CheckoutAndBuild.VisualStudio
 	[ProvideMenuResource("Menus.ctmenu", 1)]
 	[ProvideToolWindow(typeof(MainToolWindow))]
 	[ProvideToolWindow(typeof(GitToolWindow))]
+	[ProvideToolWindow(typeof(WorkItemToolWindow))]
 	[ProvideOptionPage(typeof(CheckoutAndBuildOptionsPage), "CheckoutAndBuild", "General", 0, 0, true)]
 	public sealed class CheckoutAndBuildPackage : AsyncPackage
 	{
@@ -25,6 +26,7 @@ namespace CheckoutAndBuild.VisualStudio
 		public const int ShowMainWindowCommandId = 0x0100;
 		public const int ClearErrorsCommandId = 0x0200;
 		public const int ShowGitWindowCommandId = 0x0300;
+		public const int ShowWorkItemWindowCommandId = 0x0400;
 
 		private CoabErrorListProvider errorListProvider;
 
@@ -55,6 +57,9 @@ namespace CheckoutAndBuild.VisualStudio
 
 				commandService.AddCommand(new MenuCommand(ShowGitWindow,
 					new CommandID(CommandSetGuid, ShowGitWindowCommandId)));
+
+				commandService.AddCommand(new MenuCommand(ShowWorkItemWindow,
+					new CommandID(CommandSetGuid, ShowWorkItemWindowCommandId)));
 
 				var clearErrors = new OleMenuCommand(ClearErrors, new CommandID(CommandSetGuid, ClearErrorsCommandId));
 				clearErrors.BeforeQueryStatus += OnClearErrorsQueryStatus;
@@ -104,6 +109,16 @@ namespace CheckoutAndBuild.VisualStudio
 				if (window?.Frame == null)
 					throw new NotSupportedException("Cannot create CheckoutAndBuild Git tool window.");
 			}).FileAndForget("checkoutandbuild/showgitwindow");
+		}
+
+		private void ShowWorkItemWindow(object sender, EventArgs e)
+		{
+			JoinableTaskFactory.RunAsync(async () =>
+			{
+				var window = await ShowToolWindowAsync(typeof(WorkItemToolWindow), 0, true, DisposalToken);
+				if (window?.Frame == null)
+					throw new NotSupportedException("Cannot create CheckoutAndBuild Work Items tool window.");
+			}).FileAndForget("checkoutandbuild/showworkitemwindow");
 		}
 
 		/// <summary>Shows the git tool window on the History tab with the given repository selected.</summary>
