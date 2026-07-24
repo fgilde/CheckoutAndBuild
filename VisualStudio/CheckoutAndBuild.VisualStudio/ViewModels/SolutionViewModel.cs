@@ -81,6 +81,21 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
+		/// <summary>True when the last result is a failure (exception, failed build or failed tests).</summary>
+		public bool HasFailed
+		{
+			get
+			{
+				object result = Model.Result ?? Model.ErrorContent;
+				return result is Exception
+					|| (result is BuildResult build && !build.Success)
+					|| (result is TestRunResult tests && !tests.Success);
+			}
+		}
+
+		/// <summary>True when there is a result and it is not a failure.</summary>
+		public bool HasSucceeded => !HasFailed && (Model.Result ?? Model.ErrorContent) != null;
+
 		/// <summary>Short text for the result of the last operation.</summary>
 		public string ResultText
 		{
@@ -140,6 +155,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					case nameof(SolutionProjectModel.ErrorContent):
 						RaisePropertyChanged(nameof(StatusBrush));
 						RaisePropertyChanged(nameof(ResultText));
+						RaisePropertyChanged(nameof(HasFailed));
+						RaisePropertyChanged(nameof(HasSucceeded));
 						break;
 				}
 			});
@@ -164,6 +181,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(IsIndeterminate));
 			RaisePropertyChanged(nameof(IsBusy));
 			RaisePropertyChanged(nameof(ResultText));
+			RaisePropertyChanged(nameof(HasFailed));
+			RaisePropertyChanged(nameof(HasSucceeded));
 		}
 
 		private void OnUI(Action action)
