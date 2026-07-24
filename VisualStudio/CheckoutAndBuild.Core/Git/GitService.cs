@@ -116,6 +116,111 @@ namespace CheckoutAndBuild.Core.Git
             return RunGitAsync(repoDir, $"stash drop \"stash@{{{index}}}\"", ct: ct);
         }
 
+        /// <summary>Patch of a stash ("git stash show -p stash@{index}").</summary>
+        public async Task<string> GetStashDiffAsync(string repoDir, int index, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"stash show -p \"stash@{{{index}}}\"", ct: ct).ConfigureAwait(false);
+            return result.StdOut;
+        }
+
+        /// <summary>Working-tree status ("git status --porcelain=v1 -z").</summary>
+        public async Task<IReadOnlyList<GitChange>> GetStatusAsync(string repoDir, CancellationToken ct = default)
+        {
+            // -uall: list untracked files individually instead of collapsing whole directories
+            var result = await RunGitAsync(repoDir, "status --porcelain=v1 -z -uall", ct: ct).ConfigureAwait(false);
+            return ParseStatus(result.StdOut);
+        }
+
+        internal static IReadOnlyList<GitChange> ParseStatus(string output)
+        {
+            var changes = new List<GitChange>();
+            var entries = output.Split('\0');
+            for (int i = 0; i < entries.Length; i++)
+            {
+                // ProcessRunner appends line breaks per output event; paths never start/end with them
+                var entry = entries[i].Trim('\r', '\n');
+                if (entry.Length < 4)
+                    continue;
+                char x = entry[0];
+                char y = entry[1];
+                string path = entry.Substring(3);
+
+                if (x == 'R' || x == 'C' || y == 'R' || y == 'C')
+                    i++; // -z rename/copy: next token is the original path
+
+                if (x == '!' && y == '!')
+                    continue; // ignored
+
+                if (x == '?' && y == '?')
+                {
+                    changes.Add(new GitChange(path, GitChangeType.Untracked, isStaged: false));
+                }
+                else if (x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D'))
+                {
+                    changes.Add(new GitChange(path, GitChangeType.Conflicted, isStaged: false));
+                }
+                else
+                {
+                    if (x != ' ')
+                        changes.Add(new GitChange(path, MapChangeType(x), isStaged: true));
+                    if (y != ' ')
+                        changes.Add(new GitChange(path, MapChangeType(y), isStaged: false));
+                }
+            }
+            return changes;
+        }
+
+        private static GitChangeType MapChangeType(char code)
+        {
+            switch (code)
+            {
+                case 'A': return GitChangeType.Added;
+                case 'D': return GitChangeType.Deleted;
+                case 'R':
+                case 'C': return GitChangeType.Renamed;
+                default: return GitChangeType.Modified;
+            }
+        }
+
+        /// <summary>Diff of the working tree (or index with <paramref name="staged"/>), optionally for a single file.</summary>
+        public async Task<string> GetDiffAsync(string repoDir, string filePath = null, bool staged = false, CancellationToken ct = default)
+        {
+            var args = staged ? "diff --cached" : "diff";
+            if (!string.IsNullOrEmpty(filePath))
+                args += $" -- \"{filePath}\"";
+            var result = await RunGitAsync(repoDir, args, ct: ct).ConfigureAwait(false);
+            return result.StdOut;
+        }
+
+        /// <summary>Writes "git diff HEAD" to a .patch file. Tracked changes only — untracked files are covered by the zip export.</summary>
+        public async Task ExportChangesAsPatchAsync(string repoDir, string targetFile, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, "diff HEAD", ct: ct).ConfigureAwait(false);
+            File.WriteAllText(targetFile, result.StdOut);
+        }
+
+        /// <summary>Zips all changed + untracked files (except deletions) with their repo-relative folder structure.</summary>
+        public async Task ExportChangesAsZipAsync(string repoDir, string targetZip, CancellationToken ct = default)
+        {
+            var changes = await GetStatusAsync(repoDir, ct).ConfigureAwait(false);
+            var paths = changes
+                .Where(c => c.ChangeType != GitChangeType.Deleted)
+                .Select(c => c.FilePath)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            using (var stream = File.Create(targetZip))
+            using (var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                foreach (var relative in paths)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var fullPath = Path.Combine(repoDir, relative.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(fullPath))
+                        System.IO.Compression.ZipFileExtensions.CreateEntryFromFile(zip, fullPath, relative);
+                }
+            }
+        }
+
         private static string GitArgs(string repoDir, string args)
         {
             return $"-C \"{repoDir}\" {args}";

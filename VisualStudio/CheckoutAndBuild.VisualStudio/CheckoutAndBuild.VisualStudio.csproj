@@ -87,9 +87,14 @@
     <Compile Include="Settings\SettingsView.xaml.cs">
       <DependentUpon>SettingsView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ViewModels\GitViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ServiceSettingsAdapter.cs" />
     <Compile Include="ViewModels\SolutionViewModel.cs" />
+    <Compile Include="ToolWindows\GitToolWindow.cs" />
+    <Compile Include="ToolWindows\GitToolWindowControl.xaml.cs">
+      <DependentUpon>GitToolWindowControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ToolWindows\MainToolWindow.cs" />
     <Compile Include="ToolWindows\MainToolWindowControl.xaml.cs">
       <DependentUpon>MainToolWindowControl.xaml</DependentUpon>
@@ -102,6 +107,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Settings\SettingsView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ToolWindows\GitToolWindowControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

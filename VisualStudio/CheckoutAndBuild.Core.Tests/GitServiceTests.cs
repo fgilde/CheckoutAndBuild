@@ -115,4 +115,113 @@ public sealed class GitServiceTests : IDisposable
             () => git.CheckoutBranchAsync(repoDir, "does-not-exist"));
         Assert.Contains("does-not-exist", ex.Message);
     }
+
+    [Fact]
+    public async Task GetStatus_ParsesStagedUnstagedAndUntracked()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");     // unstaged modified
+        File.WriteAllText(Path.Combine(repoDir, "staged.txt"), "new");
+        Run("add staged.txt");                                                // staged added
+        File.WriteAllText(Path.Combine(repoDir, "untracked.txt"), "loose");   // untracked
+
+        var changes = await git.GetStatusAsync(repoDir);
+
+        var modified = changes.Single(c => c.FilePath == "README.md");
+        Assert.Equal(GitChangeType.Modified, modified.ChangeType);
+        Assert.False(modified.IsStaged);
+
+        var added = changes.Single(c => c.FilePath == "staged.txt");
+        Assert.Equal(GitChangeType.Added, added.ChangeType);
+        Assert.True(added.IsStaged);
+
+        var untracked = changes.Single(c => c.FilePath == "untracked.txt");
+        Assert.Equal(GitChangeType.Untracked, untracked.ChangeType);
+        Assert.False(untracked.IsStaged);
+    }
+
+    [Fact]
+    public async Task GetStatus_StagedRename_ReportsNewPath()
+    {
+        Run("mv README.md RENAMED.md");
+
+        var changes = await git.GetStatusAsync(repoDir);
+
+        var renamed = Assert.Single(changes);
+        Assert.Equal(GitChangeType.Renamed, renamed.ChangeType);
+        Assert.Equal("RENAMED.md", renamed.FilePath);
+        Assert.True(renamed.IsStaged);
+    }
+
+    [Fact]
+    public async Task GetStatus_CleanRepo_Empty()
+    {
+        Assert.Empty(await git.GetStatusAsync(repoDir));
+    }
+
+    [Fact]
+    public async Task GetDiff_UnstagedAndPerFile_ContainsPatch()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+
+        var diff = await git.GetDiffAsync(repoDir);
+        Assert.Contains("README.md", diff);
+        Assert.Contains("+changed", diff);
+
+        var fileDiff = await git.GetDiffAsync(repoDir, "README.md");
+        Assert.Contains("+changed", fileDiff);
+
+        var stagedDiff = await git.GetDiffAsync(repoDir, staged: true);
+        Assert.True(string.IsNullOrWhiteSpace(stagedDiff));
+    }
+
+    [Fact]
+    public async Task ExportChangesAsPatch_WritesTrackedDiff()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        var target = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".patch");
+        try
+        {
+            await git.ExportChangesAsPatchAsync(repoDir, target);
+            var patch = File.ReadAllText(target);
+            Assert.Contains("README.md", patch);
+            Assert.Contains("+changed", patch);
+        }
+        finally
+        {
+            File.Delete(target);
+        }
+    }
+
+    [Fact]
+    public async Task ExportChangesAsZip_ContainsModifiedAndUntrackedWithFolders()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        Directory.CreateDirectory(Path.Combine(repoDir, "sub"));
+        File.WriteAllText(Path.Combine(repoDir, "sub", "new.txt"), "x");
+        var target = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".zip");
+        try
+        {
+            await git.ExportChangesAsZipAsync(repoDir, target);
+            using var zip = System.IO.Compression.ZipFile.OpenRead(target);
+            Assert.Contains(zip.Entries, e => e.FullName == "README.md");
+            Assert.Contains(zip.Entries, e => e.FullName == "sub/new.txt");
+            Assert.Equal(2, zip.Entries.Count);
+        }
+        finally
+        {
+            File.Delete(target);
+        }
+    }
+
+    [Fact]
+    public async Task GetStashDiff_ReturnsPatch()
+    {
+        File.WriteAllText(Path.Combine(repoDir, "README.md"), "changed");
+        await git.StashPushAsync(repoDir, "diff test");
+
+        var diff = await git.GetStashDiffAsync(repoDir, 0);
+
+        Assert.Contains("README.md", diff);
+        Assert.Contains("+changed", diff);
+    }
 }

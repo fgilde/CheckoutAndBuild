@@ -18,6 +18,13 @@
         </Strings>
       </Button>
 
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowGitWindow" priority="0x0101" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild Git</ButtonText>
+        </Strings>
+      </Button>
+
       <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidClearErrors" priority="0x0100" type="Button">
         <Parent guid="guidCheckoutAndBuildCmdSet" id="ErrorListGroup" />
         <CommandFlag>DynamicVisibility</CommandFlag>
@@ -34,6 +41,7 @@
     <GuidSymbol name="guidCheckoutAndBuildCmdSet" value="{874acff0-be59-4dfc-8975-d77d0b75b5fe}">
       <IDSymbol name="cmdidShowMainWindow" value="0x0100" />
       <IDSymbol name="cmdidClearErrors" value="0x0200" />
+      <IDSymbol name="cmdidShowGitWindow" value="0x0300" />
       <IDSymbol name="ErrorListGroup" value="0x1020" />
     </GuidSymbol>
   </Symbols>
