@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Execution;
+using CheckoutAndBuild.Core.Settings;
 
 namespace CheckoutAndBuild.Core.Pipeline
 {
@@ -55,6 +56,7 @@ namespace CheckoutAndBuild.Core.Pipeline
                 if (serviceProjects.Count == 0)
                     continue;
 
+                await RunServiceScriptsAsync(context, service, serviceProjects, isPre: true, i, orderedServices.Count, cancellation).ConfigureAwait(false);
                 RunCustomActions(context, service, serviceProjects, isPre: true, i, orderedServices.Count);
 
                 try
@@ -73,6 +75,7 @@ namespace CheckoutAndBuild.Core.Pipeline
                 }
 
                 RunCustomActions(context, service, serviceProjects, isPre: false, i, orderedServices.Count);
+                await RunServiceScriptsAsync(context, service, serviceProjects, isPre: false, i, orderedServices.Count, cancellation).ConfigureAwait(false);
 
                 if (service.ServiceId == buildServiceId && !string.IsNullOrEmpty(context.PostBuildScript)
                     && !cancellation.IsCancellationRequested)
@@ -112,12 +115,51 @@ namespace CheckoutAndBuild.Core.Pipeline
             }
         }
 
-        private static Task<ProcessResult> RunScriptAsync(string path, PausableCancellationTokenSource cancellation)
+        /// <summary>
+        /// Runs the per-project Pre-/Post-Service scripts (MiscellaneousSettings); a failing
+        /// script is reported and the pipeline continues (old ExternalActionService semantics).
+        /// Scripts receive the service name and solution path as arguments.
+        /// </summary>
+        private static async Task RunServiceScriptsAsync(PipelineContext context, IOperationService service,
+            IReadOnlyList<ISolutionProjectModel> projects, bool isPre, int index, int count,
+            PausableCancellationTokenSource cancellation)
+        {
+            if (context.Settings == null)
+                return;
+
+            foreach (var project in projects)
+            {
+                if (cancellation.IsCancellationRequested)
+                    return;
+
+                string script;
+                try
+                {
+                    var misc = context.Settings.GetSettingsFromProvider<MiscellaneousSettings>(project);
+                    script = isPre ? misc.PreServiceScriptFile : misc.PostServiceScriptFile;
+                }
+                catch (Exception)
+                {
+                    continue; // host without settings provider — nothing to run
+                }
+                if (string.IsNullOrEmpty(script) || !File.Exists(script))
+                    continue;
+
+                var result = await RunScriptAsync(script, cancellation,
+                    $"\"{service.OperationName}\" \"{project.ItemPath}\"").ConfigureAwait(false);
+                if (result.ExitCode != 0)
+                    ReportError(context, service.OperationName, index, count,
+                        $"{(isPre ? "Pre" : "Post")}-service script '{script}' failed for {project.SolutionFileName} with exit code {result.ExitCode}. {result.StdErr}".TrimEnd());
+            }
+        }
+
+        private static Task<ProcessResult> RunScriptAsync(string path, PausableCancellationTokenSource cancellation, string scriptArgs = null)
         {
             var workingDir = Path.GetDirectoryName(path);
+            string suffix = string.IsNullOrEmpty(scriptArgs) ? "" : " " + scriptArgs;
             return path.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)
-                ? ProcessRunner.RunAsync("powershell", $"-ExecutionPolicy Bypass -File \"{path}\"", workingDir, cancellationToken: cancellation.Token)
-                : ProcessRunner.RunAsync("cmd", $"/s /c \"\"{path}\"\"", workingDir, cancellationToken: cancellation.Token);
+                ? ProcessRunner.RunAsync("powershell", $"-ExecutionPolicy Bypass -File \"{path}\"{suffix}", workingDir, cancellationToken: cancellation.Token)
+                : ProcessRunner.RunAsync("cmd", $"/s /c \"\"{path}\"{suffix}\"", workingDir, cancellationToken: cancellation.Token);
         }
 
         private static void ReportError(PipelineContext context, string operationName, int index, int count, string error)

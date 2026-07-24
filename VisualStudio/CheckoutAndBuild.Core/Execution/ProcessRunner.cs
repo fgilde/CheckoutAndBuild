@@ -28,7 +28,8 @@ namespace CheckoutAndBuild.Core.Execution
             string fileName, string arguments, string workingDirectory = null,
             Action<string> onOutputLine = null, Action<string> onErrorLine = null,
             IDictionary<string, string> environment = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            ProcessPriorityClass? priority = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -72,6 +73,11 @@ namespace CheckoutAndBuild.Core.Execution
                 process.Exited += (s, e) => exited.TrySetResult(true);
 
                 process.Start();
+                if (priority.HasValue)
+                {
+                    try { process.PriorityClass = priority.Value; }
+                    catch (Exception) { /* exited early or no rights — priority is best effort */ }
+                }
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 

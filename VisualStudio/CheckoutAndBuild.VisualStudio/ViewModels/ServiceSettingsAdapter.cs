@@ -33,7 +33,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public IDictionary<string, string> BuildProperties { get; } = new Dictionary<string, string>();
 
-		public LoggerVerbosity LogLevel => LoggerVerbosity.Minimal;
+		public LoggerVerbosity LogLevel => settings.Get("LogLevel", context, LoggerVerbosity.Minimal);
 
 		public T GetSettingsFromProvider<T>() where T : ISettingsProviderClass, new()
 			=> SettingsUiFactory.CreateSettings<T>(settings, null, context.Profile);

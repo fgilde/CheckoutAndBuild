@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Service;
@@ -56,6 +59,13 @@ namespace CheckoutAndBuild.Core.Services
 		protected override async Task ExecuteCoreAsync(IReadOnlyList<ISolutionProjectModel> solutionProjects, IServiceSettings settings, PausableCancellationTokenSource cancellation)
 		{
 			var buildSettings = GetSettings<BuildServiceSettings>(settings);
+
+			if (buildSettings.BuildMode == BuildMode.MergedBuild && solutionProjects.Count > 1)
+			{
+				await BuildMergedAsync(solutionProjects, settings, buildSettings, cancellation).ConfigureAwait(false);
+				return;
+			}
+
 			var groups = solutionProjects
 				.GroupBy(p => p.BuildPriority)
 				.OrderBy(g => g.Key)
@@ -74,18 +84,55 @@ namespace CheckoutAndBuild.Core.Services
 			}
 		}
 
+		/// <summary>Merges all solutions into one temporary solution and builds that (old MergedBuild mode, dependency order via msbuild).</summary>
+		private async Task BuildMergedAsync(IReadOnlyList<ISolutionProjectModel> solutionProjects, IServiceSettings settings,
+			BuildServiceSettings buildSettings, PausableCancellationTokenSource cancellation)
+		{
+			string mergedPath = Path.Combine(solutionProjects[0].SolutionFolder,
+				"!Merged_Build_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".sln");
+			Merge.SolutionMerger.Merge(solutionProjects.Select(p => p.ItemPath), mergedPath);
+			CoabLog.Info($"MergedBuild: created {mergedPath}");
+
+			foreach (var model in solutionProjects)
+				model.CurrentOperation = Operations.BuildIndeterminate;
+			try
+			{
+				KillDependentProcessesIfConfigured(solutionProjects, buildSettings);
+				var errors = new List<BuildError>();
+				GetBuildCommandForPath(mergedPath, solutionProjects[0], settings, out string exe, out string args);
+				var result = await ProcessRunner.RunAsync(exe, args, Path.GetDirectoryName(mergedPath),
+					line => { CoabLog.Detail(line); ParseErrorLine(line, solutionProjects[0], errors); },
+					cancellationToken: cancellation.Token,
+					priority: GetProcessPriority(buildSettings)).ConfigureAwait(false);
+
+				var buildResult = new BuildResult { Success = result.Success, Errors = errors };
+				foreach (var model in solutionProjects)
+					model.SetResult(buildResult);
+				CoabLog.Info($"MergedBuild {(result.Success ? "succeeded" : "failed")} ({errors.Count(e => !e.IsWarning)} error(s)). Merged solution kept at {mergedPath}");
+			}
+			finally
+			{
+				foreach (var model in solutionProjects)
+					model.CurrentOperation = Operations.None;
+			}
+		}
+
 		public async Task<BuildResult> BuildSolutionAsync(ISolutionProjectModel model, IServiceSettings settings, PausableCancellationTokenSource cancellation)
 		{
 			await cancellation.WaitWhilePausedAsync().ConfigureAwait(false);
 
+			var buildSettings = GetSettings<BuildServiceSettings>(settings, model);
 			model.CurrentOperation = Operations.BuildIndeterminate;
 			try
 			{
+				KillDependentProcessesIfConfigured(new[] { model }, buildSettings);
+				CoabLog.Info($"Building {model.SolutionFileName}...");
 				GetBuildCommand(model, settings, out string exe, out string args);
 				var errors = new List<BuildError>();
 				var result = await ProcessRunner.RunAsync(exe, args, model.SolutionFolder,
-					line => ParseErrorLine(line, model, errors),
-					cancellationToken: cancellation.Token).ConfigureAwait(false);
+					line => { CoabLog.Detail(line); ParseErrorLine(line, model, errors); },
+					cancellationToken: cancellation.Token,
+					priority: GetProcessPriority(buildSettings)).ConfigureAwait(false);
 
 				var buildResult = new BuildResult
 				{
@@ -138,6 +185,9 @@ namespace CheckoutAndBuild.Core.Services
 		}
 
 		private void GetBuildCommand(ISolutionProjectModel model, IServiceSettings settings, out string exe, out string args)
+			=> GetBuildCommandForPath(model.ItemPath, model, settings, out exe, out args);
+
+		private void GetBuildCommandForPath(string itemPath, ISolutionProjectModel model, IServiceSettings settings, out string exe, out string args)
 		{
 			var buildSettings = GetSettings<BuildServiceSettings>(settings, model);
 			string targets = string.Join(";", model.BuildTargets ?? new[] { "Build" });
@@ -156,18 +206,77 @@ namespace CheckoutAndBuild.Core.Services
 			foreach (var pair in merged)
 				properties.Append($" /p:{pair.Key}=\"{pair.Value}\"");
 
+			string verbosity = GetVerbosityFlag(settings);
+
+			if (model.IsDelphiProject && !string.IsNullOrEmpty(settings?.DelphiPath))
+			{
+				// Delphi: rsvars.bat sets BDS/framework env, then msbuild builds the .dproj/.groupproj (old bds path)
+				string rsvars = File.Exists(settings.DelphiPath) && settings.DelphiPath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)
+					? settings.DelphiPath
+					: Path.Combine(settings.DelphiPath, "bin", "rsvars.bat");
+				exe = "cmd";
+				args = $"/s /c \"\"{rsvars}\" && msbuild \"{itemPath}\" /t:{targets} /v:{verbosity}{properties}\"";
+				return;
+			}
+
 			string msbuild = VsWhere.MsBuildPath;
 			if (msbuild != null)
 			{
 				int nodes = Math.Max(1, buildSettings.MaxNodeCount);
 				exe = msbuild;
-				args = $"\"{model.ItemPath}\" /restore /t:{targets} /v:m /m:{nodes} /nr:{buildSettings.EnableNodeReuse.ToString().ToLowerInvariant()}{properties}";
+				args = $"\"{itemPath}\" /restore /t:{targets} /v:{verbosity} /m:{nodes} /nr:{buildSettings.EnableNodeReuse.ToString().ToLowerInvariant()}{properties}";
 			}
 			else
 			{
 				exe = "dotnet";
-				args = $"build \"{model.ItemPath}\"{properties}";
+				args = $"build \"{itemPath}\" -v {verbosity}{properties}";
 			}
+		}
+
+		private static string GetVerbosityFlag(IServiceSettings settings)
+		{
+			switch (settings?.LogLevel ?? LoggerVerbosity.Minimal)
+			{
+				case LoggerVerbosity.Quiet: return "q";
+				case LoggerVerbosity.Normal: return "n";
+				case LoggerVerbosity.Detailed: return "d";
+				case LoggerVerbosity.Diagnostic: return "diag";
+				default: return "m";
+			}
+		}
+
+		private static ProcessPriorityClass? GetProcessPriority(BuildServiceSettings buildSettings)
+		{
+			switch (buildSettings.ThreadPriority)
+			{
+				case ThreadPriority.Lowest: return ProcessPriorityClass.Idle;
+				case ThreadPriority.BelowNormal: return ProcessPriorityClass.BelowNormal;
+				case ThreadPriority.AboveNormal: return ProcessPriorityClass.AboveNormal;
+				case ThreadPriority.Highest: return ProcessPriorityClass.High;
+				default: return null;
+			}
+		}
+
+		/// <summary>Frees locked outputs before building by killing processes running from the output directories.</summary>
+		private static void KillDependentProcessesIfConfigured(IReadOnlyList<ISolutionProjectModel> models, BuildServiceSettings buildSettings)
+		{
+			if (!buildSettings.KillDependendProcesses)
+				return;
+			var outputDirs = models.SelectMany(GetOutputDirectories).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+			int killed = RunningProcessHelper.KillProcessesInDirectories(outputDirs);
+			if (killed > 0)
+				CoabLog.Info($"Killed {killed} process(es) locking build output.");
+		}
+
+		/// <summary>Existing output directories of all projects of a solution.</summary>
+		internal static IReadOnlyList<string> GetOutputDirectories(ISolutionProjectModel solution)
+		{
+			var model = solution as Model.SolutionProjectModel ?? Model.SolutionParser.Parse(solution.ItemPath);
+			return model.Projects
+				.Select(p => p.OutputPath)
+				.Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p))
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList();
 		}
 	}
 }

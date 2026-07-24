@@ -13,6 +13,13 @@ namespace CheckoutAndBuild.Core.Settings
 		[Category("Miscellaneous")]
 		public string PostServiceScriptFile { get; set; }
 
+		[SettingsProperty(SettingsAvailability.Global, "LogLevel", "Verbosity for the CheckoutAndBuild output window and msbuild (Quiet/Minimal/Normal/Detailed/Diagnostic).")]
+		[DefaultValue(LoggerVerbosity.Minimal)]
+		[Description("Verbosity for the CheckoutAndBuild output window and msbuild.")]
+		[DisplayName(@"Log level")]
+		[Category("Miscellaneous")]
+		public LoggerVerbosity LogLevel { get; set; }
+
 		[SettingsProperty(SettingsAvailability.Global, "UseBranchSpecificSettings", "When enabled, per-solution settings are stored per git branch (falling back to the branch-independent values). Old name: GitPerBranchSettings.")]
 		[DefaultValue(false)]
 		[Description("When enabled, per-solution settings are stored per git branch (falling back to the branch-independent values).")]

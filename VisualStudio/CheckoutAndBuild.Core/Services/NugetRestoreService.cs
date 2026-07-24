@@ -58,8 +58,14 @@ namespace CheckoutAndBuild.Core.Services
 			model.CurrentOperation = Operations.NugetRestore;
 			try
 			{
+				var nugetSettings = GetSettings<NugetServiceSettings>(settings, model);
+				if (nugetSettings.NugetAction == NugetAction.Reinstall)
+					DeleteLocalPackagesFolder(model);
+
+				CoabLog.Info($"NuGet restore {model.SolutionFileName}...");
 				GetRestoreCommand(model, settings, out string exe, out string args);
 				var result = await ProcessRunner.RunAsync(exe, args, model.SolutionFolder,
+					CoabLog.Detail,
 					cancellationToken: cancellation.Token).ConfigureAwait(false);
 				if (!result.Success)
 					model.SetResult(new InvalidOperationException(
@@ -73,7 +79,10 @@ namespace CheckoutAndBuild.Core.Services
 
 		private static void GetRestoreCommand(ISolutionProjectModel model, IServiceSettings settings, out string exe, out string args)
 		{
-			string nugetExe = GetSettings<NugetServiceSettings>(settings, model).NugetExeLocation;
+			var nugetSettings = GetSettings<NugetServiceSettings>(settings, model);
+			string nugetExe = nugetSettings.NugetExeLocation;
+			// ponytail: Install/InstallAndRestore/Reinstall all end in a restore — "restore" installs missing
+			// packages anyway; Reinstall additionally wipes the local packages folder first (see RestoreAsync).
 			if (!string.IsNullOrEmpty(nugetExe) && File.Exists(nugetExe))
 			{
 				exe = nugetExe;
@@ -82,7 +91,26 @@ namespace CheckoutAndBuild.Core.Services
 			else
 			{
 				exe = "dotnet";
-				args = $"restore \"{model.ItemPath}\"";
+				args = nugetSettings.NugetAction == NugetAction.Reinstall
+					? $"restore --force \"{model.ItemPath}\""
+					: $"restore \"{model.ItemPath}\"";
+			}
+		}
+
+		/// <summary>Reinstall: removes the solution-local packages folder so the restore fetches everything fresh.</summary>
+		private static void DeleteLocalPackagesFolder(ISolutionProjectModel model)
+		{
+			string packagesDir = Path.Combine(model.SolutionFolder, "packages");
+			if (!Directory.Exists(packagesDir))
+				return;
+			try
+			{
+				Directory.Delete(packagesDir, true);
+				CoabLog.Info($"Reinstall: deleted {packagesDir}");
+			}
+			catch (Exception e)
+			{
+				CoabLog.Error($"Reinstall: could not delete {packagesDir}: {e.Message}");
 			}
 		}
 	}

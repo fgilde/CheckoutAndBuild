@@ -58,7 +58,8 @@ namespace CheckoutAndBuild.Core.Services
 					if (assemblies.Count == 0)
 						continue;
 
-					var result = await RunTestsAsync(assemblies, solution.SolutionFolder, cancellation).ConfigureAwait(false);
+					CoabLog.Info($"Testing {solution.SolutionFileName}...");
+					var result = await RunTestsAsync(assemblies, solution.SolutionFolder, testSettings.TrackLiveOutput, cancellation).ConfigureAwait(false);
 					solution.SetResult(result);
 
 					if (testSettings.CancelOnFailures && !result.Success)
@@ -93,7 +94,7 @@ namespace CheckoutAndBuild.Core.Services
 			return builder.ToString();
 		}
 
-		private async Task<TestRunResult> RunTestsAsync(IReadOnlyList<string> assemblies, string workingDir, PausableCancellationTokenSource cancellation)
+		private async Task<TestRunResult> RunTestsAsync(IReadOnlyList<string> assemblies, string workingDir, bool trackLiveOutput, PausableCancellationTokenSource cancellation)
 		{
 			string resultsDir = Path.Combine(Path.GetTempPath(), "COAB", "TestResults", Guid.NewGuid().ToString("N"));
 			Directory.CreateDirectory(resultsDir);
@@ -102,7 +103,9 @@ namespace CheckoutAndBuild.Core.Services
 				GetTestCommand(assemblies, out string exe, out string args);
 				args += $" --ResultsDirectory:\"{resultsDir}\"";
 
-				await ProcessRunner.RunAsync(exe, args, workingDir, cancellationToken: cancellation.Token).ConfigureAwait(false);
+				await ProcessRunner.RunAsync(exe, args, workingDir,
+					trackLiveOutput ? CoabLog.Detail : (Action<string>)null,
+					cancellationToken: cancellation.Token).ConfigureAwait(false);
 
 				string trx = Directory.GetFiles(resultsDir, "*.trx").OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
 				if (trx == null)

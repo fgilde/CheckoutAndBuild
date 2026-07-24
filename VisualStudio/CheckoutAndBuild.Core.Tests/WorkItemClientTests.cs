@@ -119,7 +119,7 @@ namespace CheckoutAndBuild.Core.Tests
 
 				var (request, body) = handler.Calls.Single();
 				Assert.Equal("PATCH", request.Method.Method);
-				Assert.Equal("https://dev.azure.com/myorg/_apis/wit/workitems/7?api-version=7.1", request.RequestUri.ToString());
+				Assert.Equal("https://dev.azure.com/myorg/_apis/wit/workitems/7?api-version=7.1", request.RequestUri?.ToString());
 				Assert.Equal("application/json-patch+json", request.Content?.Headers.ContentType?.MediaType);
 				Assert.Contains("\"op\":\"add\"", body);
 				Assert.Contains("/fields/System.Title", body);
