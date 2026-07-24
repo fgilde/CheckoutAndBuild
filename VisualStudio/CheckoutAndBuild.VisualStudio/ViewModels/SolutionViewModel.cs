@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -23,12 +26,17 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly MainViewModel owner;
 		private readonly Dispatcher dispatcher;
 		private OperationInfo observedOperation;
+		private readonly Dictionary<string, bool> serviceOverrides;
 
 		public SolutionViewModel(SolutionProjectModel model, MainViewModel owner, Dispatcher dispatcher)
 		{
 			Model = model ?? throw new ArgumentNullException(nameof(model));
 			this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
 			this.dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+
+			serviceOverrides = owner.Settings.Get<Dictionary<string, bool>>(ServicesKey, owner.GlobalContext)
+				?? new Dictionary<string, bool>();
+			ApplyBuildOptionsToModel();
 
 			model.PropertyChanged += OnModelPropertyChanged;
 			ObserveOperation(model.CurrentOperation);
@@ -39,6 +47,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IncreasePriorityCommand = new DelegateCommand(() => BuildPriority = Math.Max(0, BuildPriority - 1), () => !owner.IsRunning && BuildPriority > 0);
 			DecreasePriorityCommand = new DelegateCommand(() => BuildPriority = BuildPriority + 1, () => !owner.IsRunning);
 			SettingsCommand = new DelegateCommand(() => owner.OpenSolutionSettings(this));
+			EditBuildPropertiesCommand = new DelegateCommand(EditBuildProperties);
+			EditBuildTargetsCommand = new DelegateCommand(EditBuildTargets);
 
 			OpenSolutionCommand = new DelegateCommand(OpenSolution);
 			OpenInExplorerCommand = new DelegateCommand(
@@ -87,6 +97,194 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			get { return Model.BuildPriority; }
 			set { Model.BuildPriority = value; }
 		}
+
+		#region per-solution service selection (override of the global step checkboxes)
+
+		private string ServicesKey => "Services:" + ItemPath;
+		private string BuildPropertiesKey => "BuildProperties:" + ItemPath;
+		private string BuildTargetsKey => "BuildTargets:" + ItemPath;
+
+		public bool IsCleanEnabled
+		{
+			get { return GetServiceEnabled("Clean", owner.IsCleanEnabled); }
+			set { SetServiceEnabled("Clean", value); }
+		}
+
+		public bool IsCheckoutEnabled
+		{
+			get { return GetServiceEnabled("Checkout", owner.IsCheckoutEnabled); }
+			set { SetServiceEnabled("Checkout", value); }
+		}
+
+		public bool IsRestoreEnabled
+		{
+			get { return GetServiceEnabled("Restore", owner.IsRestoreEnabled); }
+			set { SetServiceEnabled("Restore", value); }
+		}
+
+		public bool IsBuildEnabled
+		{
+			get { return GetServiceEnabled("Build", owner.IsBuildEnabled); }
+			set { SetServiceEnabled("Build", value); }
+		}
+
+		public bool IsTestEnabled
+		{
+			get { return GetServiceEnabled("Test", owner.IsTestEnabled); }
+			set { SetServiceEnabled("Test", value); }
+		}
+
+		public bool HasAnyServiceEnabled =>
+			IsCleanEnabled || IsCheckoutEnabled || IsRestoreEnabled || IsBuildEnabled || IsTestEnabled;
+
+		/// <summary>Effective services of this solution, comma separated (old ServicesCaption).</summary>
+		public string ServicesCaption
+		{
+			get
+			{
+				var names = new List<string>();
+				if (IsCleanEnabled) names.Add("Clean");
+				if (IsCheckoutEnabled) names.Add("Checkout");
+				if (IsRestoreEnabled) names.Add("Nuget Restore");
+				if (IsBuildEnabled) names.Add("Build");
+				if (IsTestEnabled) names.Add("Run Unit Tests");
+				return names.Count == 0 ? "(None)" : string.Join(",", names);
+			}
+		}
+
+		/// <summary>Caption truncated to 40 chars for the row link (old ServicesCaptionSmall).</summary>
+		public string ServicesCaptionSmall
+		{
+			get
+			{
+				string caption = ServicesCaption;
+				return caption.Length > 40 ? caption.Substring(0, 40) + "..." : caption;
+			}
+		}
+
+		public string BuildPropertiesCaption => $"Build Properties ({Model.BuildProperties.Count})...";
+
+		public string BuildTargetsCaption => $"Build Targets ({Model.BuildTargets.Count()})...";
+
+		private bool GetServiceEnabled(string key, bool globalValue)
+		{
+			bool overridden;
+			return serviceOverrides.TryGetValue(key, out overridden) ? overridden : globalValue;
+		}
+
+		private void SetServiceEnabled(string key, bool value)
+		{
+			serviceOverrides[key] = value;
+			owner.Settings.Set(ServicesKey, owner.GlobalContext, serviceOverrides);
+			RefreshServiceFlags();
+		}
+
+		/// <summary>Re-raises the effective service flags (called when the global step checkboxes change).</summary>
+		internal void RefreshServiceFlags()
+		{
+			RaisePropertyChanged(nameof(IsCleanEnabled));
+			RaisePropertyChanged(nameof(IsCheckoutEnabled));
+			RaisePropertyChanged(nameof(IsRestoreEnabled));
+			RaisePropertyChanged(nameof(IsBuildEnabled));
+			RaisePropertyChanged(nameof(IsTestEnabled));
+			RaisePropertyChanged(nameof(HasAnyServiceEnabled));
+			RaisePropertyChanged(nameof(ServicesCaption));
+			RaisePropertyChanged(nameof(ServicesCaptionSmall));
+		}
+
+		/// <summary>Pushes the persisted build properties/targets into the pipeline model.</summary>
+		private void ApplyBuildOptionsToModel()
+		{
+			var properties = owner.Settings.Get<Dictionary<string, string>>(BuildPropertiesKey, owner.GlobalContext);
+			Model.BuildProperties.Clear();
+			foreach (var pair in properties ?? new Dictionary<string, string>())
+				Model.BuildProperties[pair.Key] = pair.Value;
+			Model.SetBuildTargets(owner.Settings.Get<List<string>>(BuildTargetsKey, owner.GlobalContext));
+		}
+
+		/// <summary>Key/value grid dialog; saved on close (old DictionaryEdit behavior).</summary>
+		private void EditBuildProperties()
+		{
+			var rows = new ObservableCollection<BuildPropertyRow>(
+				Model.BuildProperties.Select(p => new BuildPropertyRow { Key = p.Key, Value = p.Value }));
+			var grid = new DataGrid
+			{
+				ItemsSource = rows,
+				AutoGenerateColumns = false,
+				CanUserAddRows = true,
+				CanUserDeleteRows = true,
+				HeadersVisibility = DataGridHeadersVisibility.Column,
+				Margin = new Thickness(8)
+			};
+			grid.Columns.Add(new DataGridTextColumn
+			{
+				Header = "Property",
+				Binding = new System.Windows.Data.Binding(nameof(BuildPropertyRow.Key)),
+				Width = new DataGridLength(1, DataGridLengthUnitType.Star)
+			});
+			grid.Columns.Add(new DataGridTextColumn
+			{
+				Header = "Value",
+				Binding = new System.Windows.Data.Binding(nameof(BuildPropertyRow.Value)),
+				Width = new DataGridLength(1.5, DataGridLengthUnitType.Star)
+			});
+
+			var window = CreateOptionsWindow($"Additional Build Properties for {SolutionFileName}", grid, 320);
+			window.Closing += (s, e) => grid.CommitEdit(DataGridEditingUnit.Row, true);
+			window.ShowDialog();
+
+			var result = new Dictionary<string, string>();
+			foreach (var row in rows.Where(r => !string.IsNullOrWhiteSpace(r.Key)))
+				result[row.Key.Trim()] = row.Value ?? string.Empty;
+			owner.Settings.Set(BuildPropertiesKey, owner.GlobalContext, result);
+			ApplyBuildOptionsToModel();
+			RaisePropertyChanged(nameof(BuildPropertiesCaption));
+		}
+
+		/// <summary>Comma-separated targets textbox dialog; saved on close.</summary>
+		private void EditBuildTargets()
+		{
+			var textBox = new TextBox { Text = string.Join(", ", Model.BuildTargets), Margin = new Thickness(8) };
+			var hint = new TextBlock
+			{
+				Text = "Build targets, comma separated (empty = default \"Build\"):",
+				Margin = new Thickness(8, 8, 8, 0),
+				Opacity = 0.7,
+				TextWrapping = TextWrapping.Wrap
+			};
+			var panel = new StackPanel();
+			panel.Children.Add(hint);
+			panel.Children.Add(textBox);
+
+			var window = CreateOptionsWindow($"Specific Build Targets for {SolutionFileName}", panel, 150);
+			window.ShowDialog();
+
+			var targets = textBox.Text
+				.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+				.Select(t => t.Trim())
+				.Where(t => t.Length > 0)
+				.ToList();
+			owner.Settings.Set(BuildTargetsKey, owner.GlobalContext, targets);
+			ApplyBuildOptionsToModel();
+			RaisePropertyChanged(nameof(BuildTargetsCaption));
+		}
+
+		private static Window CreateOptionsWindow(string title, object content, double height)
+		{
+			return new Window
+			{
+				Title = title,
+				Content = content,
+				Width = 420,
+				Height = height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+		}
+
+		#endregion
 
 		public bool IsBusy => Model.IsBusy;
 
@@ -155,6 +353,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
+		public ICommand EditBuildPropertiesCommand { get; }
+		public ICommand EditBuildTargetsCommand { get; }
 		public ICommand BuildOnlyCommand { get; }
 		public ICommand CleanOnlyCommand { get; }
 		public ICommand TestOnlyCommand { get; }
@@ -257,5 +457,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			int index = text.IndexOfAny(new[] { '\r', '\n' });
 			return index < 0 ? text : text.Substring(0, index);
 		}
+	}
+
+	/// <summary>Editable row of the build properties grid.</summary>
+	public class BuildPropertyRow
+	{
+		public string Key { get; set; }
+		public string Value { get; set; }
 	}
 }

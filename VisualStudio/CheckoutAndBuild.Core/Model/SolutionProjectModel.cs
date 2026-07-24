@@ -102,6 +102,16 @@ namespace CheckoutAndBuild.Core.Model
 
 		public IEnumerable<string> BuildTargets => buildTargets;
 
+		/// <summary>Replaces the build targets; null/blank entries are dropped, empty falls back to the default "Build".</summary>
+		public void SetBuildTargets(IEnumerable<string> targets)
+		{
+			buildTargets.Clear();
+			if (targets != null)
+				buildTargets.AddRange(targets.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()));
+			if (buildTargets.Count == 0)
+				buildTargets.Add("Build");
+		}
+
 		public IDictionary<string, string> BuildProperties { get; } = new Dictionary<string, string>();
 
 		public IReadOnlyCollection<string> GetSolutionProjects()

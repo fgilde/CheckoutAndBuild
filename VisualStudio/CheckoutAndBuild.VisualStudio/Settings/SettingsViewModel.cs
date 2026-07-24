@@ -20,14 +20,15 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 	/// </summary>
 	public class SettingsViewModel
 	{
-		public SettingsViewModel(ISettingsService settings, string title, string solutionPath, Action close)
+		public SettingsViewModel(ISettingsService settings, string title, string solutionPath, Action close,
+			IEnumerable<Type> settingsClasses = null)
 		{
 			Title = title;
 			IsProjectSpecific = solutionPath != null;
 			CloseCommand = new DelegateCommand(close ?? (() => { }));
 
 			var context = new SettingsContext { RepositoryPath = solutionPath };
-			foreach (Type settingsClass in SettingsUiFactory.SettingsClasses)
+			foreach (Type settingsClass in settingsClasses ?? SettingsUiFactory.SettingsClasses)
 			{
 				var entries = SettingsUiFactory.GetEditableProperties(settingsClass, IsProjectSpecific)
 					.Select(p => SettingEntryViewModel.Create(p, settings, context))

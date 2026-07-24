@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Service;
 using CheckoutAndBuild.Core.Contracts.Settings;
 
@@ -9,6 +10,12 @@ namespace CheckoutAndBuild.Core.Pipeline
     {
         /// <summary>Plugin custom actions run before/after every service for every included project (default: none).</summary>
         public IReadOnlyCollection<ICustomAction> CustomActions { get; set; }
+
+        /// <summary>
+        /// Optional per-service project filter (per-solution service selection). Null = every
+        /// service runs all included projects. A service whose filter leaves no projects is skipped.
+        /// </summary>
+        public Func<IOperationService, ISolutionProjectModel, bool> ServiceProjectFilter { get; set; }
 
         /// <summary>Optional path to a .bat/.cmd/.ps1 run before any service; non-zero exit aborts the pipeline.</summary>
         public string PreBuildScript { get; set; }

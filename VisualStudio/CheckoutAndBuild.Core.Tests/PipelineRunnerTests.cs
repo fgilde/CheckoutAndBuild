@@ -147,6 +147,45 @@ public class PipelineRunnerTests
     }
 
     [Fact]
+    public async Task ServiceProjectFilter_RoutesProjectsPerService_AndSkipsEmptyServices()
+    {
+        var log = new List<string>();
+        var svcA = new FakeService("a", 1, log);
+        var svcB = new FakeService("b", 2, log);
+        var svcC = new FakeService("c", 3, log);
+        var p1 = Project(1);
+        var p2 = Project(2);
+
+        using var pcs = new PausableCancellationTokenSource();
+        await Runner.RunAsync(new ISolutionProjectModel[] { p1, p2 }, new[] { svcA, svcB, svcC },
+            new PipelineContext
+            {
+                ServiceProjectFilter = (svc, model) => svc == svcA ? model == p1 : svc != svcC
+            }, pcs);
+
+        Assert.Equal(new ISolutionProjectModel[] { p1 }, svcA.ReceivedProjects);
+        Assert.Equal(new ISolutionProjectModel[] { p1, p2 }, svcB.ReceivedProjects);
+        Assert.Equal(new[] { "a", "b" }, log); // svcC had no enabled projects and was skipped entirely
+    }
+
+    [Fact]
+    public async Task ServiceProjectFilter_EmptyService_SkipsItsCustomActions()
+    {
+        var log = new List<string>();
+        var svc = new FakeService("svc", 1, log);
+
+        using var pcs = new PausableCancellationTokenSource();
+        await Runner.RunAsync(new[] { Project(1) }, new[] { svc },
+            new PipelineContext
+            {
+                ServiceProjectFilter = (s, m) => false,
+                CustomActions = new[] { new RecordingAction(log) }
+            }, pcs);
+
+        Assert.Empty(log);
+    }
+
+    [Fact]
     public async Task CustomActions_RunBeforeAndAfterEachService_InOrder()
     {
         var log = new List<string>();

@@ -49,11 +49,17 @@ namespace CheckoutAndBuild.Core.Pipeline
                     ServiceCount = orderedServices.Count
                 });
 
-                RunCustomActions(context, service, includedProjects, isPre: true, i, orderedServices.Count);
+                var serviceProjects = context.ServiceProjectFilter == null
+                    ? includedProjects
+                    : includedProjects.Where(p => context.ServiceProjectFilter(service, p)).ToList();
+                if (serviceProjects.Count == 0)
+                    continue;
+
+                RunCustomActions(context, service, serviceProjects, isPre: true, i, orderedServices.Count);
 
                 try
                 {
-                    await service.ExecuteAsync(includedProjects, context.Settings, cancellation).ConfigureAwait(false);
+                    await service.ExecuteAsync(serviceProjects, context.Settings, cancellation).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -66,7 +72,7 @@ namespace CheckoutAndBuild.Core.Pipeline
                         $"Error in {service.OperationName}-Service: {e.Message}");
                 }
 
-                RunCustomActions(context, service, includedProjects, isPre: false, i, orderedServices.Count);
+                RunCustomActions(context, service, serviceProjects, isPre: false, i, orderedServices.Count);
 
                 if (service.ServiceId == buildServiceId && !string.IsNullOrEmpty(context.PostBuildScript)
                     && !cancellation.IsCancellationRequested)

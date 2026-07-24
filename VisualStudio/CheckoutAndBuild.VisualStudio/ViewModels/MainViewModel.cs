@@ -110,7 +110,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			testEnabled = settings.Get("Services.Test", globalContext, false);
 
 			RunCommand = new DelegateCommand(async () => await RunPipelineAsync(),
-				() => !IsRunning && EnabledServices().Any() && AllSolutions().Any(s => s.IsIncluded));
+				() => !IsRunning && AllSolutions().Any(s => s.IsIncluded && s.HasAnyServiceEnabled));
 			PauseCommand = new DelegateCommand(Pause, () => IsRunning && !IsPaused);
 			ResumeCommand = new DelegateCommand(Resume, () => IsRunning && IsPaused);
 			CancelCommand = new DelegateCommand(() => cancellation?.Cancel(), () => IsRunning);
@@ -124,6 +124,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		/// <summary>Error List sink; set by the tool window control (null in tests).</summary>
 		internal CoabErrorListProvider ErrorSink { get; set; }
+
+		/// <summary>Settings store, shared with the solution view models (per-solution overrides).</summary>
+		internal ISettingsService Settings => settings;
+
+		/// <summary>Global (unscoped) settings context.</summary>
+		internal SettingsContext GlobalContext => globalContext;
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
 
@@ -151,13 +157,15 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Opens the global settings editor (gear button, Tools → Options page).</summary>
 		public void OpenGlobalSettings()
 		{
-			ActiveSettings = new SettingsViewModel(settings, "Settings", null, CloseSettings);
+			ActiveSettings = new SettingsViewModel(settings, "Settings", null, CloseSettings,
+				SettingsUiFactory.GetSettingsClasses(pluginHost));
 		}
 
 		/// <summary>Opens the solution-scoped settings editor (solution context menu).</summary>
 		internal void OpenSolutionSettings(SolutionViewModel solution)
 		{
-			ActiveSettings = new SettingsViewModel(settings, $"Settings — {solution.SolutionFileName}", solution.ItemPath, CloseSettings);
+			ActiveSettings = new SettingsViewModel(settings, $"Settings — {solution.SolutionFileName}", solution.ItemPath, CloseSettings,
+				SettingsUiFactory.GetSettingsClasses(pluginHost));
 		}
 
 		private void CloseSettings() => ActiveSettings = null;
@@ -214,31 +222,38 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public bool IsCleanEnabled
 		{
 			get { return cleanEnabled; }
-			set { if (SetProperty(ref cleanEnabled, value)) settings.Set("Services.Clean", globalContext, value); }
+			set { if (SetProperty(ref cleanEnabled, value)) { settings.Set("Services.Clean", globalContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsCheckoutEnabled
 		{
 			get { return checkoutEnabled; }
-			set { if (SetProperty(ref checkoutEnabled, value)) settings.Set("Services.Checkout", globalContext, value); }
+			set { if (SetProperty(ref checkoutEnabled, value)) { settings.Set("Services.Checkout", globalContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsRestoreEnabled
 		{
 			get { return restoreEnabled; }
-			set { if (SetProperty(ref restoreEnabled, value)) settings.Set("Services.Restore", globalContext, value); }
+			set { if (SetProperty(ref restoreEnabled, value)) { settings.Set("Services.Restore", globalContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsBuildEnabled
 		{
 			get { return buildEnabled; }
-			set { if (SetProperty(ref buildEnabled, value)) settings.Set("Services.Build", globalContext, value); }
+			set { if (SetProperty(ref buildEnabled, value)) { settings.Set("Services.Build", globalContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
 		public bool IsTestEnabled
 		{
 			get { return testEnabled; }
-			set { if (SetProperty(ref testEnabled, value)) settings.Set("Services.Test", globalContext, value); }
+			set { if (SetProperty(ref testEnabled, value)) { settings.Set("Services.Test", globalContext, value); RefreshSolutionServiceFlags(); } }
+		}
+
+		/// <summary>Global step checkboxes are the fallback of the per-solution flags: re-raise them all.</summary>
+		private void RefreshSolutionServiceFlags()
+		{
+			foreach (var solution in AllSolutions())
+				solution.RefreshServiceFlags();
 		}
 
 		/// <summary>Loads the persisted working folders and scans them. Safe to call multiple times.</summary>
@@ -505,8 +520,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			if (IsRunning)
 				return;
-			var models = AllSolutions().Select(s => (ISolutionProjectModel)s.Model).ToList();
-			var services = EnabledServices().ToList();
+			var solutions = AllSolutions().ToList();
+			var models = solutions.Select(s => (ISolutionProjectModel)s.Model).ToList();
+
+			// per-service solution sets: solution overrides win over the global step checkboxes
+			var enabledModels = AllServices().ToDictionary(
+				service => service,
+				service => new HashSet<ISolutionProjectModel>(solutions
+					.Where(s => s.IsIncluded && IsServiceEnabledFor(service, s))
+					.Select(s => (ISolutionProjectModel)s.Model)));
+			var services = AllServices().Where(service => enabledModels[service].Count > 0).ToList();
 			if (models.Count == 0 || services.Count == 0)
 				return;
 
@@ -523,7 +546,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				PreBuildScript = serviceSettings.PreBuildScriptPath,
 				PostBuildScript = serviceSettings.PostBuildScriptPath,
 				Progress = new DelegateProgress(OnPipelineProgress),
-				CustomActions = pluginHost.GetExportedValues<ICustomAction>().ToList()
+				CustomActions = pluginHost.GetExportedValues<ICustomAction>().ToList(),
+				ServiceProjectFilter = (service, model) =>
+					!enabledModels.TryGetValue(service, out var enabled) || enabled.Contains(model)
 			};
 
 			try
@@ -647,6 +672,26 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			if (IsRestoreEnabled) yield return nugetService;
 			if (IsBuildEnabled) yield return buildService;
 			if (IsTestEnabled) yield return testService;
+		}
+
+		private IEnumerable<IOperationService> AllServices()
+		{
+			yield return cleanService;
+			yield return checkoutService;
+			yield return nugetService;
+			yield return buildService;
+			yield return testService;
+		}
+
+		/// <summary>Effective (solution-override or global) enable flag of a service for a solution.</summary>
+		private bool IsServiceEnabledFor(IOperationService service, SolutionViewModel solution)
+		{
+			if (ReferenceEquals(service, cleanService)) return solution.IsCleanEnabled;
+			if (ReferenceEquals(service, checkoutService)) return solution.IsCheckoutEnabled;
+			if (ReferenceEquals(service, nugetService)) return solution.IsRestoreEnabled;
+			if (ReferenceEquals(service, buildService)) return solution.IsBuildEnabled;
+			if (ReferenceEquals(service, testService)) return solution.IsTestEnabled;
+			return true;
 		}
 
 		private sealed class DelegateProgress : IProgress<PipelineProgress>

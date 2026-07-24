@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Settings;
+using CheckoutAndBuild.Core.Plugins;
 using CheckoutAndBuild.Core.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.Settings
@@ -29,6 +30,22 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 			typeof(UnitTestServiceSettings),
 			typeof(MiscellaneousSettings)
 		};
+
+		/// <summary>
+		/// Built-in settings classes plus every ISettingsProviderClass exported by loaded plugins
+		/// (the built-ins are exported from the core assembly too and are de-duplicated).
+		/// </summary>
+		public static IReadOnlyList<Type> GetSettingsClasses(PluginHost pluginHost)
+		{
+			var result = new List<Type>(SettingsClasses);
+			foreach (var provider in pluginHost?.GetExportedValues<ISettingsProviderClass>() ?? Enumerable.Empty<ISettingsProviderClass>())
+			{
+				Type type = provider.GetType();
+				if (!result.Contains(type))
+					result.Add(type);
+			}
+			return result;
+		}
 
 		public static string GetKey(PropertyInfo property) => property.DeclaringType.Name + "." + property.Name;
 

@@ -271,6 +271,69 @@
                                                     </StackPanel>
                                                 </StackPanel>
 
+                                                <!-- per-solution services link + options popover (old DropDownTextLink) -->
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                            VerticalAlignment="Center" Margin="8,0,0,0">
+                                                    <Button x:Name="servicesLink"
+                                                            Style="{StaticResource CoabLinkButton}"
+                                                            FontSize="11"
+                                                            Click="OnServicesLinkClick"
+                                                            Tag="{Binding ElementName=servicesPopup}">
+                                                        <Button.ToolTip>
+                                                            <StackPanel>
+                                                                <TextBlock Text="The included services for this solution" />
+                                                                <TextBlock Text="{Binding ServicesCaption}" />
+                                                                <TextBlock Text="{Binding BuildPropertiesCaption}" />
+                                                                <TextBlock Text="{Binding BuildTargetsCaption}" />
+                                                            </StackPanel>
+                                                        </Button.ToolTip>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding ServicesCaptionSmall}" />
+                                                            <Path Data="M 0 0 L 8 12 L 16 0 Z"
+                                                                  Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                                  Stretch="Uniform" Width="7" Height="5"
+                                                                  Margin="3,2,0,0" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Popup x:Name="servicesPopup"
+                                                           PlacementTarget="{Binding ElementName=servicesLink}"
+                                                           Placement="Bottom"
+                                                           MinWidth="170"
+                                                           PopupAnimation="Slide"
+                                                           AllowsTransparency="True"
+                                                           StaysOpen="False">
+                                                        <Border Background="{DynamicResource {x:Static platformUi:EnvironmentColors.CommandBarMenuBackgroundGradientBrushKey}}"
+                                                                BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}"
+                                                                BorderThickness="1">
+                                                            <StackPanel Margin="8,6">
+                                                                <CheckBox Content="Clean" IsChecked="{Binding IsCleanEnabled}"
+                                                                          Style="{StaticResource CoabCheckBox}" Margin="0,3" />
+                                                                <CheckBox Content="Checkout" IsChecked="{Binding IsCheckoutEnabled}"
+                                                                          Style="{StaticResource CoabCheckBox}" Margin="0,3" />
+                                                                <CheckBox Content="Restore" IsChecked="{Binding IsRestoreEnabled}"
+                                                                          Style="{StaticResource CoabCheckBox}" Margin="0,3" />
+                                                                <CheckBox Content="Build" IsChecked="{Binding IsBuildEnabled}"
+                                                                          Style="{StaticResource CoabCheckBox}" Margin="0,3" />
+                                                                <CheckBox Content="Test" IsChecked="{Binding IsTestEnabled}"
+                                                                          Style="{StaticResource CoabCheckBox}" Margin="0,3" />
+                                                                <Separator Margin="0,4" />
+                                                                <Button Style="{StaticResource CoabLinkButton}" HorizontalAlignment="Left" Margin="0,2"
+                                                                        Content="{Binding BuildPropertiesCaption}"
+                                                                        Command="{Binding EditBuildPropertiesCommand}"
+                                                                        ToolTip="Additional msbuild /p: properties for this solution" />
+                                                                <Button Style="{StaticResource CoabLinkButton}" HorizontalAlignment="Left" Margin="0,2"
+                                                                        Content="{Binding BuildTargetsCaption}"
+                                                                        Command="{Binding EditBuildTargetsCommand}"
+                                                                        ToolTip="msbuild targets for this solution (default: Build)" />
+                                                                <Button Style="{StaticResource CoabLinkButton}" HorizontalAlignment="Left" Margin="0,2"
+                                                                        Content="Solution Settings..."
+                                                                        Command="{Binding SettingsCommand}"
+                                                                        ToolTip="Solution-specific settings (override the global settings)" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Popup>
+                                                </StackPanel>
+
                                                 <!-- busy: italic status text in the operation color (old operation row look) -->
                                                 <TextBlock DockPanel.Dock="Right"
                                                            Text="{Binding StatusText}"

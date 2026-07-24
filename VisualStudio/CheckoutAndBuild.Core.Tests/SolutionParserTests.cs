@@ -84,6 +84,16 @@ public class SolutionParserTests
     }
 
     [Fact]
+    public void SetBuildTargets_TrimsEntries_EmptyFallsBackToBuild()
+    {
+        var model = new SolutionProjectModel("x.sln");
+        model.SetBuildTargets(new[] { " Clean ", "Build", "  ", null });
+        Assert.Equal(new[] { "Clean", "Build" }, model.BuildTargets);
+        model.SetBuildTargets(null);
+        Assert.Equal(new[] { "Build" }, model.BuildTargets);
+    }
+
+    [Fact]
     public void Model_Progress_DrivesCurrentOperation()
     {
         var model = Parse();
