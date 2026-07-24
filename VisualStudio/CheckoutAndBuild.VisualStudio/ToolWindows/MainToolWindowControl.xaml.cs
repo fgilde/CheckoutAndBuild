@@ -41,6 +41,30 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 
 		private void OnServicesPopupClosed(object sender, EventArgs e) => lastServicesPopupClose = DateTime.UtcNow;
 
+		/// <summary>
+		/// Branch link in a working folder header: loads the branches lazily and opens them as a
+		/// drop-down below the link; the current branch is checked, clicking another one checks it out.
+		/// </summary>
+		private async void OnBranchLinkClick(object sender, RoutedEventArgs e)
+		{
+			if (!((sender as FrameworkElement)?.DataContext is RepositoryBranchViewModel repository))
+				return;
+			var button = (Button)sender;
+			var branches = await repository.GetBranchesAsync();
+			if (branches.Count == 0)
+				return;
+
+			var menu = new ContextMenu { PlacementTarget = button, Placement = PlacementMode.Bottom };
+			foreach (string branch in branches)
+			{
+				var item = new MenuItem { Header = branch, IsChecked = branch == repository.CurrentBranch };
+				string target = branch;
+				item.Click += async (s, args) => await repository.CheckoutAsync(target);
+				menu.Items.Add(item);
+			}
+			menu.IsOpen = true;
+		}
+
 		/// <summary>Opens the "More" drop-down (context menu) below the toolbar button.</summary>
 		private void OnMoreClick(object sender, RoutedEventArgs e)
 		{

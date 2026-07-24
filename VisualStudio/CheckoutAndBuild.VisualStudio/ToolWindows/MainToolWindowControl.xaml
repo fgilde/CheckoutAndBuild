@@ -235,6 +235,45 @@
                                         </Button.Style>
                                         <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabCancelGeometry}" Width="9" Height="9" />
                                     </Button>
+
+                                    <!-- branch selector per git repository of this folder (old GitBranchSelector) -->
+                                    <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding Repositories}"
+                                                  VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button FontSize="11" Margin="4,0,0,0"
+                                                        Click="OnBranchLinkClick"
+                                                        ToolTip="{Binding RepositoryPath}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource CoabLinkButton}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding CurrentBranch}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="{StaticResource CoabBranchGeometry}"
+                                                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                              Stretch="Uniform" Width="9" Height="11"
+                                                              Margin="0,0,3,0" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                                                        <Path Data="M 0 0 L 8 12 L 16 0 Z"
+                                                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                              Stretch="Uniform" Width="7" Height="5"
+                                                              Margin="3,2,0,0" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
                                     <TextBlock Text="{Binding Path}"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center"

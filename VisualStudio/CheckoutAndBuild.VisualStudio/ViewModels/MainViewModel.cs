@@ -39,6 +39,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public ObservableCollection<SolutionViewModel> Solutions { get; } = new ObservableCollection<SolutionViewModel>();
 
+		/// <summary>Distinct git repositories of the solutions beneath this folder (branch selector in the header).</summary>
+		public ObservableCollection<RepositoryBranchViewModel> Repositories { get; } = new ObservableCollection<RepositoryBranchViewModel>();
+
 		/// <summary>Filtered live view of <see cref="Solutions"/> for the "Included" area.</summary>
 		public ICollectionView IncludedSolutions { get; }
 
@@ -52,6 +55,94 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				int current = Solutions.IndexOf(sorted[target]);
 				if (current != target)
 					Solutions.Move(current, target);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Branch display + switcher of one git repository in a working folder header
+	/// (port of the old GitBranchSelector: link with the branch name, dropdown with all branches).
+	/// </summary>
+	public class RepositoryBranchViewModel : NotificationObject
+	{
+		private static readonly CheckoutAndBuild.Core.Git.GitService git = new CheckoutAndBuild.Core.Git.GitService();
+		private readonly MainViewModel owner;
+		private string currentBranch;
+
+		public RepositoryBranchViewModel(string repositoryPath, bool showRepositoryName, MainViewModel owner)
+		{
+			RepositoryPath = repositoryPath;
+			ShowRepositoryName = showRepositoryName;
+			this.owner = owner;
+		}
+
+		public string RepositoryPath { get; }
+
+		/// <summary>True when the working folder contains more than one repository ("RepoName: branch").</summary>
+		public bool ShowRepositoryName { get; }
+
+		public string RepositoryName => System.IO.Path.GetFileName(RepositoryPath);
+
+		/// <summary>Checked-out branch; null until loaded (link stays hidden).</summary>
+		public string CurrentBranch
+		{
+			get { return currentBranch; }
+			private set
+			{
+				if (SetProperty(ref currentBranch, value))
+				{
+					RaisePropertyChanged(nameof(DisplayText));
+					owner.OnRepositoryBranchChanged(this);
+				}
+			}
+		}
+
+		public string DisplayText => ShowRepositoryName ? $"{RepositoryName}: {CurrentBranch}" : CurrentBranch;
+
+		/// <summary>Loads <see cref="CurrentBranch"/>; call from the UI thread (continuation updates bindings).</summary>
+		public async Task LoadCurrentBranchAsync()
+		{
+			try
+			{
+				CurrentBranch = await git.GetCurrentBranchAsync(RepositoryPath);
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild branch load failed: " + e.Message);
+			}
+		}
+
+		/// <summary>Local branches for the dropdown (loaded on open).</summary>
+		public async Task<IReadOnlyList<string>> GetBranchesAsync()
+		{
+			try
+			{
+				return await git.GetBranchesAsync(RepositoryPath);
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
+				return new string[0];
+			}
+		}
+
+		/// <summary>
+		/// git checkout. No pre-check for uncommitted changes: a conflicting checkout fails and
+		/// the git error surfaces as LastError.
+		/// </summary>
+		public async Task CheckoutAsync(string branch)
+		{
+			if (string.IsNullOrEmpty(branch) || branch == CurrentBranch)
+				return;
+			try
+			{
+				await git.CheckoutBranchAsync(RepositoryPath, branch);
+				owner.LastError = null;
+				CurrentBranch = branch;
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
 			}
 		}
 	}
@@ -165,6 +256,46 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// </summary>
 		internal SettingsContext ProfileContext => profileContext;
 
+		private bool UseBranchSpecificSettings =>
+			settings.Get("MiscellaneousSettings.UseBranchSpecificSettings", profileContext, false);
+
+		/// <summary>
+		/// Settings context for a solution's reads/writes: the shared profile context, or — with
+		/// "Use branch specific settings" enabled — a per-call context additionally scoped to the
+		/// solution's repository and its current branch (reads fall back branch → repo → global,
+		/// so branch-independent values keep working until overridden on a branch).
+		/// </summary>
+		internal SettingsContext ContextFor(SolutionProjectModel model)
+		{
+			string repository = model?.GitRepositoryRoot;
+			if (repository == null || !UseBranchSpecificSettings)
+				return profileContext;
+			string branch = WorkingFolders.SelectMany(f => f.Repositories)
+				.FirstOrDefault(r => string.Equals(r.RepositoryPath, repository, StringComparison.OrdinalIgnoreCase))
+				?.CurrentBranch;
+			if (string.IsNullOrEmpty(branch))
+				return profileContext;
+			return new SettingsContext { Profile = profileContext.Profile, RepositoryPath = repository, Branch = branch };
+		}
+
+		/// <summary>Re-reads the branch-scoped state of the repository's solutions after a branch load/switch.</summary>
+		internal void OnRepositoryBranchChanged(RepositoryBranchViewModel repository)
+		{
+			if (!UseBranchSpecificSettings)
+				return;
+			foreach (var solution in AllSolutions()
+				.Where(s => string.Equals(s.Model.GitRepositoryRoot, repository.RepositoryPath, StringComparison.OrdinalIgnoreCase))
+				.ToList())
+			{
+				ReloadSolutionScopedState(solution);
+			}
+			foreach (var folder in WorkingFolders.Where(f => f.Repositories.Contains(repository)))
+			{
+				folder.Resort();
+				folder.IncludedSolutions.Refresh();
+			}
+		}
+
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
 
 		/// <summary>All working profile names; always contains at least "Default".</summary>
@@ -236,7 +367,21 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				SettingsUiFactory.GetSettingsClasses(pluginHost), CurrentProfile);
 		}
 
-		private void CloseSettings() => ActiveSettings = null;
+		private void CloseSettings()
+		{
+			ActiveSettings = null;
+			// options may have changed (e.g. "Use branch specific settings"): re-read the scoped state
+			ReloadProfileScopedState();
+		}
+
+		/// <summary>Re-reads a solution's scoped values (profile + optional branch scope).</summary>
+		private void ReloadSolutionScopedState(SolutionViewModel solution)
+		{
+			var context = ContextFor(solution.Model);
+			solution.IsIncluded = settings.Get($"IsIncluded:{solution.ItemPath}", context, true);
+			solution.BuildPriority = GetInitialBuildPriority(solution.Model, context);
+			solution.ReloadProfileScopedState();
+		}
 
 		internal IOperationService CleanOperation => cleanService;
 		internal IOperationService BuildOperation => buildService;
@@ -277,7 +422,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public string LastError
 		{
 			get { return lastError; }
-			private set { SetProperty(ref lastError, value); }
+			internal set { SetProperty(ref lastError, value); }
 		}
 
 		/// <summary>Neutral status line (e.g. "Exported: c:\...\CheckoutAndBuild.bat").</summary>
@@ -448,11 +593,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(IsTestEnabled));
 
 			foreach (var solution in AllSolutions().ToList())
-			{
-				solution.IsIncluded = settings.Get($"IsIncluded:{solution.ItemPath}", profileContext, true);
-				solution.BuildPriority = GetInitialBuildPriority(solution.Model);
-				solution.ReloadProfileScopedState();
-			}
+				ReloadSolutionScopedState(solution);
 			foreach (var folder in WorkingFolders)
 			{
 				folder.Resort();
@@ -563,8 +704,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				var found = ScanForSolutions(path);
 				foreach (var model in found)
 				{
+					// branch not loaded yet at this point: read profile-scoped; OnRepositoryBranchChanged re-applies
 					model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", profileContext, true);
-					model.BuildPriority = GetInitialBuildPriority(model);
+					model.BuildPriority = GetInitialBuildPriority(model, profileContext);
 				}
 				return found;
 			});
@@ -578,12 +720,24 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					InsertExcluded(solution);
 			}
 			folder.Resort();
+
+			// branch selector: distinct repos of the folder's solutions; branches load async
+			var repositoryRoots = models.Select(m => m.GitRepositoryRoot)
+				.Where(r => r != null)
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			foreach (string root in repositoryRoots)
+			{
+				var repository = new RepositoryBranchViewModel(root, repositoryRoots.Count > 1, this);
+				folder.Repositories.Add(repository);
+				_ = repository.LoadCurrentBranchAsync();
+			}
 		}
 
 		/// <summary>Stored priority wins; without one, a plugin IDefaultBuildPriorityManager may supply the default.</summary>
-		private int GetInitialBuildPriority(ISolutionProjectModel model)
+		private int GetInitialBuildPriority(ISolutionProjectModel model, SettingsContext context)
 		{
-			int stored = settings.Get($"BuildPriority:{model.ItemPath}", profileContext, int.MinValue);
+			int stored = settings.Get($"BuildPriority:{model.ItemPath}", context, int.MinValue);
 			if (stored != int.MinValue)
 				return stored;
 			try
@@ -617,7 +771,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var solution = (SolutionViewModel)sender;
 			if (e.PropertyName == nameof(SolutionViewModel.IsIncluded))
 			{
-				settings.Set($"IsIncluded:{solution.ItemPath}", profileContext, solution.IsIncluded);
+				settings.Set($"IsIncluded:{solution.ItemPath}", ContextFor(solution.Model), solution.IsIncluded);
 				if (solution.IsIncluded)
 					ExcludedSolutions.Remove(solution);
 				else if (!ExcludedSolutions.Contains(solution))
@@ -626,7 +780,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			else if (e.PropertyName == nameof(SolutionViewModel.BuildPriority))
 			{
-				settings.Set($"BuildPriority:{solution.ItemPath}", profileContext, solution.BuildPriority);
+				settings.Set($"BuildPriority:{solution.ItemPath}", ContextFor(solution.Model), solution.BuildPriority);
 				WorkingFolders.FirstOrDefault(f => f.Solutions.Contains(solution))?.Resort();
 			}
 		}
