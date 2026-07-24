@@ -1,0 +1,134 @@
+<UserControl x:Class="CheckoutAndBuild.VisualStudio.Settings.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:local="clr-namespace:CheckoutAndBuild.VisualStudio.Settings">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/CheckoutAndBuild.VisualStudio;component/Themes/CoabStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <!-- bool -> CheckBox -->
+            <DataTemplate DataType="{x:Type local:BoolSettingViewModel}">
+                <CheckBox Content="{Binding DisplayName}"
+                          IsChecked="{Binding Value}"
+                          Style="{StaticResource CoabCheckBox}"
+                          HorizontalAlignment="Left"
+                          Margin="0,4"
+                          ToolTip="{Binding Description}" />
+            </DataTemplate>
+
+            <!-- enum -> ComboBox -->
+            <DataTemplate DataType="{x:Type local:EnumSettingViewModel}">
+                <StackPanel Margin="0,4">
+                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
+                    <ComboBox ItemsSource="{Binding Values}"
+                              SelectedItem="{Binding Value}"
+                              MinWidth="160"
+                              HorizontalAlignment="Left"
+                              ToolTip="{Binding Description}" />
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- int -> validated TextBox -->
+            <DataTemplate DataType="{x:Type local:IntSettingViewModel}">
+                <StackPanel Margin="0,4">
+                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
+                    <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                             Width="100"
+                             HorizontalAlignment="Left">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="ToolTip" Value="{Binding Description}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasError}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{StaticResource CoabErrorBrush}" />
+                                        <Setter Property="ToolTip" Value="Please enter a whole number." />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- string -> TextBox (+ browse for path-like properties) -->
+            <DataTemplate DataType="{x:Type local:StringSettingViewModel}">
+                <StackPanel Margin="0,4">
+                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Content="…"
+                                MinWidth="26"
+                                Margin="4,0,0,0"
+                                Style="{StaticResource CoabButton}"
+                                Command="{Binding BrowseCommand}"
+                                Visibility="{Binding ShowBrowse, Converter={StaticResource BoolToVis}}"
+                                ToolTip="Browse…" />
+                        <TextBox Text="{Binding Value}" ToolTip="{Binding Description}" />
+                    </DockPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- string[] -> multi-line TextBox, one entry per line -->
+            <DataTemplate DataType="{x:Type local:StringArraySettingViewModel}">
+                <StackPanel Margin="0,4">
+                    <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
+                    <TextBox Text="{Binding Text}"
+                             AcceptsReturn="True"
+                             MinHeight="48"
+                             TextWrapping="NoWrap"
+                             VerticalScrollBarVisibility="Auto"
+                             ToolTip="One entry per line" />
+                </StackPanel>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+        <!-- header: back button + title -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button DockPanel.Dock="Left"
+                    Style="{StaticResource CoabIconButton}"
+                    Command="{Binding CloseCommand}"
+                    ToolTip="Back">
+                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE72B;" FontSize="12" />
+            </Button>
+            <TextBlock Text="{Binding Title}"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       Margin="6,0,0,0"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding Title}" />
+        </DockPanel>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Margin="0,0,0,8"
+                   FontStyle="Italic"
+                   Opacity="0.7"
+                   TextWrapping="Wrap"
+                   Text="Values here override the global settings for this solution; unchanged values show the effective (global) value."
+                   Visibility="{Binding IsProjectSpecific, Converter={StaticResource BoolToVis}}" />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Expander IsExpanded="True"
+                                  Margin="0,0,0,4"
+                                  Template="{StaticResource CoabExpanderTemplate}"
+                                  HorizontalContentAlignment="Stretch"
+                                  Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
+                            <Expander.Header>
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </Expander.Header>
+                            <ItemsControl ItemsSource="{Binding Entries}" Margin="16,2,0,0" />
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

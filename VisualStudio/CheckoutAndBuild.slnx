@@ -1,5 +1,5 @@
 <Solution>
   <Project Path="CheckoutAndBuild.Core.Tests/CheckoutAndBuild.Core.Tests.csproj" />
   <Project Path="CheckoutAndBuild.Core/CheckoutAndBuild.Core.csproj" />
-  <Project Path="CheckoutAndBuild.VisualStudio/CheckoutAndBuild.VisualStudio.csproj" />
+  <Project Path="CheckoutAndBuild.VisualStudio/CheckoutAndBuild.VisualStudio.csproj" Id="5f3af21c-be24-4f40-b2a5-0c9eff5a99e7" />
 </Solution>

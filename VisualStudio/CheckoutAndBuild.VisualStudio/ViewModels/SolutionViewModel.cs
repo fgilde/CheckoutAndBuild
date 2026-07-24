@@ -36,6 +36,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			TestOnlyCommand = new DelegateCommand(async () => await owner.RunSingleServiceAsync(this, owner.TestOperation), () => !owner.IsRunning);
 			IncreasePriorityCommand = new DelegateCommand(() => BuildPriority = Math.Max(0, BuildPriority - 1), () => !owner.IsRunning && BuildPriority > 0);
 			DecreasePriorityCommand = new DelegateCommand(() => BuildPriority = BuildPriority + 1, () => !owner.IsRunning);
+			SettingsCommand = new DelegateCommand(() => owner.OpenSolutionSettings(this));
 		}
 
 		public SolutionProjectModel Model { get; }
@@ -126,6 +127,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand CleanOnlyCommand { get; }
 		public ICommand TestOnlyCommand { get; }
 		public ICommand IncreasePriorityCommand { get; }
+		public ICommand SettingsCommand { get; }
 		public ICommand DecreasePriorityCommand { get; }
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>

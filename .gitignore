@@ -7,3 +7,5 @@
 .vs/
 /packages
 *.csproj.user
+UpgradeLog*.htm
+[Bb]ackup/

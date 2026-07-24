@@ -14,6 +14,7 @@ using CheckoutAndBuild.Core.Pipeline;
 using CheckoutAndBuild.Core.Services;
 using CheckoutAndBuild.Core.Settings;
 using CheckoutAndBuild.VisualStudio.Common;
+using CheckoutAndBuild.VisualStudio.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.ViewModels
 {
@@ -63,6 +64,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly TestService testService = new TestService();
 
 		private PausableCancellationTokenSource cancellation;
+		private SettingsViewModel activeSettings;
 		private bool isRunning;
 		private bool isPaused;
 		private bool loadStarted;
@@ -100,6 +102,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			AddFolderCommand = new DelegateCommand(async () => await AddFolderAsync(), () => !IsRunning);
 			RemoveFolderCommand = new DelegateCommand(p => RemoveFolder(p as WorkingFolderViewModel), p => !IsRunning && p is WorkingFolderViewModel);
 			RefreshCommand = new DelegateCommand(async () => await RefreshAsync(), () => !IsRunning);
+			OpenSettingsCommand = new DelegateCommand(OpenGlobalSettings);
 		}
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
@@ -111,6 +114,28 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand AddFolderCommand { get; }
 		public ICommand RemoveFolderCommand { get; }
 		public ICommand RefreshCommand { get; }
+		public ICommand OpenSettingsCommand { get; }
+
+		/// <summary>Non-null while the settings "page" is shown instead of the main content.</summary>
+		public SettingsViewModel ActiveSettings
+		{
+			get { return activeSettings; }
+			private set { SetProperty(ref activeSettings, value); }
+		}
+
+		/// <summary>Opens the global settings editor (gear button, Tools → Options page).</summary>
+		public void OpenGlobalSettings()
+		{
+			ActiveSettings = new SettingsViewModel(settings, "Settings", null, CloseSettings);
+		}
+
+		/// <summary>Opens the solution-scoped settings editor (solution context menu).</summary>
+		internal void OpenSolutionSettings(SolutionViewModel solution)
+		{
+			ActiveSettings = new SettingsViewModel(settings, $"Settings — {solution.SolutionFileName}", solution.ItemPath, CloseSettings);
+		}
+
+		private void CloseSettings() => ActiveSettings = null;
 
 		internal IOperationService CleanOperation => cleanService;
 		internal IOperationService BuildOperation => buildService;

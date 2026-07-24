@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vsshell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:settings="clr-namespace:CheckoutAndBuild.VisualStudio.Settings"
              Background="{DynamicResource {x:Static vsshell:VsBrushes.WindowKey}}"
              Foreground="{DynamicResource {x:Static vsshell:VsBrushes.WindowTextKey}}">
     <UserControl.Resources>
@@ -13,7 +14,20 @@
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
         </ResourceDictionary>
     </UserControl.Resources>
+    <Grid>
+
+    <!-- ===== main page (hidden while the settings view is open) ===== -->
     <DockPanel Margin="8">
+        <DockPanel.Style>
+            <Style TargetType="DockPanel">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ActiveSettings}" Value="{x:Null}">
+                        <Setter Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </DockPanel.Style>
 
         <!-- ===== status line: thin flat progress with text overlay (old section look) ===== -->
         <Grid DockPanel.Dock="Top" Height="14" Margin="0,0,0,8"
@@ -39,6 +53,11 @@
                         Command="{Binding RefreshCommand}"
                         ToolTip="Rescan all working folders">
                     <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabRefreshGeometry}" Width="12" Height="12" />
+                </Button>
+                <Button Style="{StaticResource CoabIconButton}" Margin="4,0,0,0"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip="CheckoutAndBuild settings">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE713;" FontSize="12" />
                 </Button>
             </StackPanel>
             <WrapPanel VerticalAlignment="Center">
@@ -188,6 +207,9 @@
                                                     <MenuItem Header="Build only" Command="{Binding BuildOnlyCommand}" />
                                                     <MenuItem Header="Clean only" Command="{Binding CleanOnlyCommand}" />
                                                     <MenuItem Header="Test only" Command="{Binding TestOnlyCommand}" />
+                                                    <Separator />
+                                                    <MenuItem Header="Settings…" Command="{Binding SettingsCommand}"
+                                                              ToolTip="Solution-specific settings (override the global settings)" />
                                                 </ContextMenu>
                                             </Grid.ContextMenu>
                                             <Grid.RowDefinitions>
@@ -307,4 +329,20 @@
             </ItemsControl>
         </ScrollViewer>
     </DockPanel>
+
+    <!-- ===== settings "page" (simple visibility toggle, no navigation framework) ===== -->
+    <settings:SettingsView DataContext="{Binding ActiveSettings}">
+        <settings:SettingsView.Style>
+            <Style TargetType="{x:Type settings:SettingsView}">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </settings:SettingsView.Style>
+    </settings:SettingsView>
+
+    </Grid>
 </UserControl>

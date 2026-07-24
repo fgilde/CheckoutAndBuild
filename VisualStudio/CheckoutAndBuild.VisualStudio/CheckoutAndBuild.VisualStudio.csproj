@@ -80,6 +80,12 @@
   <ItemGroup>
     <Compile Include="CheckoutAndBuildPackage.cs" />
     <Compile Include="Common\DelegateCommand.cs" />
+    <Compile Include="Options\CheckoutAndBuildOptionsPage.cs" />
+    <Compile Include="Settings\SettingsUiFactory.cs" />
+    <Compile Include="Settings\SettingsViewModel.cs" />
+    <Compile Include="Settings\SettingsView.xaml.cs">
+      <DependentUpon>SettingsView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ServiceSettingsAdapter.cs" />
     <Compile Include="ViewModels\SolutionViewModel.cs" />
@@ -91,6 +97,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Themes\CoabStyles.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Settings\SettingsView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

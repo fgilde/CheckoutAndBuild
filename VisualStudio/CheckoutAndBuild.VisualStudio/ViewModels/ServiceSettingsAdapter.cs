@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Contracts.Settings;
 using CheckoutAndBuild.Core.Settings;
+using CheckoutAndBuild.VisualStudio.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.ViewModels
 {
 	/// <summary>
-	/// IServiceSettings backed by the JSON settings store.
-	/// ponytail: provider classes are returned with their plain defaults (new T()); wire them to
-	/// the settings store when the options UI (Task 2.4) lands.
+	/// IServiceSettings backed by the JSON settings store. Provider classes are populated from the
+	/// persisted [SettingsProperty] values (global, or merged with solution-specific overrides).
 	/// </summary>
 	public sealed class ServiceSettingsAdapter : IServiceSettings
 	{
@@ -35,8 +35,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public LoggerVerbosity LogLevel => LoggerVerbosity.Minimal;
 
-		public T GetSettingsFromProvider<T>() where T : ISettingsProviderClass, new() => new T();
+		public T GetSettingsFromProvider<T>() where T : ISettingsProviderClass, new()
+			=> SettingsUiFactory.CreateSettings<T>(settings);
 
-		public T GetSettingsFromProvider<T>(ISolutionProjectModel solutionProject) where T : ISettingsProviderClass, new() => new T();
+		public T GetSettingsFromProvider<T>(ISolutionProjectModel solutionProject) where T : ISettingsProviderClass, new()
+			=> SettingsUiFactory.CreateSettings<T>(settings, solutionProject?.ItemPath);
 	}
 }

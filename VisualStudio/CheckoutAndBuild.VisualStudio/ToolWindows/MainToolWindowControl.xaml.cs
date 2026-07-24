@@ -13,5 +13,8 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			DataContext = viewModel;
 			Loaded += async (sender, e) => await viewModel.LoadAsync();
 		}
+
+		/// <summary>Opens the global settings view (used by the Tools → Options page).</summary>
+		internal void ShowSettings() => viewModel.OpenGlobalSettings();
 	}
 }
