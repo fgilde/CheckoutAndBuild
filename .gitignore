@@ -5,7 +5,7 @@
 [Bb]in/
 [Oo]bj/
 .vs/
-/packages
+/Legacy/packages
 *.csproj.user
 UpgradeLog*.htm
 [Bb]ackup/
