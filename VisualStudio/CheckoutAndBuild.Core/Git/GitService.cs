@@ -55,6 +55,18 @@ namespace CheckoutAndBuild.Core.Git
             return RunGitAsync(repoDir, "fetch", onOutput, ct);
         }
 
+        /// <summary>Force push with lease (refuses when the remote moved since the last fetch).</summary>
+        public Task ForcePushAsync(string repoDir, Action<string> onOutput = null, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, "push --force-with-lease", onOutput, ct);
+        }
+
+        /// <summary>Applies a patch file to the working tree (git apply --3way falls back to conflict markers).</summary>
+        public Task ApplyPatchAsync(string repoDir, string patchFile, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, $"apply --3way \"{patchFile}\"", ct: ct);
+        }
+
         public Task CheckoutBranchAsync(string repoDir, string branch, CancellationToken ct = default)
         {
             return RunGitAsync(repoDir, $"checkout \"{branch}\"", ct: ct);

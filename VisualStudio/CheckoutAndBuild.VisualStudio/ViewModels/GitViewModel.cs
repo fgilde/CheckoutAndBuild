@@ -258,6 +258,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RefreshCommand = new DelegateCommand(() => RunSafe(RefreshAllAsync), () => !IsBusy);
 			ExportPatchCommand = new DelegateCommand(() => RunSafe(ExportPatchAsync), () => HasRepository && !IsBusy);
 			ExportZipCommand = new DelegateCommand(() => RunSafe(ExportZipAsync), () => HasRepository && !IsBusy);
+			ApplyPatchCommand = new DelegateCommand(() => RunSafe(ApplyPatchAsync), () => HasRepository && !IsBusy);
+			SuggestBranchCommand = new DelegateCommand(() => RunSafe(SuggestBranchNameAsync), () => HasRepository && !IsBusy);
 			StashPushCommand = new DelegateCommand(() => RunSafe(StashPushAsync), () => HasRepository && !IsBusy);
 			StashApplyCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("apply")), () => SelectedStash != null && !IsBusy);
 			StashPopCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("pop")), () => SelectedStash != null && !IsBusy);
@@ -268,6 +270,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			DeleteBranchCommand = new DelegateCommand(() => RunSafe(DeleteBranchAsync), () => SelectedBranch != null && !SelectedBranch.IsCurrent && !IsBusy);
 			RefreshBranchesCommand = new DelegateCommand(() => RunSafe(LoadBranchesAsync), () => HasRepository && !IsBusy);
 
+			ForcePushRepoCommand = new DelegateCommand(p => ForcePushWithConfirm((RepoSyncViewModel)p), p => !IsBusy);
 			FetchRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "fetch")), p => !IsBusy);
 			PullRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "pull")), p => !IsBusy);
 			PushRepoCommand = new DelegateCommand(p => RunSafe(() => SyncRowActionAsync((RepoSyncViewModel)p, "push")), p => !IsBusy);
@@ -293,6 +296,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand RefreshCommand { get; }
 		public ICommand ExportPatchCommand { get; }
 		public ICommand ExportZipCommand { get; }
+		public ICommand ApplyPatchCommand { get; }
+		public ICommand SuggestBranchCommand { get; }
+		public ICommand ForcePushRepoCommand { get; }
 		public ICommand StashPushCommand { get; }
 		public ICommand StashApplyCommand { get; }
 		public ICommand StashPopCommand { get; }
@@ -755,8 +761,21 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				case "fetch": return git.FetchAsync(row.Path);
 				case "pull": return git.PullAsync(row.Path);
+				case "force-push": return git.ForcePushAsync(row.Path);
 				default: return git.PushAsync(row.Path, setUpstream: !row.HasUpstream);
 			}
+		}
+
+		/// <summary>Force push with an explicit confirmation (old ExtendedGitSyncSection link).</summary>
+		private void ForcePushWithConfirm(RepoSyncViewModel row)
+		{
+			if (row == null)
+				return;
+			if (MessageBox.Show(
+					$"Force push '{row.Branch}' of {row.Name}?\n\nUses --force-with-lease: the push is refused when the remote moved since your last fetch, but it still overwrites the remote branch.",
+					"CheckoutAndBuild", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+				return;
+			RunSafe(() => SyncRowActionAsync(row, "force-push"));
 		}
 
 		private async Task SyncAllAsync(string action)
@@ -884,6 +903,102 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 			await git.StashDropAsync(repo.Path, stash.Index);
 			await RefreshRepositoryAsync();
+		}
+
+		/// <summary>Applies a .patch file to the selected repository (old "Apply a Git patch file...").</summary>
+		private async Task ApplyPatchAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Patch File|*.patch;*.diff|All files|*.*" };
+			if (dialog.ShowDialog() != true)
+				return;
+			await git.ApplyPatchAsync(repo.Path, dialog.FileName);
+			StatusMessage = "Applied: " + dialog.FileName;
+			await RefreshRepositoryAsync();
+		}
+
+		/// <summary>
+		/// Branch name suggestion from a work item (old ExtendedGitBranchesSection "Branch Suggestion"):
+		/// asks for a work item id + prefix, resolves the title via the Azure DevOps REST settings
+		/// of the Work Items window and writes "prefix/id-title-slug" into the new-branch box.
+		/// </summary>
+		private async Task SuggestBranchNameAsync()
+		{
+			var idBox = new System.Windows.Controls.TextBox { Margin = new Thickness(8, 2, 8, 4) };
+			var prefixBox = new System.Windows.Controls.ComboBox
+			{
+				ItemsSource = new[] { "wip", "feature", "bugfix", "hotfix" },
+				SelectedIndex = 0,
+				Margin = new Thickness(8, 2, 8, 4)
+			};
+			var ok = new System.Windows.Controls.Button { Content = "Suggest", Width = 80, Margin = new Thickness(0, 8, 8, 8), IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
+			var panel = new System.Windows.Controls.StackPanel();
+			panel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Work item id:", Margin = new Thickness(8, 8, 8, 0), Opacity = 0.7 });
+			panel.Children.Add(idBox);
+			panel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Branch prefix:", Margin = new Thickness(8, 4, 8, 0), Opacity = 0.7 });
+			panel.Children.Add(prefixBox);
+			panel.Children.Add(ok);
+			var window = new Window
+			{
+				Title = "Branch Suggestion",
+				Content = panel,
+				Width = 320,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			window.Loaded += (s, e) => idBox.Focus();
+			if (window.ShowDialog() != true || !int.TryParse(idBox.Text?.Trim(), out int workItemId))
+				return;
+
+			string prefix = prefixBox.SelectedItem as string ?? "wip";
+			string title = await TryGetWorkItemTitleAsync(workItemId);
+			NewBranchName = string.IsNullOrEmpty(title)
+				? $"{prefix}/{workItemId}"
+				: $"{prefix}/{workItemId}-{Slugify(title)}";
+			StatusMessage = string.IsNullOrEmpty(title)
+				? "No work item title found (check the Work Items connection) — suggested the id only."
+				: "Suggested: " + NewBranchName;
+		}
+
+		/// <summary>Title via the Work Items window's connection settings; null when not configured/reachable.</summary>
+		private async Task<string> TryGetWorkItemTitleAsync(int workItemId)
+		{
+			try
+			{
+				string orgUrl = settings.Get("WorkItems.OrganizationUrl", globalContext, "");
+				string project = settings.Get("WorkItems.Project", globalContext, "");
+				string pat = Common.PatProtector.Unprotect(settings.Get("WorkItems.PatProtected", globalContext, ""));
+				if (string.IsNullOrEmpty(orgUrl) || string.IsNullOrEmpty(pat))
+					return null;
+				using (var client = new CheckoutAndBuild.Core.WorkItems.WorkItemClient(orgUrl, project, pat))
+				{
+					var items = await client.GetWorkItemsAsync(new[] { workItemId });
+					return items.Count > 0 ? items[0].Title : null;
+				}
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		private static string Slugify(string text)
+		{
+			var builder = new System.Text.StringBuilder();
+			foreach (char c in text.ToLowerInvariant())
+			{
+				if (char.IsLetterOrDigit(c))
+					builder.Append(c);
+				else if (builder.Length > 0 && builder[builder.Length - 1] != '-')
+					builder.Append('-');
+			}
+			return builder.ToString().Trim('-');
 		}
 
 		private async Task ExportPatchAsync()

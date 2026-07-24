@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Windows.Input;
 using CheckoutAndBuild.Core.Contracts;
 using CheckoutAndBuild.Core.Settings;
@@ -230,25 +228,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private WorkItemClient CreateClient() => new WorkItemClient(OrganizationUrl, Project, pat);
 
-		private static string Protect(string value)
-		{
-			if (string.IsNullOrEmpty(value))
-				return "";
-			return Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(value), null, DataProtectionScope.CurrentUser));
-		}
+		private static string Protect(string value) => PatProtector.Protect(value);
 
-		private static string Unprotect(string stored)
-		{
-			if (string.IsNullOrEmpty(stored))
-				return "";
-			try
-			{
-				return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(stored), null, DataProtectionScope.CurrentUser));
-			}
-			catch (Exception)
-			{
-				return ""; // value from another user/machine — just require re-entry
-			}
-		}
+		private static string Unprotect(string stored) => PatProtector.Unprotect(stored);
 	}
 }

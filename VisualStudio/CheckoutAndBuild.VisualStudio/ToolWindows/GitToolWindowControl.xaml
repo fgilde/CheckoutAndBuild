@@ -141,6 +141,10 @@
                         <Button Style="{StaticResource CoabLinkButton}" Content="Export as Zip…"
                                 Command="{Binding ExportZipCommand}"
                                 ToolTip="Zip all changed and untracked files with their folder structure" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Apply Patch…"
+                                Command="{Binding ApplyPatchCommand}"
+                                ToolTip="Apply a .patch file to the working tree (git apply --3way)" />
                     </StackPanel>
 
                     <Expander DockPanel.Dock="Bottom" Header="Diff" Margin="0,6,0,0"
@@ -413,6 +417,10 @@
                                 Command="{Binding CreateBranchCommand}"
                                 Content="Create"
                                 ToolTip="Create a branch at the current HEAD and check it out (git checkout -b)" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabLinkButton}" Margin="6,0,0,0"
+                                Command="{Binding SuggestBranchCommand}"
+                                Content="Suggest…"
+                                ToolTip="Generate a branch name from a work item (wip/bugfix/hotfix/feature + id + title)" />
                         <TextBlock Text="New branch:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
                         <TextBox Text="{Binding NewBranchName, UpdateSourceTrigger=PropertyChanged}"
                                  VerticalContentAlignment="Center"
@@ -521,6 +529,11 @@
                                                 Command="{Binding DataContext.PushRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip="git push (sets upstream automatically when missing)" />
+                                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                        <Button Style="{StaticResource CoabLinkButton}" Content="Force Push"
+                                                Command="{Binding DataContext.ForcePushRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="git push --force-with-lease (asks for confirmation)" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding Status}" Margin="8,0" FontSize="11"
                                                Foreground="{StaticResource CoabErrorBrush}"
