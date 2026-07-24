@@ -220,11 +220,11 @@
 - Task 3.2: Profile/Branch-abhängige Settings in UI (ProfileSelector), Export/Import `.coab`→JSON.
 - Task 3.3: Delphi-/Sonderprojekt-Support nur falls User braucht (nachfragen) — sonst streichen.
 
-## Phase 4 — WorkItem-Tools (Azure-DevOps-REST)
+## Phase 4 — WorkItem-Tools (Azure-DevOps-REST) — KOMPLETT (2026-07-24)
 
-- Task 4.1: `Microsoft.TeamFoundation.WorkItemTracking.WebApi` + `Microsoft.VisualStudio.Services.Client` NuGet; Auth via PAT/`VssConnection`.
-- Task 4.2: WorkItem Search&Replace als ToolWindow (portiert aus `WorkItemSearchReplaceViewModel`), Query per WIQL.
-- Task 4.3: Recent-Changes/User-Dashboard nur auf User-Wunsch.
+- Task 4.1: ✅ `WorkItemClient` in Core — rohe REST-API über HttpClient + PAT (Basic auth) statt der TeamFoundation-NuGets (weniger Abhängigkeiten, Rider-tauglich): WIQL-Query (flat+tree), Felddefinitionen, workitemsbatch (200er-Chunks), JSON-Patch-Update. 7 Tests mit Fake-HttpMessageHandler.
+- Task 4.2: ✅ WorkItem Search&Replace als eigenes ToolWindow (`WorkItemToolWindow`, View → Other Windows → "CheckoutAndBuild Work Items"): Verbindung (Org-URL/Projekt/PAT DPAPI-geschützt persistiert), WIQL-Editor, Preview mit Trefferliste + gematchten Feldern, Replace All, Doppelklick öffnet WorkItem im Browser.
+- Task 4.3: Recent-Changes/User-Dashboard nur auf User-Wunsch (offen).
 
 ## Phase 5 — Rider (separater Plan nach Phase-2-Review)
 
