@@ -100,7 +100,7 @@ namespace CheckoutAndBuild.Core.Execution
                 if (process.HasExited)
                     return;
 
-                // ponytail: Windows-only taskkill; use Process.Kill(true) equivalent per-OS if cross-platform is ever needed
+                // Windows-only taskkill; switch to Process.Kill(entireProcessTree) if cross-platform is ever needed
                 using (var killer = Process.Start(new ProcessStartInfo
                 {
                     FileName = "taskkill",

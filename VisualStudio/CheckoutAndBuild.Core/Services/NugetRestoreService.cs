@@ -81,7 +81,7 @@ namespace CheckoutAndBuild.Core.Services
 		{
 			var nugetSettings = GetSettings<NugetServiceSettings>(settings, model);
 			string nugetExe = nugetSettings.NugetExeLocation;
-			// ponytail: Install/InstallAndRestore/Reinstall all end in a restore — "restore" installs missing
+			// Install/InstallAndRestore/Reinstall all end in a restore — "restore" installs missing
 			// packages anyway; Reinstall additionally wipes the local packages folder first (see RestoreAsync).
 			if (!string.IsNullOrEmpty(nugetExe) && File.Exists(nugetExe))
 			{

@@ -188,6 +188,30 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		}
 	}
 
+	/// <summary>One row of the Worktrees tab.</summary>
+	public class WorktreeViewModel
+	{
+		public WorktreeViewModel(Core.Git.GitWorktree worktree)
+		{
+			Worktree = worktree;
+			var badges = new List<string>();
+			if (worktree.IsMain) badges.Add("main");
+			if (worktree.IsDetached) badges.Add("detached");
+			if (worktree.IsLocked) badges.Add(string.IsNullOrEmpty(worktree.LockReason) ? "locked" : $"locked: {worktree.LockReason}");
+			if (worktree.IsPrunable) badges.Add("prunable");
+			if (!worktree.Exists && !worktree.IsPrunable) badges.Add("missing");
+			Badges = string.Join("  ", badges.Select(b => $"[{b}]"));
+		}
+
+		public Core.Git.GitWorktree Worktree { get; }
+		public string Name => Worktree.Name;
+		public string Path => Worktree.Path;
+		public string BranchDisplay => Worktree.IsDetached ? "(detached)" : Worktree.Branch;
+		public string ShortSha => Worktree.ShortSha;
+		public string Badges { get; }
+		public bool IsMain => Worktree.IsMain;
+	}
+
 	/// <summary>One row of the Feed tab (commit + owning repository).</summary>
 	public class FeedCommitViewModel
 	{
@@ -224,6 +248,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private const int historyTabIndex = 2;
 		private const int syncTabIndex = 4;
 		private const int feedTabIndex = 5;
+		private const int worktreesTabIndex = 6;
 		private static readonly int?[] periodDays = { null, 7, 30, 90 };
 
 		private GitRepositoryViewModel selectedRepository;
@@ -239,6 +264,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private string newBranchName;
 		private string historyGrep;
 		private string historyAuthor;
+		private string historyPathFilter;
+		private string commitMessage;
+		private string multiRepoBranch;
+		private bool createBranchIfMissing = true;
 		private bool onlyMine;
 		private int historyPeriodIndex;
 		private bool isBusy;
@@ -260,6 +289,41 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ExportZipCommand = new DelegateCommand(() => RunSafe(ExportZipAsync), () => HasRepository && !IsBusy);
 			ApplyPatchCommand = new DelegateCommand(() => RunSafe(ApplyPatchAsync), () => HasRepository && !IsBusy);
 			SuggestBranchCommand = new DelegateCommand(() => RunSafe(SuggestBranchNameAsync), () => HasRepository && !IsBusy);
+
+			CompareChangeCommand = new DelegateCommand(p => RunSafe(() => CompareChangeAsync(p as ChangeViewModel)),
+				p => p is ChangeViewModel c && c.Change.ChangeType != Core.Git.GitChangeType.Untracked && c.Change.ChangeType != Core.Git.GitChangeType.Added && !IsBusy);
+			OpenChangeCommand = new DelegateCommand(p => OpenChange(p as ChangeViewModel), p => (p as ChangeViewModel)?.FullPath != null && System.IO.File.Exists(((ChangeViewModel)p).FullPath));
+			OpenChangeFolderCommand = new DelegateCommand(
+				p => { if (p is ChangeViewModel c) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{c.FullPath}\""); },
+				p => p is ChangeViewModel);
+			CopyChangePathCommand = new DelegateCommand(
+				p => { if (p is ChangeViewModel c) Clipboard.SetText(c.FullPath); }, p => p is ChangeViewModel);
+			FileHistoryCommand = new DelegateCommand(p => RunSafe(() => ShowFileHistoryAsync(p as ChangeViewModel)), p => p is ChangeViewModel);
+			StageChangeCommand = new DelegateCommand(p => RunSafe(() => StageChangeAsync(p as ChangeViewModel, stage: true)),
+				p => p is ChangeViewModel c && !c.Change.IsStaged && !IsBusy);
+			UnstageChangeCommand = new DelegateCommand(p => RunSafe(() => StageChangeAsync(p as ChangeViewModel, stage: false)),
+				p => p is ChangeViewModel c && c.Change.IsStaged && !IsBusy);
+			DiscardChangeCommand = new DelegateCommand(p => DiscardChangeWithConfirm(p as ChangeViewModel),
+				p => p is ChangeViewModel && !IsBusy);
+			CommitAllCommand = new DelegateCommand(() => RunSafe(() => CommitAllAsync(push: false)), CanCommit);
+			CommitAndPushCommand = new DelegateCommand(() => RunSafe(() => CommitAllAsync(push: true)), CanCommit);
+			ClearHistoryPathFilterCommand = new DelegateCommand(() => { HistoryPathFilter = null; RunSafe(LoadHistoryAsync); });
+			RefreshWorktreesCommand = new DelegateCommand(() => RunSafe(LoadWorktreesAsync), () => HasRepository && !IsBusy);
+			AddWorktreeCommand = new DelegateCommand(() => RunSafe(AddWorktreeAsync), () => HasRepository && !IsBusy);
+			RemoveWorktreeCommand = new DelegateCommand(p => RemoveWorktreeWithConfirm(p as WorktreeViewModel),
+				p => p is WorktreeViewModel w && !w.Worktree.IsMain && !IsBusy);
+			PruneWorktreesCommand = new DelegateCommand(() => RunSafe(PruneWorktreesAsync), () => HasRepository && !IsBusy);
+			OpenWorktreeExplorerCommand = new DelegateCommand(
+				p => { if (p is WorktreeViewModel w && w.Worktree.Exists) System.Diagnostics.Process.Start("explorer.exe", $"\"{w.Path}\""); },
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true);
+			OpenWorktreeSolutionCommand = new DelegateCommand(p => OpenWorktreeSolution(p as WorktreeViewModel),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true);
+			AddWorktreeAsFolderCommand = new DelegateCommand(p => AddWorktreeAsWorkingFolder(p as WorktreeViewModel),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true);
+			CheckoutAllCommand = new DelegateCommand(() => RunSafe(CheckoutAllAsync),
+				() => SyncRows.Count > 0 && !string.IsNullOrWhiteSpace(MultiRepoBranch) && !IsBusy);
+			CleanupBranchesCommand = new DelegateCommand(() => RunSafe(CleanupMergedBranchesAsync), () => SyncRows.Count > 0 && !IsBusy);
+			CreatePullRequestCommand = new DelegateCommand(p => RunSafe(() => CreatePullRequestAsync(p as RepoSyncViewModel)), p => p is RepoSyncViewModel);
 			StashPushCommand = new DelegateCommand(() => RunSafe(StashPushAsync), () => HasRepository && !IsBusy);
 			StashApplyCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("apply")), () => SelectedStash != null && !IsBusy);
 			StashPopCommand = new DelegateCommand(() => RunSafe(() => StashActionAsync("pop")), () => SelectedStash != null && !IsBusy);
@@ -299,6 +363,428 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand ApplyPatchCommand { get; }
 		public ICommand SuggestBranchCommand { get; }
 		public ICommand ForcePushRepoCommand { get; }
+		public ICommand CompareChangeCommand { get; }
+		public ICommand OpenChangeCommand { get; }
+		public ICommand OpenChangeFolderCommand { get; }
+		public ICommand CopyChangePathCommand { get; }
+		public ICommand FileHistoryCommand { get; }
+		public ICommand StageChangeCommand { get; }
+		public ICommand UnstageChangeCommand { get; }
+		public ICommand DiscardChangeCommand { get; }
+		public ICommand CommitAllCommand { get; }
+		public ICommand CommitAndPushCommand { get; }
+		public ICommand ClearHistoryPathFilterCommand { get; }
+
+		/// <summary>Commit message of the Changes tab commit row.</summary>
+		public string CommitMessage
+		{
+			get { return commitMessage; }
+			set { SetProperty(ref commitMessage, value); }
+		}
+
+		/// <summary>Non-null while the History tab is filtered to a single file.</summary>
+		public string HistoryPathFilter
+		{
+			get { return historyPathFilter; }
+			private set
+			{
+				if (SetProperty(ref historyPathFilter, value))
+					RaisePropertyChanged(nameof(HasHistoryPathFilter));
+			}
+		}
+
+		public bool HasHistoryPathFilter => !string.IsNullOrEmpty(historyPathFilter);
+
+		public ICommand CheckoutAllCommand { get; }
+		public ICommand CleanupBranchesCommand { get; }
+		public ICommand CreatePullRequestCommand { get; }
+		public ICommand RefreshWorktreesCommand { get; }
+		public ICommand AddWorktreeCommand { get; }
+		public ICommand RemoveWorktreeCommand { get; }
+		public ICommand PruneWorktreesCommand { get; }
+		public ICommand OpenWorktreeExplorerCommand { get; }
+		public ICommand OpenWorktreeSolutionCommand { get; }
+		public ICommand AddWorktreeAsFolderCommand { get; }
+
+		public ObservableCollection<WorktreeViewModel> Worktrees { get; } = new ObservableCollection<WorktreeViewModel>();
+
+		#region worktrees
+
+		/// <summary>Opens the git window on the Worktrees tab with the given repository selected (branch dropdown of the main window).</summary>
+		public async Task ShowWorktreesAsync(string repositoryPath)
+		{
+			await LoadAsync();
+			var repo = Repositories.FirstOrDefault(r => string.Equals(r.Path, repositoryPath, StringComparison.OrdinalIgnoreCase));
+			if (repo == null)
+			{
+				repo = new GitRepositoryViewModel(repositoryPath);
+				Repositories.Add(repo);
+			}
+			SelectedTabIndex = worktreesTabIndex;
+			SelectedRepository = repo;
+			await GuardedAsync(LoadWorktreesAsync);
+		}
+
+		private async Task LoadWorktreesAsync()
+		{
+			var repo = SelectedRepository;
+			Worktrees.Clear();
+			if (repo == null)
+				return;
+			foreach (var worktree in await git.GetWorktreesAsync(repo.Path))
+				Worktrees.Add(new WorktreeViewModel(worktree));
+		}
+
+		/// <summary>Add-worktree dialog: branch (existing ones not in use, or a new name) + target path preview.</summary>
+		private async Task AddWorktreeAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			var branches = await git.GetBranchesAsync(repo.Path);
+			var worktrees = await git.GetWorktreesAsync(repo.Path);
+			var inUse = new HashSet<string>(worktrees.Select(w => w.Branch).Where(b => !string.IsNullOrEmpty(b)), StringComparer.OrdinalIgnoreCase);
+
+			var branchBox = new System.Windows.Controls.ComboBox
+			{
+				IsEditable = true,
+				Margin = new Thickness(8, 2, 8, 4),
+				ItemsSource = branches.Where(b => !inUse.Contains(b)).ToList()
+			};
+			var pathBox = new System.Windows.Controls.TextBox { Margin = new Thickness(8, 2, 8, 4) };
+			var hint = new System.Windows.Controls.TextBlock
+			{
+				Margin = new Thickness(8, 0, 8, 4),
+				FontSize = 11,
+				Opacity = 0.7,
+				TextWrapping = TextWrapping.Wrap
+			};
+			void UpdatePreview(object s, EventArgs e)
+			{
+				string branch = branchBox.Text?.Trim() ?? "";
+				pathBox.Text = branch.Length == 0 ? "" : GitService.GetDefaultWorktreePath(repo.Path, branch);
+				bool exists = branches.Contains(branch, StringComparer.OrdinalIgnoreCase);
+				hint.Text = branch.Length == 0 ? "Pick an existing branch or type a new name."
+					: exists ? $"Existing branch '{branch}' will be checked out into the new worktree."
+					: $"New branch '{branch}' will be created (git worktree add -b).";
+			}
+			branchBox.AddHandler(System.Windows.Controls.TextBox.TextChangedEvent,
+				new System.Windows.Controls.TextChangedEventHandler(UpdatePreview));
+			// SelectionChanged fires before the editable text updates — defer the preview one dispatcher hop
+			branchBox.SelectionChanged += (s, e) =>
+				Application.Current?.Dispatcher.BeginInvoke(new Action(() => UpdatePreview(null, EventArgs.Empty)));
+			UpdatePreview(null, EventArgs.Empty);
+
+			var ok = new System.Windows.Controls.Button
+			{
+				Content = "Create Worktree", Padding = new Thickness(12, 3, 12, 3),
+				Margin = new Thickness(0, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true
+			};
+			var panel = new System.Windows.Controls.StackPanel();
+			panel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Branch (existing or new):", Margin = new Thickness(8, 8, 8, 0), Opacity = 0.7 });
+			panel.Children.Add(branchBox);
+			panel.Children.Add(hint);
+			panel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Worktree folder:", Margin = new Thickness(8, 4, 8, 0), Opacity = 0.7 });
+			panel.Children.Add(pathBox);
+			panel.Children.Add(ok);
+			var window = new Window
+			{
+				Title = "Add Worktree",
+				Content = panel,
+				Width = 460,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			window.Loaded += (s, e) => branchBox.Focus();
+			if (window.ShowDialog() != true)
+				return;
+
+			string targetBranch = branchBox.Text?.Trim();
+			string targetPath = pathBox.Text?.Trim();
+			if (string.IsNullOrEmpty(targetBranch) || string.IsNullOrEmpty(targetPath))
+				return;
+			bool createBranch = !branches.Contains(targetBranch, StringComparer.OrdinalIgnoreCase);
+			StatusMessage = $"Creating worktree {targetPath}…";
+			await git.AddWorktreeAsync(repo.Path, targetPath, targetBranch, createBranch);
+			StatusMessage = $"Worktree created: {targetPath}";
+			await LoadWorktreesAsync();
+		}
+
+		private void RemoveWorktreeWithConfirm(WorktreeViewModel worktree)
+		{
+			if (worktree == null || worktree.Worktree.IsMain)
+				return;
+			var force = new System.Windows.Controls.CheckBox
+			{
+				Content = "Force (also with uncommitted changes)",
+				Margin = new Thickness(8, 4, 8, 0),
+				FontSize = 11
+			};
+			var ok = new System.Windows.Controls.Button
+			{
+				Content = "Remove", Padding = new Thickness(12, 3, 12, 3),
+				Margin = new Thickness(0, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true
+			};
+			var panel = new System.Windows.Controls.StackPanel();
+			panel.Children.Add(new System.Windows.Controls.TextBlock
+			{
+				Text = $"Remove worktree '{worktree.Name}'?\n{worktree.Path}\n\nThe folder is deleted; the branch stays.",
+				Margin = new Thickness(8, 8, 8, 0),
+				TextWrapping = TextWrapping.Wrap
+			});
+			panel.Children.Add(force);
+			panel.Children.Add(ok);
+			var window = new Window
+			{
+				Title = "Remove Worktree",
+				Content = panel,
+				Width = 420,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			if (window.ShowDialog() != true)
+				return;
+			RunSafe(async () =>
+			{
+				await git.RemoveWorktreeAsync(SelectedRepository.Path, worktree.Path, force.IsChecked == true);
+				StatusMessage = $"Worktree removed: {worktree.Name}";
+				await LoadWorktreesAsync();
+			});
+		}
+
+		private async Task PruneWorktreesAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			await git.PruneWorktreesAsync(repo.Path);
+			StatusMessage = "Pruned stale worktree entries.";
+			await LoadWorktreesAsync();
+		}
+
+		/// <summary>Opens the first solution of the worktree in a new VS instance.</summary>
+		private void OpenWorktreeSolution(WorktreeViewModel worktree)
+		{
+			if (worktree == null || !worktree.Worktree.Exists)
+				return;
+			string solution = System.IO.Directory.EnumerateFiles(worktree.Path, "*.sln", System.IO.SearchOption.TopDirectoryOnly)
+				.Concat(System.IO.Directory.EnumerateDirectories(worktree.Path)
+					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln", System.IO.SearchOption.TopDirectoryOnly)))
+				.FirstOrDefault();
+			if (solution == null)
+			{
+				StatusMessage = "No .sln found in the worktree (top two levels).";
+				return;
+			}
+			try
+			{
+				string devenv = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+				if (devenv != null)
+					System.Diagnostics.Process.Start(devenv, $"\"{solution}\"");
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
+		}
+
+		/// <summary>Adds the worktree directory as a working folder of the main tool window.</summary>
+		private void AddWorktreeAsWorkingFolder(WorktreeViewModel worktree)
+		{
+			if (worktree == null)
+				return;
+			try
+			{
+				MainViewModel.Shared.AddFolderByPath(worktree.Path);
+				StatusMessage = $"Added as working folder: {worktree.Path}";
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
+		}
+
+		#endregion
+
+		/// <summary>Branch name for the multi-repo checkout row of the Sync tab.</summary>
+		public string MultiRepoBranch
+		{
+			get { return multiRepoBranch; }
+			set { SetProperty(ref multiRepoBranch, value); }
+		}
+
+		public bool CreateBranchIfMissing
+		{
+			get { return createBranchIfMissing; }
+			set { SetProperty(ref createBranchIfMissing, value); }
+		}
+
+		/// <summary>Checks out the same branch in every repository (optionally creating it where missing).</summary>
+		private async Task CheckoutAllAsync()
+		{
+			string branch = MultiRepoBranch.Trim();
+			int done = 0, created = 0, skipped = 0;
+			foreach (var row in SyncRows.ToList())
+			{
+				try
+				{
+					StatusMessage = $"Checkout {branch}: {row.Name}…";
+					if (await git.BranchExistsAsync(row.Path, branch))
+					{
+						await git.CheckoutBranchAsync(row.Path, branch);
+						done++;
+					}
+					else if (CreateBranchIfMissing)
+					{
+						await git.CreateBranchAsync(row.Path, branch);
+						created++;
+					}
+					else
+					{
+						skipped++;
+					}
+					row.Status = null;
+				}
+				catch (Exception e)
+				{
+					row.Status = e.Message;
+					skipped++;
+				}
+				await UpdateSyncRowAsync(row);
+			}
+			StatusMessage = $"Checkout '{branch}': {done} switched, {created} created, {skipped} skipped.";
+			await RefreshRepositoryAsync();
+		}
+
+		/// <summary>Dialog listing merged local branches over all repositories; selected ones are deleted (git branch -d).</summary>
+		private async Task CleanupMergedBranchesAsync()
+		{
+			StatusMessage = "Scanning merged branches…";
+			var candidates = new List<(RepoSyncViewModel Repo, string Branch)>();
+			foreach (var row in SyncRows.ToList())
+			{
+				try
+				{
+					string target = await git.GetDefaultBranchAsync(row.Path);
+					if (target == null)
+						continue;
+					foreach (string branch in await git.GetMergedBranchesAsync(row.Path, target))
+						candidates.Add((row, branch));
+				}
+				catch (Exception e)
+				{
+					row.Status = e.Message;
+				}
+			}
+			if (candidates.Count == 0)
+			{
+				StatusMessage = "No merged branches to clean up.";
+				return;
+			}
+
+			var list = new System.Windows.Controls.ListBox
+			{
+				Margin = new Thickness(8),
+				MaxHeight = 320,
+				SelectionMode = System.Windows.Controls.SelectionMode.Multiple
+			};
+			foreach (var candidate in candidates)
+				list.Items.Add($"{candidate.Repo.Name}: {candidate.Branch}");
+			list.SelectAll();
+			var ok = new System.Windows.Controls.Button
+			{
+				Content = "Delete selected", Padding = new Thickness(12, 3, 12, 3),
+				Margin = new Thickness(0, 0, 8, 8), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true
+			};
+			var panel = new System.Windows.Controls.DockPanel();
+			System.Windows.Controls.DockPanel.SetDock(ok, System.Windows.Controls.Dock.Bottom);
+			panel.Children.Add(ok);
+			panel.Children.Add(list);
+			var window = new Window
+			{
+				Title = "Cleanup Merged Branches",
+				Content = panel,
+				Width = 420,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			if (window.ShowDialog() != true)
+			{
+				StatusMessage = null;
+				return;
+			}
+
+			int deleted = 0;
+			for (int i = 0; i < candidates.Count; i++)
+			{
+				if (!list.SelectedItems.Contains(list.Items[i]))
+					continue;
+				try
+				{
+					await git.DeleteBranchAsync(candidates[i].Repo.Path, candidates[i].Branch);
+					deleted++;
+				}
+				catch (Exception e)
+				{
+					candidates[i].Repo.Status = e.Message;
+				}
+			}
+			StatusMessage = $"Deleted {deleted} merged branch(es).";
+			await LoadBranchesAsync();
+		}
+
+		/// <summary>Opens the create-PR page of GitHub / Azure DevOps for the repo's current branch.</summary>
+		private async Task CreatePullRequestAsync(RepoSyncViewModel row)
+		{
+			if (row == null)
+				return;
+			string remote = await git.GetRemoteUrlAsync(row.Path);
+			if (remote == null)
+			{
+				row.Status = "No origin remote configured.";
+				return;
+			}
+			string branch = await git.GetCurrentBranchAsync(row.Path);
+			string url = BuildPullRequestUrl(remote, branch);
+			if (url == null)
+			{
+				row.Status = "Unknown host — cannot build a PR URL for: " + remote;
+				return;
+			}
+			System.Diagnostics.Process.Start(url);
+		}
+
+		/// <summary>Compare/PR-create URL for GitHub and Azure DevOps remotes; null for unknown hosts.</summary>
+		internal static string BuildPullRequestUrl(string remoteUrl, string branch)
+		{
+			string url = remoteUrl.Trim();
+			if (url.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+				url = url.Substring(0, url.Length - 4);
+			// ssh → https (git@host:owner/repo)
+			if (url.StartsWith("git@", StringComparison.OrdinalIgnoreCase))
+				url = "https://" + url.Substring(4).Replace(":", "/");
+
+			string escapedBranch = Uri.EscapeDataString(branch);
+			if (url.IndexOf("github.com", StringComparison.OrdinalIgnoreCase) >= 0)
+				return $"{url}/compare/{escapedBranch}?expand=1";
+			if (url.IndexOf("dev.azure.com", StringComparison.OrdinalIgnoreCase) >= 0
+				|| url.IndexOf("visualstudio.com", StringComparison.OrdinalIgnoreCase) >= 0
+				|| url.IndexOf("/_git/", StringComparison.OrdinalIgnoreCase) >= 0)
+				return $"{url}/pullrequestcreate?sourceRef={escapedBranch}";
+			return null;
+		}
 		public ICommand StashPushCommand { get; }
 		public ICommand StashApplyCommand { get; }
 		public ICommand StashPopCommand { get; }
@@ -413,6 +899,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 						RunSafe(RefreshSyncAsync);
 					else if (value == feedTabIndex && FeedCommits.Count == 0)
 						RunSafe(RefreshFeedAsync);
+					else if (value == worktreesTabIndex && Worktrees.Count == 0)
+						RunSafe(LoadWorktreesAsync);
 				}
 			}
 		}
@@ -610,7 +1098,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				var author = await GetEffectiveAuthorAsync(repo.Path);
 				var grep = string.IsNullOrWhiteSpace(HistoryGrep) ? null : HistoryGrep.Trim();
-				foreach (var commit in await git.GetHistoryAsync(repo.Path, 100, author, SinceDays, grep))
+				foreach (var commit in await git.GetHistoryAsync(repo.Path, 100, author, SinceDays, grep, HistoryPathFilter))
 					Commits.Add(commit);
 			}
 			catch (InvalidOperationException)
@@ -642,7 +1130,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			CommitFileDiffText = await git.GetFileDiffAsync(repo.Path, commit.Sha, file.FilePath);
 		}
 
-		// ponytail: ahead/behind is one git call per branch, sequential — batch via for-each-ref if repos with many branches feel slow
+		// ahead/behind is one git call per branch, sequential — batch via for-each-ref if repos with many branches feel slow
 		private async Task LoadBranchesAsync()
 		{
 			var repo = SelectedRepository;
@@ -904,6 +1392,112 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await git.StashDropAsync(repo.Path, stash.Index);
 			await RefreshRepositoryAsync();
 		}
+
+		#region change file actions (VS-like git changes context menu)
+
+		/// <summary>Real VS diff: HEAD version (temp file) against the working tree file.</summary>
+		private async Task CompareChangeAsync(ChangeViewModel change)
+		{
+			var repo = SelectedRepository;
+			if (change == null || repo == null)
+				return;
+			string headFile = await git.GetHeadVersionToTempFileAsync(repo.Path, change.FilePath);
+			if (headFile == null)
+			{
+				StatusMessage = "No HEAD version of this file (new file?).";
+				return;
+			}
+
+			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+			var differenceService = Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider
+				.GetService(typeof(Microsoft.VisualStudio.Shell.Interop.SVsDifferenceService))
+				as Microsoft.VisualStudio.Shell.Interop.IVsDifferenceService;
+			if (differenceService == null)
+			{
+				StatusMessage = "VS difference service not available.";
+				return;
+			}
+			string fileName = System.IO.Path.GetFileName(change.FilePath);
+			differenceService.OpenComparisonWindow2(
+				headFile, change.FullPath,
+				$"{fileName} (HEAD) ↔ {fileName}",
+				change.FilePath,
+				$"{fileName} (HEAD)", fileName,
+				null, null,
+				(uint)Microsoft.VisualStudio.Shell.Interop.__VSDIFFSERVICEOPTIONS.VSDIFFOPT_LeftFileIsTemporary);
+		}
+
+		private void OpenChange(ChangeViewModel change)
+		{
+			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
+			if (change != null && System.IO.File.Exists(change.FullPath))
+				Microsoft.VisualStudio.Shell.VsShellUtilities.OpenDocument(
+					Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider, change.FullPath);
+		}
+
+		/// <summary>Switches to the History tab filtered to this file (git log --follow).</summary>
+		private async Task ShowFileHistoryAsync(ChangeViewModel change)
+		{
+			if (change == null)
+				return;
+			HistoryPathFilter = change.FilePath;
+			SelectedTabIndex = historyTabIndex;
+			await LoadHistoryAsync();
+		}
+
+		private async Task StageChangeAsync(ChangeViewModel change, bool stage)
+		{
+			var repo = SelectedRepository;
+			if (change == null || repo == null)
+				return;
+			if (stage)
+				await git.StageAsync(repo.Path, change.FilePath);
+			else
+				await git.UnstageAsync(repo.Path, change.FilePath);
+			await RefreshRepositoryAsync();
+		}
+
+		private void DiscardChangeWithConfirm(ChangeViewModel change)
+		{
+			if (change == null)
+				return;
+			bool untracked = change.Change.ChangeType == Core.Git.GitChangeType.Untracked;
+			string question = untracked
+				? $"Delete untracked file '{change.FilePath}'?"
+				: $"Undo all changes in '{change.FilePath}'? This restores the HEAD version.";
+			if (MessageBox.Show(question + "\n\nThis cannot be undone.", "CheckoutAndBuild",
+					MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+				return;
+			RunSafe(async () =>
+			{
+				await git.DiscardAsync(SelectedRepository.Path, change.FilePath, untracked);
+				await RefreshRepositoryAsync();
+			});
+		}
+
+		private bool CanCommit() =>
+			HasRepository && !IsBusy && Changes.Count > 0 && !string.IsNullOrWhiteSpace(CommitMessage);
+
+		/// <summary>Commits all changes (git add -A + commit), optionally pushing afterwards.</summary>
+		private async Task CommitAllAsync(bool push)
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			StatusMessage = "Committing…";
+			await git.CommitAllAsync(repo.Path, CommitMessage.Trim());
+			CommitMessage = null;
+			if (push)
+			{
+				StatusMessage = "Pushing…";
+				var status = await git.GetAheadBehindAsync(repo.Path);
+				await git.PushAsync(repo.Path, setUpstream: !status.HasUpstream);
+			}
+			StatusMessage = push ? "Committed and pushed." : "Committed.";
+			await RefreshRepositoryAsync();
+		}
+
+		#endregion
 
 		/// <summary>Applies a .patch file to the selected repository (old "Apply a Git patch file...").</summary>
 		private async Task ApplyPatchAsync()

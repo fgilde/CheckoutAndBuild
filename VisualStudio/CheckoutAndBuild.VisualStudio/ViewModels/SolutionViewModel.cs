@@ -28,6 +28,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private readonly Dispatcher dispatcher;
 		private OperationInfo observedOperation;
 		private Dictionary<string, bool> serviceOverrides;
+		private DateTime operationStartUtc;
+		private string runningOperationName;
 
 		public SolutionViewModel(SolutionProjectModel model, MainViewModel owner, Dispatcher dispatcher)
 		{
@@ -88,6 +90,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		/// <summary>True when the solution was added manually via "Add Solution…" (removable again).</summary>
 		public bool IsCustom { get; set; }
+
+		/// <summary>VS image catalog icon for the row (theme-aware, like the old project-type icon).</summary>
+		public Microsoft.VisualStudio.Imaging.Interop.ImageMoniker IconMoniker =>
+			Model.IsDelphiProject
+				? Microsoft.VisualStudio.Imaging.KnownMonikers.ApplicationGroup
+				: Microsoft.VisualStudio.Imaging.KnownMonikers.Solution;
 
 		#region start/stop of the built executable (old Start/Stop/Restart commands)
 
@@ -603,6 +611,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				switch (e.PropertyName)
 				{
 					case nameof(SolutionProjectModel.CurrentOperation):
+						TrackOperationDuration(Model.CurrentOperation);
 						ObserveOperation(Model.CurrentOperation);
 						RaiseStatus();
 						break;
@@ -623,6 +632,34 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 						break;
 				}
 			});
+		}
+
+		/// <summary>Measures how long each operation ran on this solution (feeds the ETA of the status bar).</summary>
+		private void TrackOperationDuration(OperationInfo newOperation)
+		{
+			if (runningOperationName != null && newOperation?.StatusText != runningOperationName)
+			{
+				owner.RecordDuration(this, runningOperationName, DateTime.UtcNow - operationStartUtc);
+				runningOperationName = null;
+			}
+			if (newOperation != null && runningOperationName == null)
+			{
+				runningOperationName = newOperation.StatusText;
+				operationStartUtc = DateTime.UtcNow;
+			}
+		}
+
+		/// <summary>Row tooltip: path plus the last measured durations.</summary>
+		public string RowToolTip
+		{
+			get
+			{
+				var durations = owner.GetDurations(this);
+				if (durations.Count == 0)
+					return ItemPath;
+				var lines = durations.Select(p => $"  {p.Key}: {TimeSpan.FromSeconds(p.Value):mm\\:ss}");
+				return ItemPath + Environment.NewLine + "Last durations:" + Environment.NewLine + string.Join(Environment.NewLine, lines);
+			}
 		}
 
 		private void ObserveOperation(OperationInfo operation)
@@ -646,6 +683,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(ResultText));
 			RaisePropertyChanged(nameof(HasFailed));
 			RaisePropertyChanged(nameof(HasSucceeded));
+			RaisePropertyChanged(nameof(RowToolTip));
 		}
 
 		private void OnUI(Action action)

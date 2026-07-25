@@ -106,7 +106,7 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 				return new IntSettingViewModel(property, settings, context);
 			if (type == typeof(string[]))
 				return new StringArraySettingViewModel(property, settings, context);
-			// ponytail: string is the fallback; add editors when a settings class introduces new types.
+			// string is the fallback; add editors when a settings class introduces new types
 			return new StringSettingViewModel(property, settings, context);
 		}
 	}

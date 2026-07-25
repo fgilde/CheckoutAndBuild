@@ -23,6 +23,17 @@ using CheckoutAndBuild.VisualStudio.Settings;
 
 namespace CheckoutAndBuild.VisualStudio.ViewModels
 {
+	/// <summary>State of the pipeline run (drives the status bar look).</summary>
+	public enum PipelineRunState
+	{
+		Idle,
+		Running,
+		Paused,
+		Succeeded,
+		Failed,
+		Cancelled
+	}
+
 	/// <summary>Sort orders of the solution lists (old sort context menu).</summary>
 	public enum SolutionSortMode
 	{
@@ -45,7 +56,20 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				Filter = item => ((SolutionViewModel)item).IsIncluded && owner.MatchesFilter((SolutionViewModel)item)
 			};
+			Repositories.CollectionChanged += (s, e) =>
+			{
+				RaisePropertyChanged(nameof(ShowRepositoriesInline));
+				RaisePropertyChanged(nameof(ShowRepositoriesSummary));
+				RaisePropertyChanged(nameof(RepositoriesSummary));
+			};
 		}
+
+		/// <summary>Up to three repositories fit as inline branch links; more collapse into one summary button.</summary>
+		public bool ShowRepositoriesInline => Repositories.Count > 0 && Repositories.Count <= 3;
+
+		public bool ShowRepositoriesSummary => Repositories.Count > 3;
+
+		public string RepositoriesSummary => $"{Repositories.Count} repos";
 
 		public string Path { get; }
 
@@ -110,12 +134,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public string DisplayText => ShowRepositoryName ? $"{RepositoryName}: {CurrentBranch}" : CurrentBranch;
 
+		private string syncBadge;
+
+		/// <summary>"↑n ↓m" against the upstream; empty without one.</summary>
+		public string SyncBadge
+		{
+			get { return syncBadge; }
+			private set { SetProperty(ref syncBadge, value); }
+		}
+
 		/// <summary>Loads <see cref="CurrentBranch"/>; call from the UI thread (continuation updates bindings).</summary>
 		public async Task LoadCurrentBranchAsync()
 		{
 			try
 			{
 				CurrentBranch = await git.GetCurrentBranchAsync(RepositoryPath);
+				var status = await git.GetAheadBehindAsync(RepositoryPath);
+				SyncBadge = status.HasUpstream && (status.Ahead > 0 || status.Behind > 0)
+					? $"↑{status.Ahead} ↓{status.Behind}"
+					: null;
 			}
 			catch (Exception e)
 			{
@@ -150,6 +187,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				await git.CheckoutBranchAsync(RepositoryPath, branch);
 				owner.LastError = null;
 				CurrentBranch = branch;
+				var status = await git.GetAheadBehindAsync(RepositoryPath);
+				SyncBadge = status.HasUpstream && (status.Ahead > 0 || status.Behind > 0)
+					? $"↑{status.Ahead} ↓{status.Behind}"
+					: null;
 			}
 			catch (Exception e)
 			{
@@ -204,6 +245,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private string filterText;
 		private SolutionSortMode sortMode;
 		private bool sortDescending;
+		private PipelineRunState runState = PipelineRunState.Idle;
+		private DateTime runStartUtc;
+		private TimeSpan? finalElapsed;
+		private TimeSpan? runEstimate;
+		private readonly DispatcherTimer elapsedTimer;
+		private readonly DispatcherTimer scheduleTimer;
 
 		private static MainViewModel shared;
 
@@ -255,6 +302,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			sortMode = settings.Get(sortModeKey, globalContext, SolutionSortMode.BuildPriority);
 			sortDescending = settings.Get(sortDescendingKey, globalContext, false);
 
+			elapsedTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(1) };
+			elapsedTimer.Tick += (s, e) => RaisePropertyChanged(nameof(StatusLineText));
+			scheduleTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(60) };
+			scheduleTimer.Tick += (s, e) => CheckScheduledRun();
+			scheduleTimer.Start();
+
 			AddSolutionCommand = new DelegateCommand(async p => await AddSolutionAsync(p as WorkingFolderViewModel),
 				p => !IsRunning && p is WorkingFolderViewModel);
 			RemoveCustomSolutionCommand = new DelegateCommand(p => RemoveCustomSolution(p as SolutionViewModel),
@@ -262,6 +315,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			MergeFolderCommand = new DelegateCommand(p => MergeFolder(p as WorkingFolderViewModel),
 				p => !IsRunning && (p as WorkingFolderViewModel)?.Solutions.Count(s => s.IsIncluded) > 1);
 			SetSortModeCommand = new DelegateCommand(p => SetSortMode(p));
+			RetryFailedCommand = new DelegateCommand(async () => await RunPipelineAsync(onlyFailed: true),
+				() => !IsRunning && AllSolutions().Any(s => s.IsIncluded && s.HasFailed));
+			SuggestPrioritiesCommand = new DelegateCommand(async () => await SuggestPrioritiesAsync(),
+				() => !IsRunning && AllSolutions().Any());
 			OpenFolderCommand = new DelegateCommand(
 				p => System.Diagnostics.Process.Start("explorer.exe", $"\"{((WorkingFolderViewModel)p).Path}\""),
 				p => p is WorkingFolderViewModel);
@@ -381,6 +438,132 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand OpenFolderCommand { get; }
 		public ICommand SetSortModeCommand { get; }
 		public ICommand ToggleSortDescendingCommand { get; }
+		public ICommand RetryFailedCommand { get; }
+		public ICommand SuggestPrioritiesCommand { get; }
+
+		/// <summary>Applies dependency-scan priorities (referenced solutions build first).</summary>
+		private async Task SuggestPrioritiesAsync()
+		{
+			var solutions = AllSolutions().ToList();
+			if (solutions.Count == 0)
+				return;
+			try
+			{
+				var models = solutions.Select(s => s.Model).ToList();
+				var suggested = await Task.Run(() => CheckoutAndBuild.Core.Analysis.DependencyAnalyzer.SuggestBuildPriorities(models));
+				int changed = 0;
+				foreach (var solution in solutions)
+				{
+					if (suggested.TryGetValue(solution.ItemPath, out int priority) && solution.BuildPriority != priority)
+					{
+						solution.BuildPriority = priority;
+						changed++;
+					}
+				}
+				int levels = suggested.Count == 0 ? 0 : suggested.Values.Max() + 1;
+				LastError = null;
+				StatusMessage = $"Build priorities suggested: {levels} level(s), {changed} solution(s) changed.";
+			}
+			catch (Exception e)
+			{
+				LastError = e.Message;
+			}
+		}
+
+		#region durations + ETA (per service+solution, persisted)
+
+		private static string DurationsKey(string solutionPath) => "Durations:" + solutionPath;
+
+		/// <summary>Stores the last duration of one operation for a solution (fed by SolutionViewModel).</summary>
+		internal void RecordDuration(SolutionViewModel solution, string operationName, TimeSpan duration)
+		{
+			if (string.IsNullOrEmpty(operationName) || duration <= TimeSpan.Zero)
+				return;
+			var durations = settings.Get<Dictionary<string, double>>(DurationsKey(solution.ItemPath), globalContext)
+				?? new Dictionary<string, double>();
+			durations[operationName] = duration.TotalSeconds;
+			settings.Set(DurationsKey(solution.ItemPath), globalContext, durations);
+		}
+
+		internal IReadOnlyDictionary<string, double> GetDurations(SolutionViewModel solution) =>
+			settings.Get<Dictionary<string, double>>(DurationsKey(solution.ItemPath), globalContext)
+			?? new Dictionary<string, double>();
+
+		/// <summary>Sum of stored durations for everything about to run (unknown pairs contribute nothing).</summary>
+		private TimeSpan? EstimateRun(IReadOnlyCollection<SolutionViewModel> solutions)
+		{
+			var operationNames = new List<string>();
+			foreach (var service in AllServices())
+			{
+				if (solutions.Any(s => IsServiceEnabledFor(service, s)))
+					operationNames.Add(service.OperationName);
+			}
+			double total = 0;
+			foreach (var solution in solutions)
+			{
+				var durations = GetDurations(solution);
+				foreach (string operation in operationNames)
+				{
+					if (IsServiceEnabledForName(operation, solution) && durations.TryGetValue(MapOperationName(operation), out double seconds))
+						total += seconds;
+				}
+			}
+			return total > 1 ? TimeSpan.FromSeconds(total) : (TimeSpan?)null;
+		}
+
+		/// <summary>Service OperationName → OperationInfo.StatusText used as the duration key.</summary>
+		private static string MapOperationName(string serviceOperationName)
+		{
+			switch (serviceOperationName)
+			{
+				case "Clean": return "Cleaning";
+				case "Checkout": return "Checkout";
+				case "Build": return "Building";
+				case "Run Unit Tests": return "Run Unit tests";
+				default: return serviceOperationName;
+			}
+		}
+
+		private bool IsServiceEnabledForName(string operationName, SolutionViewModel solution)
+		{
+			foreach (var service in AllServices())
+			{
+				if (service.OperationName == operationName)
+					return IsServiceEnabledFor(service, solution);
+			}
+			return false;
+		}
+
+		#endregion
+
+		#region scheduled run (morning build)
+
+		private void CheckScheduledRun()
+		{
+			try
+			{
+				if (IsRunning || !settings.Get("ScheduledRunEnabled", profileContext, false))
+					return;
+				string timeText = settings.Get("ScheduledRunTime", profileContext, "08:00");
+				if (!TimeSpan.TryParse(timeText, out TimeSpan scheduled))
+					return;
+				var now = DateTime.Now;
+				if (now.TimeOfDay < scheduled || now.TimeOfDay > scheduled + TimeSpan.FromMinutes(5))
+					return;
+				string today = now.ToString("yyyy-MM-dd");
+				if (settings.Get<string>("LastScheduledRun", globalContext) == today)
+					return;
+				settings.Set("LastScheduledRun", globalContext, today);
+				StatusMessage = $"Scheduled run started ({timeText}).";
+				_ = RunPipelineAsync();
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild scheduled run failed: " + e.Message);
+			}
+		}
+
+		#endregion
 
 		#region filter + sort
 
@@ -567,6 +750,190 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			private set { SetProperty(ref progressText, value); }
 		}
 
+		#region status bar state (colored bar with glyph + elapsed time)
+
+		public PipelineRunState RunState
+		{
+			get { return runState; }
+			private set
+			{
+				if (SetProperty(ref runState, value))
+				{
+					RaisePropertyChanged(nameof(StateBrush));
+					RaisePropertyChanged(nameof(StatusGlyph));
+					RaisePropertyChanged(nameof(StatusLineText));
+					UpdateTaskbar();
+				}
+			}
+		}
+
+		private static readonly System.Windows.Media.Brush RunningBrush = FrozenBrush(0x00, 0x78, 0xD7);
+		private static readonly System.Windows.Media.Brush PausedBrush = FrozenBrush(0xE8, 0x8C, 0x00);
+		private static readonly System.Windows.Media.Brush SucceededBrush = FrozenBrush(0x38, 0x8A, 0x34);
+		private static readonly System.Windows.Media.Brush FailedBrush = FrozenBrush(0xB2, 0x22, 0x22);
+		private static readonly System.Windows.Media.Brush CancelledBrush = FrozenBrush(0x80, 0x80, 0x80);
+
+		private static System.Windows.Media.Brush FrozenBrush(byte r, byte g, byte b)
+		{
+			var brush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+			brush.Freeze();
+			return brush;
+		}
+
+		public System.Windows.Media.Brush StateBrush
+		{
+			get
+			{
+				switch (runState)
+				{
+					case PipelineRunState.Running: return RunningBrush;
+					case PipelineRunState.Paused: return PausedBrush;
+					case PipelineRunState.Succeeded: return SucceededBrush;
+					case PipelineRunState.Failed: return FailedBrush;
+					case PipelineRunState.Cancelled: return CancelledBrush;
+					default: return System.Windows.Media.Brushes.Transparent;
+				}
+			}
+		}
+
+		/// <summary>Segoe MDL2 glyph shown before the status text.</summary>
+		public string StatusGlyph
+		{
+			get
+			{
+				switch (runState)
+				{
+					case PipelineRunState.Succeeded: return ""; // check
+					case PipelineRunState.Failed: return "";    // error badge
+					case PipelineRunState.Cancelled: return ""; // cancel
+					case PipelineRunState.Paused: return "";    // pause
+					default: return "";
+				}
+			}
+		}
+
+		private TimeSpan RunElapsed => finalElapsed
+			?? (runState == PipelineRunState.Running || runState == PipelineRunState.Paused
+				? DateTime.UtcNow - runStartUtc
+				: TimeSpan.Zero);
+
+		private static string FormatElapsed(TimeSpan elapsed) =>
+			elapsed.TotalHours >= 1 ? elapsed.ToString("h\\:mm\\:ss") : elapsed.ToString("mm\\:ss");
+
+		/// <summary>Composed status line: operation + counters + elapsed time / result summary.</summary>
+		public string StatusLineText
+		{
+			get
+			{
+				switch (runState)
+				{
+					case PipelineRunState.Running:
+						string eta = runEstimate.HasValue && runEstimate.Value > RunElapsed
+							? $"  •  ~{FormatElapsed(runEstimate.Value - RunElapsed)} left"
+							: "";
+						return string.IsNullOrEmpty(lastProgressText)
+							? $"Running…  {FormatElapsed(RunElapsed)}{eta}"
+							: $"{lastProgressText}   {FormatElapsed(RunElapsed)}{eta}";
+					case PipelineRunState.Paused:
+						return $"Paused   {FormatElapsed(RunElapsed)}";
+					case PipelineRunState.Succeeded:
+						return $"Done in {FormatElapsed(RunElapsed)}";
+					case PipelineRunState.Failed:
+						int failed = AllSolutions().Count(s => s.HasFailed);
+						return failed > 0
+							? $"Finished in {FormatElapsed(RunElapsed)} — {failed} solution(s) failed"
+							: $"Failed after {FormatElapsed(RunElapsed)}";
+					case PipelineRunState.Cancelled:
+						return $"Cancelled after {FormatElapsed(RunElapsed)}";
+					default:
+						return "Ready";
+				}
+			}
+		}
+
+		private void BeginRunStatus()
+		{
+			runStartUtc = DateTime.UtcNow;
+			finalElapsed = null;
+			ProgressValue = 0;
+			RunState = PipelineRunState.Running;
+			elapsedTimer.Start();
+		}
+
+		private void EndRunStatus(bool cancelled, bool crashed)
+		{
+			elapsedTimer.Stop();
+			finalElapsed = DateTime.UtcNow - runStartUtc;
+			ProgressValue = 100;
+			if (cancelled)
+				RunState = PipelineRunState.Cancelled;
+			else if (crashed || AllSolutions().Any(s => s.HasFailed))
+				RunState = PipelineRunState.Failed;
+			else
+				RunState = PipelineRunState.Succeeded;
+			ShowToastIfBackground();
+		}
+
+		/// <summary>Balloon notification when the run finishes while VS is not the foreground window.</summary>
+		private void ShowToastIfBackground()
+		{
+			try
+			{
+				if (Application.Current?.Windows.OfType<Window>().Any(w => w.IsActive) == true)
+					return;
+				var icon = new System.Windows.Forms.NotifyIcon
+				{
+					Icon = System.Drawing.SystemIcons.Information,
+					Visible = true
+				};
+				icon.BalloonTipClosed += (s, e) => { icon.Visible = false; icon.Dispose(); };
+				icon.BalloonTipClicked += (s, e) => { icon.Visible = false; icon.Dispose(); };
+				icon.ShowBalloonTip(5000, "CheckoutAndBuild", StatusLineText,
+					RunState == PipelineRunState.Succeeded
+						? System.Windows.Forms.ToolTipIcon.Info
+						: System.Windows.Forms.ToolTipIcon.Error);
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild toast failed: " + e.Message);
+			}
+		}
+
+		/// <summary>Mirrors the run progress into the Windows taskbar icon of the VS main window.</summary>
+		private void UpdateTaskbar()
+		{
+			try
+			{
+				var mainWindow = Application.Current?.MainWindow;
+				if (mainWindow == null)
+					return;
+				var info = mainWindow.TaskbarItemInfo ?? (mainWindow.TaskbarItemInfo = new System.Windows.Shell.TaskbarItemInfo());
+				switch (runState)
+				{
+					case PipelineRunState.Running:
+						info.ProgressState = System.Windows.Shell.TaskbarItemProgressState.Normal;
+						info.ProgressValue = Math.Max(0.02, ProgressValue / 100.0);
+						break;
+					case PipelineRunState.Paused:
+						info.ProgressState = System.Windows.Shell.TaskbarItemProgressState.Paused;
+						break;
+					case PipelineRunState.Failed:
+						info.ProgressState = System.Windows.Shell.TaskbarItemProgressState.Error;
+						info.ProgressValue = 1;
+						break;
+					default:
+						info.ProgressState = System.Windows.Shell.TaskbarItemProgressState.None;
+						break;
+				}
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild taskbar progress failed: " + e.Message);
+			}
+		}
+
+		#endregion
+
 		public double ProgressValue
 		{
 			get { return progressValue; }
@@ -728,7 +1095,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
 				return;
 
-			// ponytail: lazy delete — the profile's settings stay in the store, only the list entry goes
+			// the profile's stored settings stay in the file; only the list entry goes
 			CurrentProfile = SettingsContext.DefaultProfile;
 			Profiles.Remove(name);
 			PersistProfiles();
@@ -948,6 +1315,26 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private static string CustomSolutionsKey(string folderPath) => "CustomSolutions:" + folderPath;
 
+		/// <summary>Adds a folder programmatically (worktree manager); no-op when it is already listed.</summary>
+		internal void AddFolderByPath(string path)
+		{
+			if (string.IsNullOrEmpty(path) || !Directory.Exists(path)
+				|| WorkingFolders.Any(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase)))
+				return;
+			_ = dispatcher.BeginInvoke(new Action(async () =>
+			{
+				try
+				{
+					await AddFolderCoreAsync(path);
+					PersistFolders();
+				}
+				catch (Exception e)
+				{
+					LastError = e.Message;
+				}
+			}));
+		}
+
 		/// <summary>Adds solutions outside the folder scan via multi-select file dialog (old AddSolution).</summary>
 		private async Task AddSolutionAsync(WorkingFolderViewModel folder)
 		{
@@ -1128,16 +1515,18 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			IsPaused = paused;
 			ProgressText = paused ? "Paused" : lastProgressText;
+			if (runState == PipelineRunState.Running || runState == PipelineRunState.Paused)
+				RunState = paused ? PipelineRunState.Paused : PipelineRunState.Running;
 			foreach (var solution in AllSolutions())
 				solution.RefreshResult();
 		}
 
-		private async Task RunPipelineAsync()
+		private async Task RunPipelineAsync(bool onlyFailed = false)
 		{
 			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			if (IsRunning)
 				return;
-			var solutions = AllSolutions().ToList();
+			var solutions = AllSolutions().Where(s => !onlyFailed || s.HasFailed).ToList();
 			var models = solutions.Select(s => (ISolutionProjectModel)s.Model).ToList();
 
 			// per-service solution sets: solution overrides win over the global step checkboxes
@@ -1157,6 +1546,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
 			cancellation.PausedChanged += OnPausedChanged;
+			BeginRunStatus();
+			runEstimate = EstimateRun(solutions.Where(s => s.IsIncluded).ToList());
 			var context = new PipelineContext
 			{
 				Settings = serviceSettings,
@@ -1171,16 +1562,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			try
 			{
 				await Task.Run(() => pipelineRunner.RunAsync(models, services, context, cancellation));
-				ProgressText = cancellation.IsCancellationRequested ? "Cancelled" : "Done";
+				EndRunStatus(cancelled: cancellation.IsCancellationRequested, crashed: false);
 			}
 			catch (OperationCanceledException)
 			{
-				ProgressText = "Cancelled";
+				EndRunStatus(cancelled: true, crashed: false);
 			}
 			catch (Exception e)
 			{
 				LastError = e.Message;
-				ProgressText = "Failed";
+				EndRunStatus(cancelled: false, crashed: true);
 			}
 			finally
 			{
@@ -1204,20 +1595,21 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			cancellation.PausedChanged += OnPausedChanged;
 			ProgressText = lastProgressText = $"{service.OperationName}: {solution.SolutionFileName}";
 			ProgressValue = 0;
+			BeginRunStatus();
 
 			try
 			{
 				await Task.Run(() => service.ExecuteAsync(new[] { (ISolutionProjectModel)solution.Model }, serviceSettings, cancellation));
-				ProgressText = cancellation.IsCancellationRequested ? "Cancelled" : "Done";
+				EndRunStatus(cancelled: cancellation.IsCancellationRequested, crashed: false);
 			}
 			catch (OperationCanceledException)
 			{
-				ProgressText = "Cancelled";
+				EndRunStatus(cancelled: true, crashed: false);
 			}
 			catch (Exception e)
 			{
 				LastError = e.Message;
-				ProgressText = "Failed";
+				EndRunStatus(cancelled: false, crashed: true);
 			}
 			finally
 			{
@@ -1232,7 +1624,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			cancellation = null;
 			IsRunning = false;
 			IsPaused = false;
-			ProgressValue = 0;
 			foreach (var solution in AllSolutions())
 				solution.RefreshResult();
 			ReportResultsToErrorList();
@@ -1248,7 +1639,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				foreach (var solution in AllSolutions())
 				{
-					// ponytail: Model.Result only keeps the LAST operation's result, so build errors
+					// Model.Result only keeps the LAST operation's result, so build errors
 					// vanish from the list when tests ran afterwards; keep per-service results if that hurts
 					switch (solution.Model.Result)
 					{
@@ -1273,8 +1664,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				lastProgressText = $"{progress.OperationName} ({progress.ServiceIndex + 1}/{progress.ServiceCount})";
 				ProgressText = IsPaused ? "Paused" : lastProgressText;
+				RaisePropertyChanged(nameof(StatusLineText));
 				if (progress.ServiceCount > 0)
 					ProgressValue = (progress.ServiceIndex + 1) * 100.0 / progress.ServiceCount;
+				UpdateTaskbar();
 				if (!string.IsNullOrEmpty(progress.Error))
 					LastError = progress.Error;
 			}));

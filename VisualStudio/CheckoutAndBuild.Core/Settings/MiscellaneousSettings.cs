@@ -13,6 +13,20 @@ namespace CheckoutAndBuild.Core.Settings
 		[Category("Miscellaneous")]
 		public string PostServiceScriptFile { get; set; }
 
+		[SettingsProperty(SettingsAvailability.Global, "ScheduledRunEnabled", "Run the pipeline automatically once per day at the scheduled time (morning build).")]
+		[DefaultValue(false)]
+		[Description("Run the pipeline automatically once per day at the scheduled time.")]
+		[DisplayName(@"Scheduled run enabled")]
+		[Category("Miscellaneous")]
+		public bool ScheduledRunEnabled { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "ScheduledRunTime", "Time of day (HH:mm, 24h) for the scheduled pipeline run.")]
+		[DefaultValue("08:00")]
+		[Description("Time of day (HH:mm, 24h) for the scheduled pipeline run.")]
+		[DisplayName(@"Scheduled run time")]
+		[Category("Miscellaneous")]
+		public string ScheduledRunTime { get; set; }
+
 		[SettingsProperty(SettingsAvailability.Global, "LogLevel", "Verbosity for the CheckoutAndBuild output window and msbuild (Quiet/Minimal/Normal/Detailed/Diagnostic).")]
 		[DefaultValue(LoggerVerbosity.Minimal)]
 		[Description("Verbosity for the CheckoutAndBuild output window and msbuild.")]

@@ -136,6 +136,17 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showgithistory");
 		}
 
+		/// <summary>Shows the git tool window on the Worktrees tab with the given repository selected.</summary>
+		internal void ShowGitWorktrees(string repositoryPath)
+		{
+			JoinableTaskFactory.RunAsync(async () =>
+			{
+				var window = await ShowToolWindowAsync(typeof(GitToolWindow), 0, true, DisposalToken);
+				if (window?.Content is GitToolWindowControl control)
+					await control.ShowWorktreesAsync(repositoryPath);
+			}).FileAndForget("checkoutandbuild/showgitworktrees");
+		}
+
 		/// <summary>Shows the tool window with the settings view opened (Tools → Options link).</summary>
 		internal void ShowMainWindowSettings()
 		{

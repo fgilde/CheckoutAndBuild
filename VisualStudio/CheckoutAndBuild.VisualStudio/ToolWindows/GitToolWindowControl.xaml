@@ -147,6 +147,21 @@
                                 ToolTip="Apply a .patch file to the working tree (git apply --3way)" />
                     </StackPanel>
 
+                    <!-- commit row (git add -A + commit [+ push]) -->
+                    <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
+                                Command="{Binding CommitAndPushCommand}"
+                                Content="Commit All &amp; Push"
+                                ToolTip="Stage everything, commit and push (sets upstream when missing)" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
+                                Command="{Binding CommitAllCommand}"
+                                Content="Commit All"
+                                ToolTip="Stage everything and commit (git add -A + git commit)" />
+                        <TextBox Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Commit message" />
+                    </DockPanel>
+
                     <Expander DockPanel.Dock="Bottom" Header="Diff" Margin="0,6,0,0"
                               Template="{StaticResource CoabExpanderTemplate}"
                               IsExpanded="True">
@@ -190,7 +205,41 @@
                             </ListBox.GroupStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Margin="8,0,0,0" Background="Transparent" ToolTip="{Binding ToolTipText}">
+                                    <DockPanel Margin="8,0,0,0" Background="Transparent" ToolTip="{Binding ToolTipText}"
+                                               Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}">
+                                        <DockPanel.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Compare with Unmodified"
+                                                          Command="{Binding PlacementTarget.Tag.CompareChangeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"
+                                                          ToolTip="Open the real Visual Studio diff (HEAD vs. working tree)" />
+                                                <MenuItem Header="Open"
+                                                          Command="{Binding PlacementTarget.Tag.OpenChangeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Open Containing Folder"
+                                                          Command="{Binding PlacementTarget.Tag.OpenChangeFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Copy Full Path"
+                                                          Command="{Binding PlacementTarget.Tag.CopyChangePathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="File History"
+                                                          Command="{Binding PlacementTarget.Tag.FileHistoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"
+                                                          ToolTip="Show the History tab filtered to this file (git log --follow)" />
+                                                <Separator />
+                                                <MenuItem Header="Stage"
+                                                          Command="{Binding PlacementTarget.Tag.StageChangeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Unstage"
+                                                          Command="{Binding PlacementTarget.Tag.UnstageChangeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="Undo Changes…"
+                                                          Command="{Binding PlacementTarget.Tag.DiscardChangeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"
+                                                          ToolTip="Restore the HEAD version (untracked files are deleted)" />
+                                            </ContextMenu>
+                                        </DockPanel.ContextMenu>
                                         <TextBlock DockPanel.Dock="Left" Text="{Binding TypeCode}"
                                                    FontWeight="Bold" Width="16"
                                                    Foreground="{Binding TypeBrush}" />
@@ -327,6 +376,18 @@
                         <Button Style="{StaticResource CoabLinkButton}" Content="Apply" Margin="8,0,0,0"
                                 Command="{Binding RefreshHistoryCommand}"
                                 ToolTip="Reload the history with the current filters" />
+                        <StackPanel Orientation="Horizontal" Margin="8,0,0,0"
+                                    Visibility="{Binding HasHistoryPathFilter, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding HistoryPathFilter, StringFormat=File: {0}}"
+                                       VerticalAlignment="Center" FontStyle="Italic"
+                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                       ToolTip="History is filtered to this file (git log --follow)" />
+                            <Button Style="{StaticResource CoabIconButton}" Margin="2,0,0,0"
+                                    Command="{Binding ClearHistoryPathFilterCommand}"
+                                    ToolTip="Clear the file filter">
+                                <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabCancelGeometry}" Width="8" Height="8" />
+                            </Button>
+                        </StackPanel>
                     </WrapPanel>
 
                     <Expander DockPanel.Dock="Bottom" Header="Commit Details" Margin="0,6,0,0"
@@ -498,7 +559,27 @@
                         <Button Style="{StaticResource CoabLinkButton}" Content="Refresh"
                                 Command="{Binding RefreshSyncCommand}"
                                 ToolTip="Reload branch and ahead/behind state of all repositories" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Cleanup merged…"
+                                Command="{Binding CleanupBranchesCommand}"
+                                ToolTip="List local branches already merged into the default branch (all repositories) and delete selected ones" />
                     </StackPanel>
+
+                    <!-- multi-repo branch checkout -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
+                                Command="{Binding CheckoutAllCommand}"
+                                Content="Checkout All"
+                                ToolTip="Check out this branch in every repository" />
+                        <CheckBox DockPanel.Dock="Right" Content="create if missing" Margin="8,0,0,0"
+                                  VerticalAlignment="Center" FontSize="11"
+                                  IsChecked="{Binding CreateBranchIfMissing}"
+                                  ToolTip="Create the branch (git checkout -b) in repositories that do not have it yet" />
+                        <TextBlock Text="Branch:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
+                        <TextBox Text="{Binding MultiRepoBranch, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Branch to check out in all repositories" />
+                    </DockPanel>
 
                     <ListBox ItemsSource="{Binding SyncRows}"
                              Background="Transparent" BorderThickness="0"
@@ -534,6 +615,11 @@
                                                 Command="{Binding DataContext.ForcePushRepoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip="git push --force-with-lease (asks for confirmation)" />
+                                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                        <Button Style="{StaticResource CoabLinkButton}" Content="Create PR"
+                                                Command="{Binding DataContext.CreatePullRequestCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="Open the pull-request page for the current branch in the browser (GitHub / Azure DevOps)" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding Status}" Margin="8,0" FontSize="11"
                                                Foreground="{StaticResource CoabErrorBrush}"
@@ -617,6 +703,79 @@
                                             <Run Text="{Binding Date, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding Author, Mode=OneWay}" />
                                         </TextBlock>
                                         <TextBlock Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ================= Worktrees ================= -->
+            <TabItem Header="Worktrees" Style="{StaticResource CoabTabItem}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Add Worktree…"
+                                Command="{Binding AddWorktreeCommand}"
+                                ToolTip="Create a new worktree for an existing or new branch (folder convention: &lt;repo&gt;-&lt;branch&gt; next to the repository)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Prune"
+                                Command="{Binding PruneWorktreesCommand}"
+                                ToolTip="Drop stale worktree entries whose directories were deleted (git worktree prune)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Refresh"
+                                Command="{Binding RefreshWorktreesCommand}" />
+                    </StackPanel>
+
+                    <Grid>
+                        <TextBlock Text="No worktrees" HorizontalAlignment="Center" Margin="0,10,0,0" Opacity="0.6">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Worktrees.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ListBox ItemsSource="{Binding Worktrees}"
+                                 Background="Transparent" BorderThickness="0"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Background="Transparent" ToolTip="{Binding Path}">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Open Solution"
+                                                    Command="{Binding DataContext.OpenWorktreeSolutionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Open the first .sln of the worktree in a new Visual Studio instance" />
+                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Explorer"
+                                                    Command="{Binding DataContext.OpenWorktreeExplorerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Add as Folder"
+                                                    Command="{Binding DataContext.AddWorktreeAsFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Add the worktree as a CheckoutAndBuild working folder" />
+                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Remove…"
+                                                    Command="{Binding DataContext.RemoveWorktreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Remove the worktree folder (the branch stays)" />
+                                        </StackPanel>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Name}"
+                                                   FontWeight="SemiBold" Width="180" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding BranchDisplay}"
+                                                   Width="160" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding ShortSha}"
+                                                   FontFamily="Consolas" Width="70" Opacity="0.7" />
+                                        <TextBlock Text="{Binding Badges}" FontSize="11" Opacity="0.7" VerticalAlignment="Center" />
                                     </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

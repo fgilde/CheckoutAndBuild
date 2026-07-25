@@ -6,7 +6,7 @@ namespace CheckoutAndBuild.Core.Execution
 	/// <summary>
 	/// Process-wide log sink for pipeline/service messages. The host subscribes once and
 	/// forwards to its output window, filtering by the configured verbosity.
-	/// ponytail: static event, one host per process; swap for injected logger if Core ever runs multi-tenant.
+	/// Static event by design — there is exactly one host per process.
 	/// </summary>
 	public static class CoabLog
 	{

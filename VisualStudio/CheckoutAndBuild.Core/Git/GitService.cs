@@ -67,6 +67,181 @@ namespace CheckoutAndBuild.Core.Git
             return RunGitAsync(repoDir, $"apply --3way \"{patchFile}\"", ct: ct);
         }
 
+        /// <summary>Remote URL of origin, or null.</summary>
+        public async Task<string> GetRemoteUrlAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, "config --get remote.origin.url"),
+                cancellationToken: ct).ConfigureAwait(false);
+            string url = result.StdOut.Trim();
+            return result.Success && url.Length > 0 ? url : null;
+        }
+
+        /// <summary>Default branch name (origin/HEAD), falling back to main/master detection.</summary>
+        public async Task<string> GetDefaultBranchAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, "symbolic-ref refs/remotes/origin/HEAD --short"),
+                cancellationToken: ct).ConfigureAwait(false);
+            if (result.Success)
+            {
+                string name = result.StdOut.Trim();
+                int slash = name.IndexOf('/');
+                if (slash >= 0)
+                    return name.Substring(slash + 1);
+            }
+            var branches = await GetBranchesAsync(repoDir, ct: ct).ConfigureAwait(false);
+            return branches.FirstOrDefault(b => b == "main") ?? branches.FirstOrDefault(b => b == "master") ?? branches.FirstOrDefault();
+        }
+
+        /// <summary>Local branches fully merged into the target branch, excluding the target and the current branch.</summary>
+        public async Task<IReadOnlyList<string>> GetMergedBranchesAsync(string repoDir, string targetBranch, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, $"branch --merged \"{targetBranch}\" --format=%(refname:short)", ct: ct).ConfigureAwait(false);
+            string current = await GetCurrentBranchAsync(repoDir, ct).ConfigureAwait(false);
+            return SplitLines(result.StdOut)
+                .Where(b => b != targetBranch && b != current)
+                .ToList();
+        }
+
+        /// <summary>True when the branch exists locally or on origin.</summary>
+        public async Task<bool> BranchExistsAsync(string repoDir, string branch, CancellationToken ct = default)
+        {
+            var local = await ProcessRunner.RunAsync("git", GitArgs(repoDir, $"rev-parse --verify --quiet \"refs/heads/{branch}\""),
+                cancellationToken: ct).ConfigureAwait(false);
+            if (local.Success)
+                return true;
+            var remote = await ProcessRunner.RunAsync("git", GitArgs(repoDir, $"rev-parse --verify --quiet \"refs/remotes/origin/{branch}\""),
+                cancellationToken: ct).ConfigureAwait(false);
+            return remote.Success;
+        }
+
+        #region worktrees
+
+        /// <summary>All working trees of the repository (git worktree list --porcelain; first entry is the main tree).</summary>
+        public async Task<IReadOnlyList<GitWorktree>> GetWorktreesAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await RunGitAsync(repoDir, "worktree list --porcelain", ct: ct).ConfigureAwait(false);
+            var worktrees = new List<GitWorktree>();
+            GitWorktree current = null;
+            foreach (string rawLine in result.StdOut.Split('\n'))
+            {
+                string line = rawLine.TrimEnd('\r');
+                if (line.StartsWith("worktree ", StringComparison.Ordinal))
+                {
+                    current = new GitWorktree
+                    {
+                        Path = line.Substring(9).Replace('/', Path.DirectorySeparatorChar),
+                        IsMain = worktrees.Count == 0
+                    };
+                    worktrees.Add(current);
+                }
+                else if (current == null)
+                {
+                    continue;
+                }
+                else if (line.StartsWith("HEAD ", StringComparison.Ordinal))
+                    current.HeadSha = line.Substring(5).Trim();
+                else if (line.StartsWith("branch ", StringComparison.Ordinal))
+                    current.Branch = line.Substring(7).Trim().Replace("refs/heads/", "");
+                else if (line == "detached")
+                    current.IsDetached = true;
+                else if (line.StartsWith("locked", StringComparison.Ordinal))
+                {
+                    current.IsLocked = true;
+                    current.LockReason = line.Length > 7 ? line.Substring(7).Trim() : null;
+                }
+                else if (line.StartsWith("prunable", StringComparison.Ordinal))
+                    current.IsPrunable = true;
+            }
+            return worktrees;
+        }
+
+        /// <summary>Adds a worktree at <paramref name="path"/> for the branch (created when <paramref name="createBranch"/>).</summary>
+        public Task AddWorktreeAsync(string repoDir, string path, string branch, bool createBranch, CancellationToken ct = default)
+        {
+            return createBranch
+                ? RunGitAsync(repoDir, $"worktree add -b \"{branch}\" \"{path}\"", ct: ct)
+                : RunGitAsync(repoDir, $"worktree add \"{path}\" \"{branch}\"", ct: ct);
+        }
+
+        /// <summary>Removes a worktree (force also with dirty working tree).</summary>
+        public Task RemoveWorktreeAsync(string repoDir, string worktreePath, bool force = false, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, $"worktree remove {(force ? "--force " : "")}\"{worktreePath}\"", ct: ct);
+        }
+
+        /// <summary>Drops stale worktree bookkeeping for deleted directories.</summary>
+        public Task PruneWorktreesAsync(string repoDir, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, "worktree prune", ct: ct);
+        }
+
+        /// <summary>Sibling-folder convention for new worktrees: &lt;parent&gt;/&lt;repoName&gt;-&lt;branch&gt; (slashes become dashes).</summary>
+        public static string GetDefaultWorktreePath(string repoDir, string branch)
+        {
+            string root = repoDir.TrimEnd(Path.DirectorySeparatorChar, '/');
+            string name = Path.GetFileName(root);
+            string parent = Path.GetDirectoryName(root) ?? root;
+            string sanitized = (branch ?? "").Replace('/', '-').Replace('\\', '-');
+            return Path.Combine(parent, $"{name}-{sanitized}");
+        }
+
+        #endregion
+
+        /// <summary>Stages one file (git add).</summary>
+        public Task StageAsync(string repoDir, string filePath, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, $"add -- \"{filePath}\"", ct: ct);
+        }
+
+        /// <summary>Unstages one file (git reset HEAD).</summary>
+        public Task UnstageAsync(string repoDir, string filePath, CancellationToken ct = default)
+        {
+            return RunGitAsync(repoDir, $"reset HEAD -- \"{filePath}\"", ct: ct);
+        }
+
+        /// <summary>Discards the working tree changes of one file; untracked files are deleted.</summary>
+        public async Task DiscardAsync(string repoDir, string filePath, bool isUntracked, CancellationToken ct = default)
+        {
+            if (isUntracked)
+            {
+                string fullPath = Path.Combine(repoDir, filePath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(fullPath))
+                    File.Delete(fullPath);
+                return;
+            }
+            await RunGitAsync(repoDir, $"checkout HEAD -- \"{filePath}\"", ct: ct).ConfigureAwait(false);
+        }
+
+        /// <summary>Commits everything (git add -A + commit). Message goes through a temp file (quoting/multiline safe).</summary>
+        public async Task CommitAllAsync(string repoDir, string message, CancellationToken ct = default)
+        {
+            await RunGitAsync(repoDir, "add -A", ct: ct).ConfigureAwait(false);
+            string messageFile = Path.Combine(Path.GetTempPath(), "coab-commit-" + Guid.NewGuid().ToString("N") + ".txt");
+            File.WriteAllText(messageFile, message ?? "");
+            try
+            {
+                await RunGitAsync(repoDir, $"commit -F \"{messageFile}\"", ct: ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                try { File.Delete(messageFile); } catch { }
+            }
+        }
+
+        /// <summary>Writes the HEAD version of a file into a temp file for diffing; null when it has no HEAD version.</summary>
+        public async Task<string> GetHeadVersionToTempFileAsync(string repoDir, string filePath, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, $"show \"HEAD:{filePath}\""), cancellationToken: ct)
+                .ConfigureAwait(false);
+            if (!result.Success)
+                return null;
+            string tempFile = Path.Combine(Path.GetTempPath(), "COAB", "Diff",
+                Guid.NewGuid().ToString("N") + "-" + Path.GetFileName(filePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(tempFile));
+            File.WriteAllText(tempFile, result.StdOut);
+            return tempFile;
+        }
+
         public Task CheckoutBranchAsync(string repoDir, string branch, CancellationToken ct = default)
         {
             return RunGitAsync(repoDir, $"checkout \"{branch}\"", ct: ct);
@@ -196,7 +371,7 @@ namespace CheckoutAndBuild.Core.Git
 
         /// <summary>Latest commits of the current branch, newest first ("git log"), optionally filtered by author/age/message.</summary>
         public async Task<IReadOnlyList<GitCommit>> GetHistoryAsync(string repoDir, int maxCount = 100,
-            string author = null, int? sinceDays = null, string grep = null, CancellationToken ct = default)
+            string author = null, int? sinceDays = null, string grep = null, string pathFilter = null, CancellationToken ct = default)
         {
             var args = $"log --max-count={maxCount} --format={LogFormat}";
             if (!string.IsNullOrEmpty(author))
@@ -205,6 +380,8 @@ namespace CheckoutAndBuild.Core.Git
                 args += $" --since={sinceDays.Value}.days";
             if (!string.IsNullOrEmpty(grep))
                 args += $" -i --grep=\"{grep}\"";
+            if (!string.IsNullOrEmpty(pathFilter))
+                args += $" --follow -- \"{pathFilter}\"";
             var result = await RunGitAsync(repoDir, args, ct: ct).ConfigureAwait(false);
             var commits = new List<GitCommit>();
             foreach (var line in SplitLines(result.StdOut))

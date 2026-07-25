@@ -3,7 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vsshell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:imaging="clr-namespace:Microsoft.VisualStudio.Imaging;assembly=Microsoft.VisualStudio.Imaging"
+             xmlns:theming="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Imaging"
              xmlns:settings="clr-namespace:CheckoutAndBuild.VisualStudio.Settings"
+             theming:ImageThemingUtilities.ImageBackgroundColor="{DynamicResource {x:Static platformUi:EnvironmentColors.ToolWindowBackgroundColorKey}}"
              Background="{DynamicResource {x:Static vsshell:VsBrushes.WindowKey}}"
              Foreground="{DynamicResource {x:Static vsshell:VsBrushes.WindowTextKey}}">
     <UserControl.Resources>
@@ -29,16 +32,70 @@
             </Style>
         </DockPanel.Style>
 
-        <!-- ===== status line: thin flat progress with text overlay (always visible so the layout never jumps) ===== -->
-        <Grid DockPanel.Dock="Top" Height="14" Margin="0,0,0,8">
-            <ProgressBar Style="{StaticResource COABProgressBar}"
-                         Minimum="0" Maximum="100"
-                         Value="{Binding ProgressValue, Mode=OneWay}" />
-            <TextBlock Text="{Binding ProgressText}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="10" FontStyle="Italic"
-                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
-        </Grid>
+        <!-- ===== status line: state-colored bar with shimmer animation, glyph and elapsed time ===== -->
+        <Border DockPanel.Dock="Top" Height="20" Margin="0,0,0,8"
+                CornerRadius="3" ClipToBounds="True"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}">
+            <Grid>
+                <!-- state-colored fill by pipeline progress -->
+                <ProgressBar Style="{StaticResource COABProgressBar}"
+                             Background="Transparent"
+                             Foreground="{Binding StateBrush}"
+                             Opacity="0.35"
+                             Minimum="0" Maximum="100"
+                             Value="{Binding ProgressValue, Mode=OneWay}" />
+
+                <!-- moving shimmer band while running -->
+                <Rectangle x:Name="shimmer" Width="140" HorizontalAlignment="Left" IsHitTestVisible="False">
+                    <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#00FFFFFF" Offset="0" />
+                            <GradientStop Color="#30FFFFFF" Offset="0.5" />
+                            <GradientStop Color="#00FFFFFF" Offset="1" />
+                        </LinearGradientBrush>
+                    </Rectangle.Fill>
+                    <Rectangle.RenderTransform>
+                        <TranslateTransform x:Name="shimmerTransform" X="-140" />
+                    </Rectangle.RenderTransform>
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RunState}" Value="Running">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard x:Name="shimmerStoryboard">
+                                            <Storyboard RepeatBehavior="Forever">
+                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                 From="-140" To="900" Duration="0:0:2.2" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <StopStoryboard BeginStoryboardName="shimmerStoryboard" />
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+
+                <!-- glyph + status text -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock FontFamily="Segoe MDL2 Assets"
+                               Text="{Binding StatusGlyph}"
+                               FontSize="11"
+                               Margin="0,1,5,0"
+                               VerticalAlignment="Center"
+                               Foreground="{Binding StateBrush}" />
+                    <TextBlock Text="{Binding StatusLineText}"
+                               FontSize="11"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+                </StackPanel>
+            </Grid>
+        </Border>
 
         <!-- ===== actions row: pipeline steps left, folder tools right ===== -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
@@ -68,6 +125,9 @@
                                       ToolTip="Export the enabled pipeline steps as a batch script" />
                             <MenuItem Header="Export as .ps1…" Command="{Binding ExportPowershellCommand}"
                                       ToolTip="Export the enabled pipeline steps as a PowerShell script" />
+                            <Separator />
+                            <MenuItem Header="Suggest Build Priorities" Command="{Binding SuggestPrioritiesCommand}"
+                                      ToolTip="Scan cross-solution references and set the build order automatically (referenced solutions build first)" />
                             <Separator />
                             <MenuItem Header="Sort by">
                                 <MenuItem Header="Build Priority" IsChecked="{Binding IsSortByPriority, Mode=OneWay}"
@@ -141,7 +201,30 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+
+            <!-- retry failed (visible after a failed run) -->
+            <Button Grid.Column="3" MinHeight="24" Margin="4,0,0,0" Padding="8,0"
+                    Command="{Binding RetryFailedCommand}"
+                    ToolTip="Run the pipeline again for the failed solutions only">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource CoabButton}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding RunState}" Value="Failed">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE72C;" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,4,0"
+                               Foreground="{StaticResource CoabErrorBrush}" />
+                    <TextBlock Text="Retry failed" VerticalAlignment="Center" FontSize="11" />
+                </StackPanel>
+            </Button>
 
             <Button Grid.Column="0" MinHeight="24"
                     Style="{StaticResource CoabButton}"
@@ -271,9 +354,29 @@
                                         <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabCancelGeometry}" Width="9" Height="9" />
                                     </Button>
 
-                                    <!-- branch selector per git repository of this folder (old GitBranchSelector) -->
+                                    <!-- many repos: one compact summary button instead of a link per repo -->
+                                    <Button DockPanel.Dock="Right" FontSize="11" Margin="8,0,0,0"
+                                            Click="OnRepositoriesLinkClick"
+                                            ToolTip="Branches and worktrees of all repositories in this folder"
+                                            Visibility="{Binding ShowRepositoriesSummary, Converter={StaticResource BoolToVis}}"
+                                            Style="{StaticResource CoabLinkButton}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource CoabBranchGeometry}"
+                                                  Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                  Stretch="Uniform" Width="9" Height="11"
+                                                  Margin="0,0,3,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding RepositoriesSummary}" VerticalAlignment="Center" />
+                                            <Path Data="M 0 0 L 8 12 L 16 0 Z"
+                                                  Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                  Stretch="Uniform" Width="7" Height="5"
+                                                  Margin="3,2,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- branch selector per git repository of this folder (old GitBranchSelector, up to 3 repos) -->
                                     <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding Repositories}"
-                                                  VerticalAlignment="Center" Margin="8,0,0,0">
+                                                  VerticalAlignment="Center" Margin="8,0,0,0"
+                                                  Visibility="{Binding ShowRepositoriesInline, Converter={StaticResource BoolToVis}}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel Orientation="Horizontal" />
@@ -299,6 +402,9 @@
                                                               Stretch="Uniform" Width="9" Height="11"
                                                               Margin="0,0,3,0" VerticalAlignment="Center" />
                                                         <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding SyncBadge}" VerticalAlignment="Center"
+                                                                   Margin="4,0,0,0" FontSize="10" Opacity="0.8"
+                                                                   ToolTip="Commits ahead/behind the upstream branch" />
                                                         <Path Data="M 0 0 L 8 12 L 16 0 Z"
                                                               Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
                                                               Stretch="Uniform" Width="7" Height="5"
@@ -388,15 +494,39 @@
                                                          Fill="{Binding StatusBrush}"
                                                          VerticalAlignment="Center"
                                                          ToolTip="{Binding StatusText}" />
+                                                <imaging:CrispImage DockPanel.Dock="Left"
+                                                                    Moniker="{Binding IconMoniker}"
+                                                                    Width="16" Height="16"
+                                                                    Margin="0,0,2,0"
+                                                                    VerticalAlignment="Center" />
 
                                                 <!-- priority: value + compact spinner, rightmost -->
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                                             VerticalAlignment="Center" Margin="8,0,0,0"
                                                             ToolTip="Build priority (lower builds first)">
-                                                    <TextBlock Text="{Binding BuildPriority}"
-                                                               MinWidth="14" TextAlignment="Right" FontSize="11"
-                                                               VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                                    <TextBox Text="{Binding BuildPriority, UpdateSourceTrigger=LostFocus}"
+                                                             MinWidth="24" TextAlignment="Right" FontSize="11"
+                                                             VerticalAlignment="Center"
+                                                             KeyDown="OnPriorityBoxKeyDown"
+                                                             ToolTip="Build priority — type a value or use the arrows (Enter applies)"
+                                                             Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}">
+                                                        <TextBox.Style>
+                                                            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                                <Setter Property="BorderThickness" Value="0" />
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                        <Setter Property="BorderThickness" Value="1" />
+                                                                        <Setter Property="Background"
+                                                                                Value="{DynamicResource {x:Static platformUi:CommonControlsColors.TextBoxBackgroundBrushKey}}" />
+                                                                    </Trigger>
+                                                                    <DataTrigger Binding="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                                        <Setter Property="IsEnabled" Value="False" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBox.Style>
+                                                    </TextBox>
                                                     <StackPanel Margin="2,0,0,0" VerticalAlignment="Center">
                                                         <Button Style="{StaticResource CoabSpinnerButton}"
                                                                 Command="{Binding IncreasePriorityCommand}"
@@ -526,7 +656,7 @@
                                                            VerticalAlignment="Center"
                                                            FontStyle="Italic"
                                                            TextTrimming="CharacterEllipsis"
-                                                           ToolTip="{Binding ItemPath}">
+                                                           ToolTip="{Binding RowToolTip}">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Style.Triggers>

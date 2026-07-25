@@ -50,7 +50,13 @@
     <DockPanel Margin="8">
 
         <!-- ===== connection + query (shared by both tabs) ===== -->
-        <Expander DockPanel.Dock="Top" Header="Connection &amp; Query" IsExpanded="True" Margin="0,0,0,6">
+        <Expander DockPanel.Dock="Top" IsExpanded="True" Margin="0,0,0,6"
+                  Template="{StaticResource CoabExpanderTemplate}"
+                  HorizontalContentAlignment="Stretch"
+                  Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
+            <Expander.Header>
+                <TextBlock Text="Connection &amp; Query" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </Expander.Header>
             <Grid Margin="12,6,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />

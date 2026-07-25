@@ -198,7 +198,7 @@ namespace CheckoutAndBuild.Core.Settings
 			}
 			catch (JsonException)
 			{
-				// ponytail: corrupt file starts fresh; add backup-on-corruption if user data matters.
+				// corrupt settings file: start fresh
 				return new Dictionary<string, JsonElement>();
 			}
 		}

@@ -25,6 +25,9 @@
   <ItemGroup>
     <!-- sln/csproj are in DefaultItemExcludes, so Include (not Update) is required here -->
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- build tests compile the fixture solutions in place; their obj output must never leak into this project -->
+    <Compile Remove="Fixtures\**" />
+    <None Remove="Fixtures\**\obj\**;Fixtures\**\bin\**" />
   </ItemGroup>
 
 </Project>
