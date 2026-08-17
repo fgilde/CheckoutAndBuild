@@ -41,12 +41,16 @@ jobs:
 
       - name: Rename artifact
         shell: pwsh
-        run: Copy-Item VisualStudio/CheckoutAndBuild.VisualStudio/bin/Release/CheckoutAndBuild.VisualStudio.vsix "CheckoutAndBuild-${{ github.ref_name }}.vsix"
+        run: |
+          Copy-Item VisualStudio/CheckoutAndBuild.VisualStudio/bin/Release/CheckoutAndBuild.VisualStudio.vsix "CheckoutAndBuild-${{ github.ref_name }}.vsix"
+          Copy-Item VisualStudio/CheckoutAndBuild.VisualStudio/bin/Release/CheckoutAndBuild.VisualStudio.vsix "CheckoutAndBuild.vsix"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: CheckoutAndBuild-${{ github.ref_name }}.vsix
+          files: |
+            CheckoutAndBuild-${{ github.ref_name }}.vsix
+            CheckoutAndBuild.vsix
           generate_release_notes: true
 
       - name: Publish to Visual Studio Marketplace
@@ -86,9 +90,13 @@ jobs:
           ./gradlew buildPlugin -PpluginVersion="$version" --no-daemon
 
       - name: Attach plugin to release
-        uses: softprops/action-gh-release@v2
+        run: cp JetBrains/build/distributions/checkoutandbuild-*.zip CheckoutAndBuild-JetBrains.zip
+
+      - uses: softprops/action-gh-release@v2
         with:
-          files: JetBrains/build/distributions/*.zip
+          files: |
+            JetBrains/build/distributions/*.zip
+            CheckoutAndBuild-JetBrains.zip
 
       - name: Publish to JetBrains Marketplace
         working-directory: JetBrains

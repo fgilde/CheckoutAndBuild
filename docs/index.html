@@ -57,6 +57,21 @@ section{padding:74px 0}
 h2{font-size:30px;font-weight:800;letter-spacing:-.01em;text-align:center}
 .sub{color:var(--muted);text-align:center;max-width:620px;margin:12px auto 0}
 
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:42px}
+.dl-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:14px}
+.dl-card .head{display:flex;align-items:center;gap:14px}
+.dl-card .head svg{flex:0 0 auto}
+.dl-card h3{font-size:19px}
+.dl-card .ide-row{display:flex;gap:6px;flex-wrap:wrap}
+.dl-card p{color:var(--muted);font-size:14px;flex-grow:1}
+.dl-card .btns{display:flex;gap:10px;flex-wrap:wrap}
+.dl-card .btn{padding:10px 16px;font-size:14px}
+.dl-card ol{color:var(--muted);font-size:13px;padding-left:18px}
+.dl-card ol li{padding:2px 0}
+.legacy{margin-top:26px;text-align:center;color:var(--muted);font-size:13px}
+.legacy a{margin:0 6px}
+@media(max-width:820px){.dl-grid{grid-template-columns:1fr}}
+
 .story{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .story .cols{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:38px;align-items:center}
 .story .cols img{width:100%;border:1px solid var(--border);border-radius:10px;opacity:.85}
@@ -99,6 +114,7 @@ footer .sep{color:var(--border)}
   <div class="wrap">
     <a class="brand" href="#"><img src="icon.png" alt="">CheckoutAndBuild</a>
     <div class="links">
+      <a href="#download" data-i18n="nav.download">Download</a>
       <a href="#features" data-i18n="nav.features">Features</a>
       <a href="#start" data-i18n="nav.start">Getting started</a>
       <a href="https://github.com/fgilde/CheckoutAndBuild/releases" data-i18n="nav.releases">Releases</a>
@@ -124,6 +140,75 @@ footer .sep{color:var(--border)}
     </div>
   </div>
 </header>
+
+<section id="download">
+  <div class="wrap">
+    <h2 data-i18n="dl.h2">Get CheckoutAndBuild</h2>
+    <p class="sub" data-i18n="dl.sub">One extension for Visual Studio, one plugin for every JetBrains IDE — both free, both from the same engine idea.</p>
+    <div class="dl-grid">
+
+      <div class="dl-card">
+        <div class="head">
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <rect width="44" height="44" rx="10" fill="#1b1230"/>
+            <path d="M31 7 L15 20.5 L9 15.7 L6 17.2 V26.8 L9 28.3 L15 23.5 L31 37 L38 33.6 V10.4 Z M30.5 27.9 L23.2 22 L30.5 16.1 Z" fill="#9f7aea"/>
+          </svg>
+          <h3>Visual Studio</h3>
+        </div>
+        <p data-i18n="dl.vs.p">Full experience: pipeline, git cockpit with worktrees, dependency-based build order, Azure DevOps tools. Visual Studio 2022 / 2026, amd64.</p>
+        <div class="btns">
+          <a class="btn primary" href="https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild" data-i18n="dl.vs.market">Marketplace</a>
+          <a class="btn ghost" href="https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild.vsix" data-i18n="dl.vs.direct">Download .vsix (latest)</a>
+        </div>
+        <ol>
+          <li data-i18n="dl.vs.s1">Double-click the .vsix (or install via Extensions → Manage Extensions)</li>
+          <li data-i18n="dl.vs.s2">Restart Visual Studio → View → Other Windows → CheckoutAndBuild</li>
+        </ol>
+      </div>
+
+      <div class="dl-card">
+        <div class="head">
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <defs>
+              <linearGradient id="jbg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#fc801d"/><stop offset=".5" stop-color="#e343e6"/><stop offset="1" stop-color="#3c9df7"/>
+              </linearGradient>
+            </defs>
+            <rect width="44" height="44" rx="10" fill="url(#jbg)"/>
+            <rect x="9" y="9" width="26" height="26" fill="#000"/>
+            <rect x="12" y="28.5" width="10" height="2.4" fill="#fff"/>
+            <text x="12" y="19.5" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#fff">JB</text>
+          </svg>
+          <h3 data-i18n="dl.jb.h3">JetBrains IDEs</h3>
+        </div>
+        <div class="ide-row">
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="rd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c90f5e"/><stop offset="1" stop-color="#8b00b4"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#rd)"/><text x="5" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">RD</text></svg>
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="ij" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fe2857"/><stop offset="1" stop-color="#3c65f0"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#ij)"/><text x="6.5" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">IJ</text></svg>
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="ps" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b74af7"/><stop offset="1" stop-color="#6b57ff"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#ps)"/><text x="5.5" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">PS</text></svg>
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="ws" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07c3f2"/><stop offset="1" stop-color="#087cfa"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#ws)"/><text x="4" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">WS</text></svg>
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="go" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07c3f2"/><stop offset="1" stop-color="#3bea62"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#go)"/><text x="4" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">GO</text></svg>
+          <svg width="26" height="26" viewBox="0 0 26 26"><defs><linearGradient id="cl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#21d789"/><stop offset="1" stop-color="#009ae5"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#cl)"/><text x="5" y="18" font-family="Arial" font-size="10" font-weight="bold" fill="#fff">CL</text></svg>
+        </div>
+        <p data-i18n="dl.jb.p">One plugin for Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion &amp; co: detects .NET, Gradle, Maven, npm, Composer, Cargo and Go projects and runs pull → install → build → test.</p>
+        <div class="btns">
+          <a class="btn primary" href="https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild-JetBrains.zip" data-i18n="dl.jb.direct">Download plugin .zip (latest)</a>
+        </div>
+        <ol>
+          <li data-i18n="dl.jb.s1">Settings → Plugins → ⚙ (gear) → <b>Install Plugin from Disk…</b></li>
+          <li data-i18n="dl.jb.s2">Pick the downloaded zip, restart the IDE</li>
+          <li data-i18n="dl.jb.s3">Open the <b>CheckoutAndBuild</b> tool window at the bottom</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="legacy">
+      <span data-i18n="dl.legacy">Looking for the classics? The original extensions are still on the marketplace:</span>
+      <a href="https://marketplace.visualstudio.com/items?itemName=florianGilde.CheckoutAndBuild2013">VS 2013</a>·
+      <a href="https://marketplace.visualstudio.com/items?itemName=florianGilde.CheckoutAndBuild2015">VS 2015</a>·
+      <a href="https://marketplace.visualstudio.com/items?itemName=florianGilde.CheckoutAndBuild2017">VS 2017</a>
+    </div>
+  </div>
+</section>
 
 <section class="story">
   <div class="wrap">
@@ -190,6 +275,21 @@ footer .sep{color:var(--border)}
 <script>
 const i18n = {
   de: {
+    "nav.download": "Download",
+    "dl.h2": "CheckoutAndBuild holen",
+    "dl.sub": "Eine Extension für Visual Studio, ein Plugin für jede JetBrains-IDE — beide kostenlos, beide mit derselben Engine-Idee.",
+    "dl.vs.p": "Der volle Funktionsumfang: Pipeline, Git-Cockpit mit Worktrees, abhängigkeitsbasierte Build-Reihenfolge, Azure-DevOps-Tools. Visual Studio 2022 / 2026, amd64.",
+    "dl.vs.market": "Marketplace",
+    "dl.vs.direct": ".vsix herunterladen (latest)",
+    "dl.vs.s1": "Doppelklick auf die .vsix (oder über Erweiterungen → Erweiterungen verwalten installieren)",
+    "dl.vs.s2": "Visual Studio neu starten → Ansicht → Weitere Fenster → CheckoutAndBuild",
+    "dl.jb.h3": "JetBrains-IDEs",
+    "dl.jb.p": "Ein Plugin für Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion & Co: erkennt .NET-, Gradle-, Maven-, npm-, Composer-, Cargo- und Go-Projekte und fährt Pull → Install → Build → Test.",
+    "dl.jb.direct": "Plugin-.zip herunterladen (latest)",
+    "dl.jb.s1": "Settings → Plugins → ⚙ (Zahnrad) → <b>Install Plugin from Disk…</b>",
+    "dl.jb.s2": "Heruntergeladene Zip auswählen, IDE neu starten",
+    "dl.jb.s3": "Das <b>CheckoutAndBuild</b>-Tool-Window unten öffnen",
+    "dl.legacy": "Auf der Suche nach den Klassikern? Die Original-Extensions sind weiter im Marketplace:",
     "nav.features": "Features",
     "nav.start": "Erste Schritte",
     "nav.releases": "Releases",
