@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CheckoutAndBuild — Documentation</title>
+<meta name="description" content="Full documentation for CheckoutAndBuild: pipeline, git cockpit, worktrees, Azure DevOps work items — for Visual Studio and all JetBrains IDEs.">
+<link rel="icon" type="image/png" href="../icon.png">
+<style>
+:root{
+  --bg:#0d1117;--bg2:#11161d;--card:#161c24;--border:#232b36;
+  --text:#e6edf3;--muted:#9aa7b3;
+  --accent:#2ea7ff;--accent2:#0078d7;--green:#3fb950;--orange:#e8a03e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+nav.top{position:sticky;top:0;background:rgba(13,17,23,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);z-index:10}
+nav.top .wrap{display:flex;align-items:center;gap:22px;height:60px}
+nav.top .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--text);font-size:17px}
+nav.top .brand img{width:28px;height:28px;border-radius:7px}
+nav.top .links{margin-left:auto;display:flex;gap:20px;font-size:14px;align-items:center}
+nav.top .links a{color:var(--muted)}
+nav.top .links a:hover{color:var(--text);text-decoration:none}
+.lang{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.lang button{background:none;border:none;color:var(--muted);font:inherit;font-size:12px;font-weight:700;padding:4px 9px;cursor:pointer}
+.lang button.active{background:var(--card);color:var(--text)}
+
+.layout{display:grid;grid-template-columns:250px 1fr;gap:44px;padding:40px 0 90px}
+aside{position:sticky;top:84px;align-self:start;max-height:calc(100vh - 110px);overflow-y:auto;font-size:13.5px}
+aside .group{margin-bottom:18px}
+aside .group>b{display:block;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.08em;margin-bottom:6px}
+aside a{display:block;color:var(--text);padding:4px 10px;border-left:2px solid var(--border);opacity:.8}
+aside a:hover{opacity:1;text-decoration:none;border-left-color:var(--accent)}
+
+main{min-width:0}
+main h1{font-size:36px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
+main .lede{color:var(--muted);font-size:17px;max-width:720px}
+main section{padding:34px 0 6px;border-bottom:1px solid var(--border)}
+main section:last-child{border-bottom:none}
+main h2{font-size:25px;font-weight:800;letter-spacing:-.01em;margin-bottom:14px;scroll-margin-top:80px}
+main h3{font-size:17px;font-weight:700;margin:26px 0 8px;scroll-margin-top:80px}
+main p{margin:10px 0;max-width:780px}
+main p,main li{color:#c7d2dc;font-size:15px}
+main ul,main ol{margin:10px 0 14px 22px;max-width:760px}
+main li{padding:2.5px 0}
+main li b,main p b{color:var(--text)}
+code{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-size:.88em;font-family:Consolas,Menlo,monospace}
+pre{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:14px 16px;overflow-x:auto;margin:12px 0;max-width:780px}
+pre code{background:none;border:none;padding:0;font-size:13px}
+.note{background:rgba(46,167,255,.07);border:1px solid rgba(46,167,255,.3);border-radius:9px;padding:12px 16px;margin:14px 0;max-width:780px;font-size:14px;color:#c7d2dc}
+.note b{color:var(--accent)}
+.warn{background:rgba(232,160,62,.07);border:1px solid rgba(232,160,62,.35);border-radius:9px;padding:12px 16px;margin:14px 0;max-width:780px;font-size:14px;color:#c7d2dc}
+.warn b{color:var(--orange)}
+.tablewrap{overflow-x:auto;margin:14px 0;max-width:820px}
+table{border-collapse:collapse;font-size:13.5px;min-width:540px}
+th,td{border:1px solid var(--border);padding:7px 12px;text-align:left;vertical-align:top}
+th{background:var(--bg2);color:var(--text);font-weight:700}
+td{color:#c7d2dc}
+td code{white-space:nowrap}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:1px 10px;margin-left:8px;vertical-align:2px}
+.pill.vs{background:rgba(159,122,234,.15);color:#b794f6;border:1px solid rgba(159,122,234,.4)}
+.pill.jb{background:rgba(252,128,29,.12);color:#fc9a4d;border:1px solid rgba(252,128,29,.4)}
+.pill.both{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.4)}
+
+footer{border-top:1px solid var(--border);padding:34px 0;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+footer .spacer{margin-left:auto}
+footer .gilde{display:inline-flex;align-items:center;gap:7px}
+footer .gilde img{width:18px;height:18px;border-radius:4px}
+footer .sep{color:var(--border)}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;gap:20px}
+  aside{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:4px 14px;border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--card)}
+  aside .group{margin-bottom:4px}
+  aside a{border-left:none;padding:2px 0}
+}
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../icon.png" alt="">CheckoutAndBuild</a>
+    <div class="links">
+      <a href="../" data-i18n="nav.home">Home</a>
+      <a href="../#download" data-i18n="nav.download">Download</a>
+      <a href="https://github.com/fgilde/CheckoutAndBuild/releases" data-i18n="nav.releases">Releases</a>
+      <a href="https://github.com/fgilde/CheckoutAndBuild">GitHub</a>
+      <div class="lang"><button id="lang-en">EN</button><button id="lang-de">DE</button></div>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap layout">
+
+<aside>
+  <div class="group"><b data-i18n="side.basics">Basics</b>
+    <a href="#intro" data-i18n="side.intro">Introduction</a>
+    <a href="#install" data-i18n="side.install">Installation</a>
+    <a href="#quickstart" data-i18n="side.quickstart">Quick start</a>
+  </div>
+  <div class="group"><b data-i18n="side.pipeline">Pipeline</b>
+    <a href="#pipeline" data-i18n="side.run">Running a pipeline</a>
+    <a href="#profiles" data-i18n="side.profiles">Profiles</a>
+    <a href="#priorities" data-i18n="side.priorities">Priorities &amp; parallelism</a>
+    <a href="#projectsettings" data-i18n="side.projectsettings">Project settings</a>
+    <a href="#projecttypes" data-i18n="side.projecttypes">Project types</a>
+    <a href="#automation" data-i18n="side.automation">Scheduled run &amp; scripts</a>
+  </div>
+  <div class="group"><b>Git</b>
+    <a href="#git" data-i18n="side.git">Git cockpit</a>
+    <a href="#multirepo" data-i18n="side.multirepo">Multi-repo sync</a>
+    <a href="#worktrees">Worktrees</a>
+  </div>
+  <div class="group"><b>Azure DevOps</b>
+    <a href="#workitems" data-i18n="side.workitems">Work items</a>
+  </div>
+  <div class="group"><b data-i18n="side.reference">Reference</b>
+    <a href="#differences" data-i18n="side.differences">VS vs. JetBrains</a>
+    <a href="#faq" data-i18n="side.faq">FAQ &amp; troubleshooting</a>
+  </div>
+</aside>
+
+<main>
+
+<h1 data-i18n="doc.h1">Documentation</h1>
+<p class="lede" data-i18n="doc.lede">Everything you need to know about CheckoutAndBuild — the local one-click CI for Visual Studio and all JetBrains IDEs. Features that exist in only one product are marked accordingly.</p>
+<p><span class="pill both">VS + JetBrains</span> <span class="pill vs">Visual Studio only</span> <span class="pill jb">JetBrains only</span></p>
+
+<section id="intro">
+  <h2 data-i18n="intro.h2">Introduction</h2>
+  <p data-i18n="intro.p1">CheckoutAndBuild keeps any number of solutions and projects up to date with one click: it pulls the latest changes, restores packages, builds and tests — <b>out of process</b>, in parallel, before you even open the code. Think of it as a small CI server that lives inside your IDE and works on your local working copies.</p>
+  <p data-i18n="intro.p2">It ships as two products built on the same idea:</p>
+  <ul>
+    <li data-i18n="intro.li1"><b>Visual Studio extension</b> — the full experience for .NET (and Delphi) teams: pipeline, git cockpit with worktrees, dependency-based build order, Error List integration, MEF plugin API and Azure DevOps tools. Requires Visual Studio 2022 or 2026 (amd64).</li>
+    <li data-i18n="intro.li2"><b>JetBrains plugin</b> — one plugin for Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion &amp; co. It detects .NET, Gradle, Maven, npm, Composer, Cargo and Go projects and runs the same pull → install → build → test pipeline.</li>
+  </ul>
+  <div class="note" data-i18n="intro.note"><b>Requirement:</b> <code>git</code> must be available on the PATH. All git operations run against the real git executable — no bundled or emulated git.</div>
+</section>
+
+<section id="install">
+  <h2 data-i18n="install.h2">Installation</h2>
+
+  <h3>Visual Studio <span class="pill vs">VS</span></h3>
+  <ol>
+    <li data-i18n="install.vs1">Install from the <a href="https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild">Visual Studio Marketplace</a>, or download the <a href="https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild.vsix">latest .vsix</a> and double-click it.</li>
+    <li data-i18n="install.vs2">Restart Visual Studio.</li>
+    <li data-i18n="install.vs3">Open the main window via <b>View → Other Windows → CheckoutAndBuild</b>. The git cockpit lives in its own window: <b>View → Other Windows → CheckoutAndBuild Git</b>.</li>
+  </ol>
+
+  <h3>JetBrains IDEs <span class="pill jb">JetBrains</span></h3>
+  <ol>
+    <li data-i18n="install.jb1">Download the <a href="https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild-JetBrains.zip">latest plugin .zip</a>.</li>
+    <li data-i18n="install.jb2">In the IDE: <b>Settings → Plugins → ⚙ → Install Plugin from Disk…</b>, pick the zip, restart.</li>
+    <li data-i18n="install.jb3">Open the <b>CheckoutAndBuild</b> tool window at the bottom of the IDE. It has four tabs: Pipeline, Git, Worktrees and Work Items, sharing one console.</li>
+  </ol>
+  <div class="note" data-i18n="install.jbnote"><b>Compatibility:</b> the plugin depends only on the IntelliJ platform, so it runs in every JetBrains IDE from version <b>2024.2</b> on.</div>
+</section>
+
+<section id="quickstart">
+  <h2 data-i18n="qs.h2">Quick start</h2>
+  <ol>
+    <li data-i18n="qs.s1"><b>Add working folders.</b> Point CheckoutAndBuild at the directories that contain your repositories. Solutions and projects are discovered automatically (the JetBrains plugin starts with the folder of the open project).</li>
+    <li data-i18n="qs.s2"><b>Review the list.</b> Every discovered solution/project appears as a row. Untick what you don't want, set priorities if build order matters.</li>
+    <li data-i18n="qs.s3"><b>Pick the steps.</b> Toggle the pipeline steps you want (e.g. Pull, Restore/Install, Build, Test).</li>
+    <li data-i18n="qs.s4"><b>Press CheckoutAndBuild.</b> Watch the progress, elapsed time and ETA. Failures turn red; use <b>Retry failed</b> to re-run only what broke.</li>
+  </ol>
+</section>
+
+<section id="pipeline">
+  <h2 data-i18n="pipe.h2">Running a pipeline</h2>
+  <p data-i18n="pipe.p1">A run executes the enabled steps for every included project. <b>Pull</b> runs once per distinct git repository (not per project), then the remaining steps run per project, grouped by priority. All output is streamed live into the console/output pane, and every process runs outside the IDE — a hanging build can always be cancelled and never freezes the IDE.</p>
+  <ul>
+    <li data-i18n="pipe.li1"><b>Live status &amp; ETA</b> — each row shows a spinner and its current step; the progress bar estimates remaining time from recorded durations of previous runs. Progress also appears on the taskbar icon.</li>
+    <li data-i18n="pipe.li2"><b>Fail fast</b> — optionally stop scheduling further priority groups as soon as something fails.</li>
+    <li data-i18n="pipe.li3"><b>Retry failed</b> — after a run with failures, one click re-runs only the failed projects.</li>
+    <li data-i18n="pipe.li4"><b>Filter</b> — the filter box narrows the list live (regex allowed); the context menu of a row can run single steps for just that project.</li>
+    <li data-i18n="pipe.li5"><b>Notifications</b> — when the IDE is in the background you get a toast/balloon when the run finishes.</li>
+  </ul>
+  <p data-i18n="pipe.p2">In Visual Studio the pipeline additionally offers <b>Clean</b>, <b>NuGet restore modes</b>, a <b>merged build</b> (build several solutions as one), Delphi projects and MEF plugin services. Build errors and test failures land in the <b>Error List</b>; double-click jumps to the code.</p>
+</section>
+
+<section id="profiles">
+  <h2 data-i18n="prof.h2">Profiles</h2>
+  <p data-i18n="prof.p1">Profiles capture a complete working setup: which projects are included, their priorities, step toggles and per-project command overrides. Switch profiles from the toolbar; create, rename and delete them from the Tools menu. Typical use: a “Frontend” profile with npm projects only, a “Full” profile with everything, a “Hotfix” profile with one solution.</p>
+  <p data-i18n="prof.p2">In Visual Studio, settings can also follow the <b>current branch</b>, and profiles can be exported, imported and copied (JSON under <code>%AppData%\COAB</code>). The JetBrains plugin stores its state in the IDE configuration.</p>
+</section>
+
+<section id="priorities">
+  <h2 data-i18n="prio.h2">Priorities &amp; parallelism</h2>
+  <p data-i18n="prio.p1">Every project has a numeric priority. Lower priorities build first; projects with the <b>same</b> priority build <b>in parallel</b> (the degree of parallelism is configurable). This models dependencies: put base libraries at priority 0, dependents at 1, and so on.</p>
+  <p data-i18n="prio.p2"><b>Suggest priorities</b> scans .NET solutions and projects for project and package references and proposes a correct build order automatically (cycle-safe — reference depth becomes the priority).</p>
+</section>
+
+<section id="projectsettings">
+  <h2 data-i18n="ps.h2">Per-project settings</h2>
+  <p data-i18n="ps.p1">Right-click a row → <b>Project Settings…</b> to override the command line of each step (install/build/test) for that project — per profile. Empty fields fall back to the defaults of the project type (shown as tooltip). The context menu also offers:</p>
+  <ul>
+    <li data-i18n="ps.li1">Run a <b>single step</b> for one project (e.g. only Build).</li>
+    <li data-i18n="ps.li2"><b>Start/Stop application</b> — launches the newest built executable of the project, stops it again including child processes.</li>
+    <li data-i18n="ps.li3"><b>Open project</b> in a new IDE window, open the folder in the file manager, copy the full path.</li>
+    <li data-i18n="ps.li4"><b>Include/exclude</b> and priority editing; custom projects added via <b>Add Project…</b> can be removed again.</li>
+  </ul>
+  <p data-i18n="ps.p2">Visual Studio additionally supports per-solution build properties/targets, thread priority, log level and “kill dependent processes before build”.</p>
+</section>
+
+<section id="projecttypes">
+  <h2 data-i18n="pt.h2">Project types <span class="pill jb">JetBrains</span></h2>
+  <p data-i18n="pt.p1">The JetBrains plugin scans working folders (configurable depth; <code>node_modules</code>, <code>bin</code>, <code>target</code> etc. are skipped). The first match wins per directory — a folder with a solution file is treated as .NET and not descended further. Default commands per step:</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th data-i18n="pt.t.type">Type</th><th data-i18n="pt.t.marker">Detected by</th><th>Install</th><th>Build</th><th>Test</th></tr>
+    <tr><td>.NET</td><td><code>.sln</code> / <code>.slnx</code></td><td><code>dotnet restore</code></td><td><code>dotnet build</code></td><td><code>dotnet test</code></td></tr>
+    <tr><td>Gradle</td><td><code>settings.gradle(.kts)</code>, <code>build.gradle(.kts)</code></td><td>—</td><td><code>gradlew build -x test</code></td><td><code>gradlew test</code></td></tr>
+    <tr><td>Maven</td><td><code>pom.xml</code></td><td>—</td><td><code>mvn -B package -DskipTests</code></td><td><code>mvn -B test</code></td></tr>
+    <tr><td>Cargo</td><td><code>Cargo.toml</code></td><td>—</td><td><code>cargo build</code></td><td><code>cargo test</code></td></tr>
+    <tr><td>Go</td><td><code>go.mod</code></td><td>—</td><td><code>go build ./...</code></td><td><code>go test ./...</code></td></tr>
+    <tr><td>Composer</td><td><code>composer.json</code></td><td><code>composer install --no-interaction</code></td><td>—</td><td>—</td></tr>
+    <tr><td>npm</td><td><code>package.json</code></td><td><code>npm install</code></td><td><code>npm run build --if-present</code></td><td><code>npm run test --if-present</code></td></tr>
+  </table>
+  </div>
+  <p data-i18n="pt.p2">Wrapper scripts (<code>gradlew</code>, <code>mvnw</code>) are preferred automatically when present. Every command can be overridden per project (see <a href="#projectsettings" data-i18n="pt.link">per-project settings</a>). The Visual Studio extension builds solutions with <b>msbuild</b>, runs tests via <b>vstest</b> and also supports Delphi projects.</p>
+</section>
+
+<section id="automation">
+  <h2 data-i18n="auto.h2">Scheduled run &amp; script export</h2>
+  <h3 data-i18n="auto.h3a">Scheduled run (morning build)</h3>
+  <p data-i18n="auto.p1">Enable the scheduled run and set a time (e.g. 07:30). If the IDE is open at that time, CheckoutAndBuild starts the full pipeline once per day automatically — your codebase is built and tested before you grab your coffee.</p>
+  <h3 data-i18n="auto.h3b">Export as script</h3>
+  <p data-i18n="auto.p2">Export the current pipeline (included projects, priorities, effective commands) as a <b>PowerShell (.ps1)</b> or <b>batch (.bat)</b> script — useful for running the identical sequence on a machine without the IDE, or as a starting point for a real CI job.</p>
+</section>
+
+<section id="git">
+  <h2 data-i18n="git.h2">Git cockpit</h2>
+  <p data-i18n="git.p1">The git area shows all repositories found beneath your working folders with branch, ahead/behind state and dirty count. From there:</p>
+  <ul>
+    <li data-i18n="git.li1"><b>Changes</b> — inspect uncommitted changes; in Visual Studio with real IDE diff against HEAD, stage/unstage/discard per file and file history.</li>
+    <li data-i18n="git.li2"><b>Commit &amp; push</b> — commit all changes with a message and push in one go; an upstream is set automatically when missing.</li>
+    <li data-i18n="git.li3"><b>Stashes</b> — create, apply, pop and drop stashes; view the stash diff.</li>
+    <li data-i18n="git.li4"><b>History</b> — the latest commits, filterable by author (“only mine”), message text and, in Visual Studio, by file path and age.</li>
+    <li data-i18n="git.li5"><b>Patches &amp; zip</b> — export uncommitted work as a <code>.patch</code> file or as a zip of all changed files (with folder structure); apply patches with 3-way merge.</li>
+    <li data-i18n="git.li6"><b>Create pull request</b> — opens the PR creation page of GitHub or Azure DevOps for the current branch, derived from the remote URL.</li>
+    <li data-i18n="git.li7"><b>Branch suggestion</b> — type an Azure DevOps work item ID and get a branch name like <code>feature/1234-fix-login-crash</code>, created and checked out on confirm.</li>
+  </ul>
+</section>
+
+<section id="multirepo">
+  <h2 data-i18n="mr.h2">Multi-repo sync</h2>
+  <p data-i18n="mr.p1">Working across many repositories at once:</p>
+  <ul>
+    <li data-i18n="mr.li1"><b>Fetch / Pull / Push all</b> — one click for every repository; per-row actions are available too, including <b>force push</b> (with lease, after confirmation).</li>
+    <li data-i18n="mr.li2"><b>Checkout everywhere</b> — check out the same branch in all repositories, optionally creating it where it doesn't exist.</li>
+    <li data-i18n="mr.li3"><b>Cleanup merged branches</b> — lists local branches already merged into the default branch and deletes them after confirmation.</li>
+  </ul>
+</section>
+
+<section id="worktrees">
+  <h2>Worktrees</h2>
+  <p data-i18n="wt.p1">Git worktrees give you several working copies of one repository — one folder per branch, no stashing or branch switching needed. CheckoutAndBuild manages them per repository. New worktrees follow the sibling convention <code>&lt;repo&gt;-&lt;branch&gt;</code> next to the repository (the path is editable in the dialog).</p>
+  <h3 data-i18n="wt.h3a">The worktree list</h3>
+  <p data-i18n="wt.p2">Every worktree shows its branch, commit, a <b>sync badge</b> (✓ up to date, ↑n ahead / ↓n behind its upstream, or “no upstream”), a <b>dirty badge</b> (● n uncommitted changes) and flags: <code>main</code>, <code>locked</code>, <code>prunable</code>, <code>detached</code>.</p>
+  <h3 data-i18n="wt.h3b">Actions</h3>
+  <ul>
+    <li data-i18n="wt.li1"><b>Add</b> — pick an existing branch (checked out into the new folder) or type a new name (created with <code>-b</code>). Branches already used by another worktree are hidden.</li>
+    <li data-i18n="wt.li2"><b>Pull / Push</b> — sync a single worktree; push sets the upstream automatically when missing.</li>
+    <li data-i18n="wt.li3"><b>Update from base</b> — fetches and merges <code>origin/&lt;default branch&gt;</code> into the worktree, keeping feature worktrees current without leaving your main checkout.</li>
+    <li data-i18n="wt.li4"><b>Switch branch</b> — check out a different (or new) branch inside the worktree.</li>
+    <li data-i18n="wt.li5"><b>Remove</b> — deletes the worktree folder; optional <b>force</b> (with uncommitted changes) and <b>“also delete branch”</b>. The main worktree is protected.</li>
+    <li data-i18n="wt.li6"><b>Prune</b> — drops stale bookkeeping for folders deleted outside of git.</li>
+    <li data-i18n="wt.li7"><b>Find orphans</b> — detects sibling folders whose <code>.git</code> file points to worktree metadata that no longer exists (broken leftovers) and deletes them after confirmation.</li>
+    <li data-i18n="wt.li8"><b>Open</b> — open the worktree's solution in a new Visual Studio instance <span class="pill vs">VS</span>, open it as a project in the IDE <span class="pill jb">JetBrains</span>, open the folder, or add the worktree as a working folder so it takes part in the pipeline.</li>
+  </ul>
+</section>
+
+<section id="workitems">
+  <h2 data-i18n="wi.h2">Azure DevOps work items</h2>
+  <p data-i18n="wi.p1">The Work Items area talks directly to the Azure DevOps REST API. Enter your <b>organization</b>, <b>project</b> and a <b>Personal Access Token</b> (scope: Work Items Read &amp; Write). The token is stored securely — DPAPI-encrypted in Visual Studio, in the IDE PasswordSafe in JetBrains — never in plain text.</p>
+  <ul>
+    <li data-i18n="wi.li1"><b>Query</b> — run a WIQL query (a sensible default is provided) and browse the results; double-click opens the work item in the browser.</li>
+    <li data-i18n="wi.li2"><b>Search &amp; replace</b> — search a text across work item fields (title, description, repro steps, acceptance criteria), <b>preview</b> the matches per field, then replace across all matched work items in one operation.</li>
+    <li data-i18n="wi.li3"><b>New work item</b> — jump straight to the creation page in the browser.</li>
+  </ul>
+  <div class="warn" data-i18n="wi.warn"><b>Careful with Replace All:</b> the replace writes real work item fields via the API. Use the preview first — there is no undo.</div>
+</section>
+
+<section id="differences">
+  <h2 data-i18n="diff.h2">Visual Studio vs. JetBrains</h2>
+  <p data-i18n="diff.p1">Both products share the pipeline, git tools, worktree manager and work item tools. Differences come from what each IDE platform offers:</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Feature</th><th>Visual Studio</th><th>JetBrains</th></tr>
+    <tr><td data-i18n="diff.r1">Build engines</td><td>msbuild, vstest, NuGet, Delphi</td><td>dotnet, Gradle, Maven, npm, Composer, Cargo, Go</td></tr>
+    <tr><td data-i18n="diff.r2">Error List integration</td><td>✓</td><td data-i18n="diff.r2jb">Console output</td></tr>
+    <tr><td data-i18n="diff.r3">Merged build (several solutions as one)</td><td>✓</td><td>—</td></tr>
+    <tr><td data-i18n="diff.r4">MEF plugin API</td><td>✓</td><td>—</td></tr>
+    <tr><td data-i18n="diff.r5">IDE diff for changes, stage/unstage per file</td><td>✓</td><td data-i18n="diff.r5jb">Changes list</td></tr>
+    <tr><td data-i18n="diff.r6">Branch-scoped settings, settings export/import</td><td>✓</td><td data-i18n="diff.r6jb">Profiles</td></tr>
+    <tr><td data-i18n="diff.r7">Open worktree</td><td data-i18n="diff.r7vs">New VS instance (solution)</td><td data-i18n="diff.r7jb">Open as IDE project</td></tr>
+    <tr><td data-i18n="diff.r8">Languages/stacks beyond .NET</td><td>—</td><td>✓</td></tr>
+  </table>
+  </div>
+</section>
+
+<section id="faq">
+  <h2 data-i18n="faq.h2">FAQ &amp; troubleshooting</h2>
+
+  <h3 data-i18n="faq.q1">Nothing is discovered in my working folder</h3>
+  <p data-i18n="faq.a1">Check the scan depth (default is a few levels) and note that ignored folders (<code>bin</code>, <code>obj</code>, <code>node_modules</code>, <code>target</code>, …) are never descended. A folder that matches a project type is not searched further — nested projects inside a solution folder are intentional. You can always add a project manually via <b>Add Project…</b>.</p>
+
+  <h3 data-i18n="faq.q2">The sync column says “no upstream”</h3>
+  <p data-i18n="faq.a2">The branch has no tracking branch on the remote yet. Push once — CheckoutAndBuild pushes with <code>-u origin &lt;branch&gt;</code> automatically, after which ahead/behind is shown.</p>
+
+  <h3 data-i18n="faq.q3">Git commands fail although git works in my terminal</h3>
+  <p data-i18n="faq.a3">The IDE process must see <code>git</code> on its PATH. If you installed git after starting the IDE, restart it. On Windows, check that <code>git.exe</code> is in the system PATH, not only in a shell profile.</p>
+
+  <h3 data-i18n="faq.q4">Where are my settings stored?</h3>
+  <p data-i18n="faq.a4">Visual Studio: JSON under <code>%AppData%\COAB</code> (portable, export/import in the UI). JetBrains: in the IDE's configuration directory. Azure DevOps tokens are stored encrypted in both cases and are never part of exported settings.</p>
+
+  <h3 data-i18n="faq.q5">Which versions are supported?</h3>
+  <p data-i18n="faq.a5">Visual Studio 2022 and 2026 (amd64). JetBrains IDEs from 2024.2 in every product (Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion, …). The classic extensions for VS 2013/2015/2017 remain available on the marketplace unchanged.</p>
+
+  <h3 data-i18n="faq.q6">Something is broken / I have an idea</h3>
+  <p data-i18n="faq.a6">Please open an issue on <a href="https://github.com/fgilde/CheckoutAndBuild/issues">GitHub</a> — ideally with the console output of the failing run.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© <a href="https://florian.gilde.org">Florian Gilde</a></span>
+    <span class="sep">|</span>
+    <a class="gilde" href="https://www.gilde.org"><img src="https://www.gilde.org/gilde/icon.png" alt="gilde.org">gilde.org</a>
+    <a href="https://github.com/fgilde/CheckoutAndBuild">GitHub</a>
+    <a href="https://github.com/fgilde/CheckoutAndBuild/issues">Issues</a>
+    <a href="https://github.com/fgilde/CheckoutAndBuild/blob/master/LICENSE" data-i18n="footer.license">License</a>
+    <span class="spacer"></span>
+    <a href="https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild">Visual Studio Marketplace</a>
+  </div>
+</footer>
+
+<script>
+const i18n = {
+  de: {
+    "nav.home": "Start",
+    "nav.download": "Download",
+    "nav.releases": "Releases",
+    "side.basics": "Grundlagen",
+    "side.intro": "Einführung",
+    "side.install": "Installation",
+    "side.quickstart": "Schnellstart",
+    "side.pipeline": "Pipeline",
+    "side.run": "Pipeline ausführen",
+    "side.profiles": "Profile",
+    "side.priorities": "Prioritäten & Parallelität",
+    "side.projectsettings": "Projekt-Einstellungen",
+    "side.projecttypes": "Projekttypen",
+    "side.automation": "Zeitplan & Skripte",
+    "side.git": "Git-Cockpit",
+    "side.multirepo": "Multi-Repo-Sync",
+    "side.workitems": "Work Items",
+    "side.reference": "Referenz",
+    "side.differences": "VS vs. JetBrains",
+    "side.faq": "FAQ & Fehlerbehebung",
+    "doc.h1": "Dokumentation",
+    "doc.lede": "Alles Wissenswerte über CheckoutAndBuild — die lokale One-Click-CI für Visual Studio und alle JetBrains-IDEs. Features, die nur in einem Produkt existieren, sind entsprechend markiert.",
+    "intro.h2": "Einführung",
+    "intro.p1": "CheckoutAndBuild hält beliebig viele Solutions und Projekte mit einem Klick aktuell: Es pullt die neuesten Änderungen, restored Pakete, baut und testet — <b>out of process</b>, parallel, bevor du den Code überhaupt öffnest. Stell es dir wie einen kleinen CI-Server vor, der in deiner IDE wohnt und auf deinen lokalen Arbeitskopien arbeitet.",
+    "intro.p2": "Es gibt zwei Produkte mit derselben Grundidee:",
+    "intro.li1": "<b>Visual-Studio-Extension</b> — der volle Funktionsumfang für .NET- (und Delphi-)Teams: Pipeline, Git-Cockpit mit Worktrees, abhängigkeitsbasierte Build-Reihenfolge, Error-List-Integration, MEF-Plugin-API und Azure-DevOps-Tools. Benötigt Visual Studio 2022 oder 2026 (amd64).",
+    "intro.li2": "<b>JetBrains-Plugin</b> — ein Plugin für Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion & Co. Es erkennt .NET-, Gradle-, Maven-, npm-, Composer-, Cargo- und Go-Projekte und fährt dieselbe Pipeline Pull → Install → Build → Test.",
+    "intro.note": "<b>Voraussetzung:</b> <code>git</code> muss im PATH verfügbar sein. Alle Git-Operationen laufen gegen das echte git-Executable — kein gebündeltes oder emuliertes Git.",
+    "install.h2": "Installation",
+    "install.vs1": "Aus dem <a href='https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild'>Visual Studio Marketplace</a> installieren, oder die <a href='https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild.vsix'>neueste .vsix</a> herunterladen und doppelklicken.",
+    "install.vs2": "Visual Studio neu starten.",
+    "install.vs3": "Hauptfenster öffnen über <b>Ansicht → Weitere Fenster → CheckoutAndBuild</b>. Das Git-Cockpit hat ein eigenes Fenster: <b>Ansicht → Weitere Fenster → CheckoutAndBuild Git</b>.",
+    "install.jb1": "Die <a href='https://github.com/fgilde/CheckoutAndBuild/releases/latest/download/CheckoutAndBuild-JetBrains.zip'>neueste Plugin-.zip</a> herunterladen.",
+    "install.jb2": "In der IDE: <b>Settings → Plugins → ⚙ → Install Plugin from Disk…</b>, Zip auswählen, neu starten.",
+    "install.jb3": "Das <b>CheckoutAndBuild</b>-Tool-Window unten in der IDE öffnen. Es hat vier Tabs: Pipeline, Git, Worktrees und Work Items, mit gemeinsamer Konsole.",
+    "install.jbnote": "<b>Kompatibilität:</b> Das Plugin hängt nur von der IntelliJ-Plattform ab und läuft daher in jeder JetBrains-IDE ab Version <b>2024.2</b>.",
+    "qs.h2": "Schnellstart",
+    "qs.s1": "<b>Arbeitsordner hinzufügen.</b> Zeige CheckoutAndBuild auf die Verzeichnisse mit deinen Repositories. Solutions und Projekte werden automatisch erkannt (das JetBrains-Plugin startet mit dem Ordner des offenen Projekts).",
+    "qs.s2": "<b>Liste prüfen.</b> Jede gefundene Solution / jedes Projekt erscheint als Zeile. Abwählen, was nicht gebaut werden soll; Prioritäten setzen, wenn die Build-Reihenfolge wichtig ist.",
+    "qs.s3": "<b>Schritte wählen.</b> Die gewünschten Pipeline-Schritte anhaken (z. B. Pull, Restore/Install, Build, Test).",
+    "qs.s4": "<b>CheckoutAndBuild drücken.</b> Fortschritt, verstrichene Zeit und ETA beobachten. Fehlschläge werden rot; mit <b>Retry failed</b> läuft nur das Kaputte erneut.",
+    "pipe.h2": "Pipeline ausführen",
+    "pipe.p1": "Ein Lauf führt die aktivierten Schritte für jedes eingeschlossene Projekt aus. <b>Pull</b> läuft einmal pro Git-Repository (nicht pro Projekt), danach laufen die übrigen Schritte pro Projekt, gruppiert nach Priorität. Die gesamte Ausgabe streamt live in die Konsole/das Output-Pane, und jeder Prozess läuft außerhalb der IDE — ein hängender Build lässt sich immer abbrechen und friert nie die IDE ein.",
+    "pipe.li1": "<b>Live-Status & ETA</b> — jede Zeile zeigt Spinner und aktuellen Schritt; der Fortschrittsbalken schätzt die Restzeit aus aufgezeichneten Dauern früherer Läufe. Der Fortschritt erscheint auch am Taskbar-Icon.",
+    "pipe.li2": "<b>Fail fast</b> — optional keine weiteren Prioritätsgruppen mehr starten, sobald etwas fehlschlägt.",
+    "pipe.li3": "<b>Retry failed</b> — nach einem Lauf mit Fehlern startet ein Klick nur die fehlgeschlagenen Projekte erneut.",
+    "pipe.li4": "<b>Filter</b> — das Filterfeld schränkt die Liste live ein (Regex erlaubt); das Kontextmenü einer Zeile kann einzelne Schritte nur für dieses Projekt ausführen.",
+    "pipe.li5": "<b>Benachrichtigungen</b> — ist die IDE im Hintergrund, kommt ein Toast/Balloon, wenn der Lauf fertig ist.",
+    "pipe.p2": "In Visual Studio bietet die Pipeline zusätzlich <b>Clean</b>, <b>NuGet-Restore-Modi</b>, einen <b>Merged Build</b> (mehrere Solutions als eine bauen), Delphi-Projekte und MEF-Plugin-Services. Build-Fehler und Test-Failures landen in der <b>Fehlerliste</b>; Doppelklick springt in den Code.",
+    "prof.h2": "Profile",
+    "prof.p1": "Profile speichern ein komplettes Arbeits-Setup: welche Projekte eingeschlossen sind, ihre Prioritäten, Schritt-Schalter und Kommando-Overrides pro Projekt. Profile wechselst du in der Toolbar; anlegen, umbenennen und löschen geht über das Tools-Menü. Typisch: ein „Frontend“-Profil nur mit npm-Projekten, ein „Full“-Profil mit allem, ein „Hotfix“-Profil mit einer Solution.",
+    "prof.p2": "In Visual Studio können Einstellungen zusätzlich dem <b>aktuellen Branch</b> folgen, und Profile lassen sich exportieren, importieren und kopieren (JSON unter <code>%AppData%\\COAB</code>). Das JetBrains-Plugin speichert seinen Zustand in der IDE-Konfiguration.",
+    "prio.h2": "Prioritäten & Parallelität",
+    "prio.p1": "Jedes Projekt hat eine numerische Priorität. Niedrigere Prioritäten bauen zuerst; Projekte mit <b>gleicher</b> Priorität bauen <b>parallel</b> (der Parallelitätsgrad ist konfigurierbar). Damit modellierst du Abhängigkeiten: Basisbibliotheken auf Priorität 0, Abhängige auf 1, und so weiter.",
+    "prio.p2": "<b>Suggest Priorities</b> scannt .NET-Solutions und -Projekte nach Projekt- und Paketreferenzen und schlägt automatisch eine korrekte Build-Reihenfolge vor (zyklensicher — die Referenztiefe wird zur Priorität).",
+    "ps.h2": "Einstellungen pro Projekt",
+    "ps.p1": "Rechtsklick auf eine Zeile → <b>Project Settings…</b> überschreibt die Kommandozeile jedes Schritts (Install/Build/Test) für dieses Projekt — pro Profil. Leere Felder fallen auf die Defaults des Projekttyps zurück (als Tooltip sichtbar). Das Kontextmenü bietet außerdem:",
+    "ps.li1": "Einen <b>einzelnen Schritt</b> für ein Projekt ausführen (z. B. nur Build).",
+    "ps.li2": "<b>Anwendung starten/stoppen</b> — startet das neueste gebaute Executable des Projekts und stoppt es wieder, inklusive Kindprozessen.",
+    "ps.li3": "<b>Projekt öffnen</b> in einem neuen IDE-Fenster, Ordner im Dateimanager öffnen, vollständigen Pfad kopieren.",
+    "ps.li4": "<b>Ein-/Ausschließen</b> und Prioritäten bearbeiten; über <b>Add Project…</b> manuell hinzugefügte Projekte lassen sich wieder entfernen.",
+    "ps.p2": "Visual Studio unterstützt zusätzlich Build-Properties/-Targets pro Solution, Thread-Priorität, Log-Level und „abhängige Prozesse vor dem Build beenden“.",
+    "pt.h2": "Projekttypen",
+    "pt.p1": "Das JetBrains-Plugin scannt Arbeitsordner (Tiefe konfigurierbar; <code>node_modules</code>, <code>bin</code>, <code>target</code> etc. werden übersprungen). Pro Verzeichnis gewinnt der erste Treffer — ein Ordner mit Solution-Datei gilt als .NET und wird nicht weiter durchsucht. Standard-Kommandos pro Schritt:",
+    "pt.t.type": "Typ",
+    "pt.t.marker": "Erkannt an",
+    "pt.p2": "Wrapper-Skripte (<code>gradlew</code>, <code>mvnw</code>) werden automatisch bevorzugt, wenn vorhanden. Jedes Kommando lässt sich pro Projekt überschreiben (siehe <a href='#projectsettings'>Einstellungen pro Projekt</a>). Die Visual-Studio-Extension baut Solutions mit <b>msbuild</b>, testet über <b>vstest</b> und unterstützt zusätzlich Delphi-Projekte.",
+    "pt.link": "Einstellungen pro Projekt",
+    "auto.h2": "Zeitplan & Skript-Export",
+    "auto.h3a": "Geplanter Lauf (Morning Build)",
+    "auto.p1": "Aktiviere den geplanten Lauf und setze eine Uhrzeit (z. B. 07:30). Ist die IDE zu dieser Zeit offen, startet CheckoutAndBuild die volle Pipeline automatisch einmal pro Tag — deine Codebasis ist gebaut und getestet, bevor du deinen Kaffee holst.",
+    "auto.h3b": "Als Skript exportieren",
+    "auto.p2": "Exportiere die aktuelle Pipeline (eingeschlossene Projekte, Prioritäten, effektive Kommandos) als <b>PowerShell-(.ps1)</b>- oder <b>Batch-(.bat)</b>-Skript — nützlich, um dieselbe Sequenz auf einer Maschine ohne IDE laufen zu lassen, oder als Startpunkt für einen echten CI-Job.",
+    "git.h2": "Git-Cockpit",
+    "git.p1": "Der Git-Bereich zeigt alle unter deinen Arbeitsordnern gefundenen Repositories mit Branch, Ahead/Behind-Status und Anzahl uncommitteter Änderungen. Von dort aus:",
+    "git.li1": "<b>Changes</b> — uncommittete Änderungen inspizieren; in Visual Studio mit echtem IDE-Diff gegen HEAD, Stage/Unstage/Verwerfen pro Datei und Datei-Historie.",
+    "git.li2": "<b>Commit & Push</b> — alle Änderungen mit Nachricht committen und in einem Zug pushen; fehlt ein Upstream, wird er automatisch gesetzt.",
+    "git.li3": "<b>Stashes</b> — Stashes anlegen, anwenden, poppen und verwerfen; Stash-Diff ansehen.",
+    "git.li4": "<b>Historie</b> — die letzten Commits, filterbar nach Autor („nur meine“), Nachrichtentext und in Visual Studio nach Dateipfad und Alter.",
+    "git.li5": "<b>Patches & Zip</b> — uncommittete Arbeit als <code>.patch</code>-Datei oder als Zip aller geänderten Dateien (mit Ordnerstruktur) exportieren; Patches mit 3-Wege-Merge anwenden.",
+    "git.li6": "<b>Pull Request erstellen</b> — öffnet die PR-Erstellungsseite von GitHub oder Azure DevOps für den aktuellen Branch, abgeleitet aus der Remote-URL.",
+    "git.li7": "<b>Branch-Vorschlag</b> — eine Azure-DevOps-Work-Item-ID eingeben und einen Branch-Namen wie <code>feature/1234-fix-login-crash</code> erhalten, der nach Bestätigung angelegt und ausgecheckt wird.",
+    "mr.h2": "Multi-Repo-Sync",
+    "mr.p1": "Für die Arbeit über viele Repositories gleichzeitig:",
+    "mr.li1": "<b>Fetch / Pull / Push all</b> — ein Klick für jedes Repository; Aktionen pro Zeile gibt es auch, inklusive <b>Force Push</b> (mit Lease, nach Bestätigung).",
+    "mr.li2": "<b>Überall auschecken</b> — denselben Branch in allen Repositories auschecken, optional anlegen, wo er noch nicht existiert.",
+    "mr.li3": "<b>Gemergte Branches aufräumen</b> — listet lokale Branches, die bereits in den Default-Branch gemergt sind, und löscht sie nach Bestätigung.",
+    "wt.p1": "Git-Worktrees geben dir mehrere Arbeitskopien eines Repositories — ein Ordner pro Branch, ohne Stashen oder Branch-Wechsel. CheckoutAndBuild verwaltet sie pro Repository. Neue Worktrees folgen der Geschwister-Konvention <code>&lt;repo&gt;-&lt;branch&gt;</code> neben dem Repository (der Pfad ist im Dialog editierbar).",
+    "wt.h3a": "Die Worktree-Liste",
+    "wt.p2": "Jeder Worktree zeigt Branch, Commit, ein <b>Sync-Badge</b> (✓ aktuell, ↑n voraus / ↓n hinterher gegenüber seinem Upstream, oder „no upstream“), ein <b>Dirty-Badge</b> (● n uncommittete Änderungen) und Flags: <code>main</code>, <code>locked</code>, <code>prunable</code>, <code>detached</code>.",
+    "wt.h3b": "Aktionen",
+    "wt.li1": "<b>Add</b> — bestehenden Branch wählen (wird in den neuen Ordner ausgecheckt) oder neuen Namen tippen (wird mit <code>-b</code> angelegt). Branches, die schon ein anderer Worktree nutzt, sind ausgeblendet.",
+    "wt.li2": "<b>Pull / Push</b> — einen einzelnen Worktree synchronisieren; Push setzt den Upstream automatisch, wenn er fehlt.",
+    "wt.li3": "<b>Update from Base</b> — fetcht und mergt <code>origin/&lt;Default-Branch&gt;</code> in den Worktree — Feature-Worktrees bleiben aktuell, ohne den Haupt-Checkout zu verlassen.",
+    "wt.li4": "<b>Switch Branch</b> — einen anderen (oder neuen) Branch innerhalb des Worktrees auschecken.",
+    "wt.li5": "<b>Remove</b> — löscht den Worktree-Ordner; optional <b>Force</b> (bei uncommitteten Änderungen) und <b>„Also delete branch“</b>. Der Haupt-Worktree ist geschützt.",
+    "wt.li6": "<b>Prune</b> — räumt veraltete Einträge für außerhalb von git gelöschte Ordner auf.",
+    "wt.li7": "<b>Find Orphans</b> — findet Geschwister-Ordner, deren <code>.git</code>-Datei auf nicht mehr existierende Worktree-Metadaten zeigt (kaputte Überbleibsel), und löscht sie nach Bestätigung.",
+    "wt.li8": "<b>Öffnen</b> — die Solution des Worktrees in einer neuen Visual-Studio-Instanz öffnen <span class='pill vs'>VS</span>, als Projekt in der IDE öffnen <span class='pill jb'>JetBrains</span>, den Ordner öffnen, oder den Worktree als Arbeitsordner hinzufügen, damit er an der Pipeline teilnimmt.",
+    "wi.h2": "Azure-DevOps-Work-Items",
+    "wi.p1": "Der Work-Items-Bereich spricht direkt mit der Azure-DevOps-REST-API. Gib <b>Organisation</b>, <b>Projekt</b> und einen <b>Personal Access Token</b> an (Scope: Work Items Read & Write). Der Token wird sicher gespeichert — DPAPI-verschlüsselt in Visual Studio, im IDE-PasswordSafe bei JetBrains — nie im Klartext.",
+    "wi.li1": "<b>Query</b> — eine WIQL-Abfrage ausführen (ein sinnvoller Default ist vorgegeben) und die Ergebnisse durchsehen; Doppelklick öffnet das Work Item im Browser.",
+    "wi.li2": "<b>Suchen & Ersetzen</b> — einen Text über Work-Item-Felder suchen (Titel, Beschreibung, Repro Steps, Akzeptanzkriterien), die Treffer pro Feld in der <b>Vorschau</b> prüfen, dann über alle getroffenen Work Items in einer Operation ersetzen.",
+    "wi.li3": "<b>Neues Work Item</b> — direkt zur Erstellungsseite im Browser springen.",
+    "wi.warn": "<b>Vorsicht bei Replace All:</b> Das Ersetzen schreibt echte Work-Item-Felder über die API. Erst die Vorschau nutzen — es gibt kein Undo.",
+    "diff.h2": "Visual Studio vs. JetBrains",
+    "diff.p1": "Beide Produkte teilen sich Pipeline, Git-Tools, Worktree-Manager und Work-Item-Tools. Die Unterschiede ergeben sich aus dem, was die jeweilige IDE-Plattform hergibt:",
+    "diff.r1": "Build-Engines",
+    "diff.r2": "Error-List-Integration",
+    "diff.r2jb": "Konsolen-Ausgabe",
+    "diff.r3": "Merged Build (mehrere Solutions als eine)",
+    "diff.r4": "MEF-Plugin-API",
+    "diff.r5": "IDE-Diff für Changes, Stage/Unstage pro Datei",
+    "diff.r5jb": "Changes-Liste",
+    "diff.r6": "Branch-abhängige Einstellungen, Settings-Export/-Import",
+    "diff.r6jb": "Profile",
+    "diff.r7": "Worktree öffnen",
+    "diff.r7vs": "Neue VS-Instanz (Solution)",
+    "diff.r7jb": "Als IDE-Projekt öffnen",
+    "diff.r8": "Sprachen/Stacks jenseits von .NET",
+    "faq.h2": "FAQ & Fehlerbehebung",
+    "faq.q1": "In meinem Arbeitsordner wird nichts gefunden",
+    "faq.a1": "Prüfe die Scan-Tiefe (Standard sind wenige Ebenen) und beachte, dass ignorierte Ordner (<code>bin</code>, <code>obj</code>, <code>node_modules</code>, <code>target</code>, …) nie durchsucht werden. Ein Ordner, der auf einen Projekttyp passt, wird nicht weiter durchsucht — verschachtelte Projekte in einem Solution-Ordner sind Absicht. Über <b>Add Project…</b> lässt sich jedes Projekt manuell hinzufügen.",
+    "faq.q2": "Die Sync-Spalte zeigt „no upstream“",
+    "faq.a2": "Der Branch hat noch keinen Tracking-Branch auf dem Remote. Einmal pushen — CheckoutAndBuild pusht automatisch mit <code>-u origin &lt;branch&gt;</code>, danach wird Ahead/Behind angezeigt.",
+    "faq.q3": "Git-Kommandos schlagen fehl, obwohl git im Terminal funktioniert",
+    "faq.a3": "Der IDE-Prozess muss <code>git</code> in seinem PATH sehen. Wurde git nach dem Start der IDE installiert, IDE neu starten. Unter Windows prüfen, dass <code>git.exe</code> im System-PATH steht, nicht nur in einem Shell-Profil.",
+    "faq.q4": "Wo liegen meine Einstellungen?",
+    "faq.a4": "Visual Studio: JSON unter <code>%AppData%\\COAB</code> (portabel, Export/Import in der UI). JetBrains: im Konfigurationsverzeichnis der IDE. Azure-DevOps-Tokens werden in beiden Fällen verschlüsselt gespeichert und sind nie Teil exportierter Einstellungen.",
+    "faq.q5": "Welche Versionen werden unterstützt?",
+    "faq.a5": "Visual Studio 2022 und 2026 (amd64). JetBrains-IDEs ab 2024.2 in jedem Produkt (Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion, …). Die klassischen Extensions für VS 2013/2015/2017 bleiben unverändert im Marketplace verfügbar.",
+    "faq.q6": "Etwas ist kaputt / ich habe eine Idee",
+    "faq.a6": "Bitte ein Issue auf <a href='https://github.com/fgilde/CheckoutAndBuild/issues'>GitHub</a> öffnen — idealerweise mit der Konsolen-Ausgabe des fehlgeschlagenen Laufs.",
+    "footer.license": "Lizenz"
+  }
+};
+const enTexts = {};
+document.querySelectorAll('[data-i18n]').forEach(el => { enTexts[el.dataset.i18n] = el.innerHTML; });
+
+function setLang(lang) {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.innerHTML = lang === 'de' && i18n.de[key] ? i18n.de[key] : enTexts[key];
+  });
+  document.getElementById('lang-en').classList.toggle('active', lang !== 'de');
+  document.getElementById('lang-de').classList.toggle('active', lang === 'de');
+  try { localStorage.setItem('coab-lang', lang); } catch {}
+}
+document.getElementById('lang-en').addEventListener('click', () => setLang('en'));
+document.getElementById('lang-de').addEventListener('click', () => setLang('de'));
+let saved = null;
+try { saved = localStorage.getItem('coab-lang'); } catch {}
+setLang(saved || ((navigator.language || '').toLowerCase().startsWith('de') ? 'de' : 'en'));
+</script>
+
+</body>
+</html>
