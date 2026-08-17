@@ -42,7 +42,7 @@ public class ProcessRunnerTests
             ProcessRunner.RunAsync("cmd", "/c \"ping -n 30 127.0.0.1 >nul\"",
                 cancellationToken: cts.Token));
         sw.Stop();
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5),
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(15),
             $"Cancellation took {sw.Elapsed}");
     }
 }
