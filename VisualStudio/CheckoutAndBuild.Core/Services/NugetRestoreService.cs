@@ -81,8 +81,6 @@ namespace CheckoutAndBuild.Core.Services
 		{
 			var nugetSettings = GetSettings<NugetServiceSettings>(settings, model);
 			string nugetExe = nugetSettings.NugetExeLocation;
-			// Install/InstallAndRestore/Reinstall all end in a restore — "restore" installs missing
-			// packages anyway; Reinstall additionally wipes the local packages folder first (see RestoreAsync).
 			if (!string.IsNullOrEmpty(nugetExe) && File.Exists(nugetExe))
 			{
 				exe = nugetExe;
@@ -97,7 +95,6 @@ namespace CheckoutAndBuild.Core.Services
 			}
 		}
 
-		/// <summary>Reinstall: removes the solution-local packages folder so the restore fetches everything fresh.</summary>
 		private static void DeleteLocalPackagesFolder(ISolutionProjectModel model)
 		{
 			string packagesDir = Path.Combine(model.SolutionFolder, "packages");

@@ -12,7 +12,6 @@
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-            <!-- flat VS-themed tabs -->
             <Style x:Key="CoabTabItem" TargetType="TabItem">
                 <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
                 <Setter Property="Template">
@@ -37,7 +36,6 @@
                 </Setter>
             </Style>
 
-            <!-- themed list rows (old ChangesSectionView / stash list optic) -->
             <Style x:Key="CoabListBoxItem" TargetType="ListBoxItem">
                 <Setter Property="Foreground" Value="{DynamicResource {x:Static vsshell:VsBrushes.ToolWindowTextKey}}" />
                 <Setter Property="Padding" Value="2,1" />
@@ -63,7 +61,6 @@
                 </Setter>
             </Style>
 
-            <!-- read-only diff text -->
             <Style x:Key="CoabDiffBox" TargetType="TextBox">
                 <Setter Property="IsReadOnly" Value="True" />
                 <Setter Property="FontFamily" Value="Consolas" />
@@ -88,7 +85,6 @@
 
     <DockPanel Margin="8">
 
-        <!-- ===== repo picker row ===== -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
             <Button DockPanel.Dock="Right" Style="{StaticResource CoabIconButton}" Margin="4,0,0,0"
                     Command="{Binding RefreshCommand}"
@@ -108,13 +104,11 @@
                       ToolTip="{Binding SelectedRepository.Path}" />
         </DockPanel>
 
-        <!-- ===== busy indicator ===== -->
         <ProgressBar DockPanel.Dock="Top" Height="4" Margin="0,0,0,4"
                      Style="{StaticResource COABProgressBar}"
                      IsIndeterminate="True"
                      Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
 
-        <!-- ===== status lines ===== -->
         <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
                    Text="{Binding LastError}"
                    Foreground="{StaticResource CoabErrorBrush}"
@@ -130,7 +124,6 @@
         <TabControl Background="Transparent" BorderThickness="0" Padding="0,6,0,0"
                     SelectedIndex="{Binding SelectedTabIndex}">
 
-            <!-- ================= Changes ================= -->
             <TabItem Header="Changes" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
@@ -147,7 +140,6 @@
                                 ToolTip="Apply a .patch file to the working tree (git apply --3way)" />
                     </StackPanel>
 
-                    <!-- commit row (git add -A + commit [+ push]) -->
                     <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
                         <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
                                 Command="{Binding CommitAndPushCommand}"
@@ -252,10 +244,8 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ================= Stashes ================= -->
             <TabItem Header="Stashes" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
-                    <!-- inline stash push -->
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                         <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
                                 Command="{Binding StashPushCommand}"
@@ -266,7 +256,6 @@
                                  ToolTip="Optional stash message" />
                     </DockPanel>
 
-                    <!-- stash actions -->
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                         <Button Style="{StaticResource CoabLinkButton}" Content="Apply"
                                 Command="{Binding StashApplyCommand}"
@@ -349,10 +338,8 @@
                     </Grid>
                 </DockPanel>
             </TabItem>
-            <!-- ================= History ================= -->
             <TabItem Header="History" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
-                    <!-- filter row -->
                     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                         <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.7" />
                         <TextBox Width="130" VerticalContentAlignment="Center"
@@ -469,10 +456,8 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ================= Branches ================= -->
             <TabItem Header="Branches" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
-                    <!-- inline branch create -->
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                         <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
                                 Command="{Binding CreateBranchCommand}"
@@ -488,7 +473,6 @@
                                  ToolTip="Name of the new branch" />
                     </DockPanel>
 
-                    <!-- branch actions -->
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                         <Button Style="{StaticResource CoabLinkButton}" Content="Checkout"
                                 Command="{Binding CheckoutBranchCommand}"
@@ -540,7 +524,6 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ================= Sync ================= -->
             <TabItem Header="Sync" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
@@ -565,7 +548,6 @@
                                 ToolTip="List local branches already merged into the default branch (all repositories) and delete selected ones" />
                     </StackPanel>
 
-                    <!-- multi-repo branch checkout -->
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                         <Button DockPanel.Dock="Right" Style="{StaticResource CoabButton}" Margin="6,0,0,0"
                                 Command="{Binding CheckoutAllCommand}"
@@ -632,10 +614,8 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ================= Feed ================= -->
             <TabItem Header="Feed" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
-                    <!-- filter row (same bindings as History) -->
                     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                         <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.7" />
                         <TextBox Width="130" VerticalContentAlignment="Center"
@@ -711,7 +691,6 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ================= Worktrees ================= -->
             <TabItem Header="Worktrees" Style="{StaticResource CoabTabItem}">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">

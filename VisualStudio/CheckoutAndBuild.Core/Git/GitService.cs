@@ -14,7 +14,6 @@ namespace CheckoutAndBuild.Core.Git
     /// </summary>
     public sealed class GitService
     {
-        // tab-separated: hash, reflog selector (stash@{n}), ISO date, author, reflog subject ("WIP on <branch>: ..." / "On <branch>: <message>")
         private const string StashListFormat = "%h%x09%gd%x09%ci%x09%an%x09%gs";
 
         public bool IsGitRepository(string directory)
@@ -320,7 +319,6 @@ namespace CheckoutAndBuild.Core.Git
                     TimeInfo = parts[2],
                     Creator = parts[3]
                 };
-                // subject: "WIP on <branch>: <sha> <msg>" or "On <branch>: <message>" — first colon splits branch from message
                 var subject = parts[4];
                 var colon = subject.IndexOf(':');
                 if (colon > 0)
@@ -366,7 +364,6 @@ namespace CheckoutAndBuild.Core.Git
             return result.StdOut;
         }
 
-        // tab-separated: full hash, short hash, author, ISO date, subject
         private const string LogFormat = "%H%x09%h%x09%an%x09%ci%x09%s";
 
         /// <summary>Latest commits of the current branch, newest first ("git log"), optionally filtered by author/age/message.</summary>
@@ -418,7 +415,6 @@ namespace CheckoutAndBuild.Core.Git
                 var parts = line.Split('\t');
                 if (parts.Length < 2)
                     continue;
-                // rename/copy lines are "R100\told\tnew" — status letter only, last path wins
                 files.Add(new GitCommitFile(parts[0].Substring(0, 1), parts[parts.Length - 1]));
             }
             return files;
@@ -434,7 +430,6 @@ namespace CheckoutAndBuild.Core.Git
         /// <summary>Working-tree status ("git status --porcelain=v1 -z").</summary>
         public async Task<IReadOnlyList<GitChange>> GetStatusAsync(string repoDir, CancellationToken ct = default)
         {
-            // -uall: list untracked files individually instead of collapsing whole directories
             var result = await RunGitAsync(repoDir, "status --porcelain=v1 -z -uall", ct: ct).ConfigureAwait(false);
             return ParseStatus(result.StdOut);
         }
@@ -445,7 +440,6 @@ namespace CheckoutAndBuild.Core.Git
             var entries = output.Split('\0');
             for (int i = 0; i < entries.Length; i++)
             {
-                // ProcessRunner appends line breaks per output event; paths never start/end with them
                 var entry = entries[i].Trim('\r', '\n');
                 if (entry.Length < 4)
                     continue;
@@ -454,10 +448,10 @@ namespace CheckoutAndBuild.Core.Git
                 string path = entry.Substring(3);
 
                 if (x == 'R' || x == 'C' || y == 'R' || y == 'C')
-                    i++; // -z rename/copy: next token is the original path
+                    i++;
 
                 if (x == '!' && y == '!')
-                    continue; // ignored
+                    continue;
 
                 if (x == '?' && y == '?')
                 {

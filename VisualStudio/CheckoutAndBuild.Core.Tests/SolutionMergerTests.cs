@@ -13,7 +13,6 @@ public class SolutionMergerTests : IDisposable
     private static readonly string SlnA = Path.Combine(FixtureDir, "SolutionA", "A.sln");
     private static readonly string SlnB = Path.Combine(FixtureDir, "SolutionB", "B.sln");
 
-    // must live on the same drive as the fixtures: relative project paths cannot cross drives (CI keeps the repo on D:)
     private readonly string outputDir =
         Path.Combine(AppContext.BaseDirectory, "coab-merge-" + Guid.NewGuid().ToString("N"));
 
@@ -83,13 +82,10 @@ public class SolutionMergerTests : IDisposable
         Assert.Contains("Release|Any CPU", model.SolutionConfigurations);
         Assert.Contains("Staging|Any CPU", model.SolutionConfigurations);
 
-        // LibA's source solution has no Staging config -> falls back to Debug|Any CPU
         Assert.Contains("{CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC}.Staging|Any CPU.ActiveCfg = Debug|Any CPU", text);
-        // LibB keeps its source mapping Staging -> Release (under its new guid)
         string libBGuid = GetProjectLines(text).Single(p => p.Name == "LibB").Guid;
         Assert.Contains($"{libBGuid}.Staging|Any CPU.ActiveCfg = Release|Any CPU", text);
 
-        // every project has ActiveCfg + Build.0 for every solution config
         foreach (var project in GetProjectLines(text))
             foreach (var config in model.SolutionConfigurations)
             {
@@ -108,7 +104,6 @@ public class SolutionMergerTests : IDisposable
         Assert.Contains("Project(\"{2150E333-8FDC-42A3-9474-1A3956D46DE8}\") = \"B\", \"B\"", text);
         Assert.Contains("GlobalSection(NestedProjects)", text);
 
-        // all three projects are nested under a folder
         foreach (var project in GetProjectLines(text))
             Assert.Contains($"{project.Guid} = {{", text);
     }
@@ -118,7 +113,6 @@ public class SolutionMergerTests : IDisposable
     {
         string merged = MergeFixtures();
 
-        // nested dotnet build must not wait on the outer test run's MSBuild server (deadlocks for ~15min)
         var env = new System.Collections.Generic.Dictionary<string, string>
         {
             ["DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER"] = "1",

@@ -20,7 +20,6 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 	/// </summary>
 	public static class SettingsUiFactory
 	{
-		/// <summary>All known settings provider classes (replaces the old MEF GetExportedValues scan).</summary>
 		public static readonly Type[] SettingsClasses =
 		{
 			typeof(CheckoutServiceSettings),
@@ -99,7 +98,6 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 		/// <summary>Current value from the store (with the context's scope fallback) or the [DefaultValue].</summary>
 		public static object GetValue(ISettingsService settings, SettingsContext context, PropertyInfo property)
 		{
-			// ISettingsService is generic-only; JsonElement round-trips any stored value untyped.
 			JsonElement element = settings.Get<JsonElement>(GetKey(property), context);
 			if (element.ValueKind == JsonValueKind.Undefined)
 				return GetDefaultValue(property);

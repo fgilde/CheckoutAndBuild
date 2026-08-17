@@ -31,7 +31,7 @@ namespace CheckoutAndBuild.Core.Merge
 			Directory.CreateDirectory(outputDir);
 
 			var projects = new List<MergedProject>();
-			var folders = new List<KeyValuePair<string, string>>(); // name -> guid
+			var folders = new List<KeyValuePair<string, string>>();
 			var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			var seenGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			var solutionConfigs = new List<string> { DefaultConfig, "Release|Any CPU" };
@@ -50,7 +50,7 @@ namespace CheckoutAndBuild.Core.Merge
 				foreach (var project in model.Projects)
 				{
 					if (!seenPaths.Add(project.ProjectFilePath))
-						continue; // same project referenced by multiple solutions
+						continue;
 					string guid = project.ProjectGuid.ToUpperInvariant();
 					if (!seenGuids.Add(guid))
 					{
@@ -110,9 +110,8 @@ namespace CheckoutAndBuild.Core.Merge
 
 		private static string MakeRelative(string fromDir, string toPath)
 		{
-			// netstandard2.0 has no Path.GetRelativePath
 			if (!string.Equals(Path.GetPathRoot(fromDir), Path.GetPathRoot(toPath), StringComparison.OrdinalIgnoreCase))
-				return toPath; // different drive — relative impossible, keep absolute
+				return toPath;
 
 			var fromUri = new Uri(fromDir.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar);
 			string relative = Uri.UnescapeDataString(fromUri.MakeRelativeUri(new Uri(toPath)).ToString());

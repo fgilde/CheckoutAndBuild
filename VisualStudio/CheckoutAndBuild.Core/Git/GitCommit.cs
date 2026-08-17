@@ -6,7 +6,6 @@ namespace CheckoutAndBuild.Core.Git
         public string Sha { get; set; }
         public string ShortSha { get; set; }
         public string Author { get; set; }
-        /// <summary>Commit date as reported by git (%ci, ISO-like with timezone).</summary>
         public string Date { get; set; }
         public string Message { get; set; }
     }

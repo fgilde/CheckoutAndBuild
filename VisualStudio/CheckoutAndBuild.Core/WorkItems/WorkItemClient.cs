@@ -111,7 +111,7 @@ namespace CheckoutAndBuild.Core.WorkItems
 								data.Fields[field.Name] = field.Value.GetString();
 							else if (field.Value.ValueKind == JsonValueKind.Object
 								&& field.Value.TryGetProperty("displayName", out JsonElement displayName))
-								data.Fields[field.Name] = displayName.GetString(); // identity fields (AssignedTo, CreatedBy, ...)
+								data.Fields[field.Name] = displayName.GetString();
 						}
 						result.Add(data);
 					}

@@ -12,7 +12,6 @@ namespace CheckoutAndBuild.Core.Services
 	public sealed class VsInstance
 	{
 		public string DisplayName { get; set; }
-		/// <summary>Full path to devenv.exe.</summary>
 		public string ProductPath { get; set; }
 	}
 
@@ -59,11 +58,9 @@ namespace CheckoutAndBuild.Core.Services
 		private static readonly ConcurrentDictionary<string, string> cache =
 			new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-		/// <summary>Full path to msbuild.exe of the latest VS installation, or null.</summary>
 		public static string MsBuildPath =>
 			Find(@"-latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe");
 
-		/// <summary>Full path to vstest.console.exe of the latest VS installation, or null.</summary>
 		public static string VsTestPath =>
 			Find(@"-latest -find Common7\IDE\Extensions\TestPlatform\vstest.console.exe");
 

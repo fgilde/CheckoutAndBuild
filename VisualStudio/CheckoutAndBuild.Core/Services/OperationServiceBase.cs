@@ -20,7 +20,6 @@ namespace CheckoutAndBuild.Core.Services
 		private ConcurrentDictionary<ISolutionProjectModel, bool> cancelledSolutions =
 			new ConcurrentDictionary<ISolutionProjectModel, bool>();
 
-		/// <summary>Cancellation source of the currently running (or last) execution.</summary>
 		protected PausableCancellationTokenSource Cancellation { get; private set; }
 
 		public abstract int Order { get; }
@@ -62,7 +61,6 @@ namespace CheckoutAndBuild.Core.Services
 			return cancelledSolutions.ContainsKey(solution);
 		}
 
-		/// <summary>Settings from provider, tolerating null settings (returns defaults then).</summary>
 		protected static T GetSettings<T>(IServiceSettings settings, ISolutionProjectModel model = null)
 			where T : ISettingsProviderClass, new()
 		{
@@ -71,7 +69,6 @@ namespace CheckoutAndBuild.Core.Services
 			return model == null ? settings.GetSettingsFromProvider<T>() : settings.GetSettingsFromProvider<T>(model);
 		}
 
-		/// <summary>Detailed project infos for a solution model; re-parses the .sln when the model is not ours.</summary>
 		protected static IList<ProjectInfo> GetProjectInfos(ISolutionProjectModel model)
 		{
 			return (model as SolutionProjectModel ?? SolutionParser.Parse(model.ItemPath)).Projects;

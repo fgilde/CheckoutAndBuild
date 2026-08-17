@@ -38,11 +38,11 @@ namespace CheckoutAndBuild.Core.Model
 				{
 					string typeGuid = match.Groups["type"].Value;
 					if (string.Equals(typeGuid, SolutionFolderTypeGuid, StringComparison.OrdinalIgnoreCase))
-						continue; // solution folder, not a project
+						continue;
 
 					string relativePath = match.Groups["path"].Value;
 					if (!relativePath.EndsWith("proj", StringComparison.OrdinalIgnoreCase))
-						continue; // websites etc. — only MSBuild project files
+						continue;
 
 					string fullPath = Path.GetFullPath(Path.Combine(solutionDir, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
 					var project = new ProjectInfo
@@ -88,7 +88,6 @@ namespace CheckoutAndBuild.Core.Model
 						inProjectConfigSection = false;
 						continue;
 					}
-					// {guid}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 					int eq = line.IndexOf('=');
 					int guidEnd = line.IndexOf('}');
 					if (eq < 0 || guidEnd < 0 || guidEnd > eq)
@@ -139,7 +138,6 @@ namespace CheckoutAndBuild.Core.Model
 			}
 			else
 			{
-				// classic csproj: prefer the Debug|AnyCPU property group, fall back to the first group defining OutputPath
 				var debugGroup = propertyGroups.FirstOrDefault(g =>
 						((string)g.Attribute("Condition") ?? string.Empty).IndexOf("Debug|AnyCPU", StringComparison.OrdinalIgnoreCase) >= 0
 						&& g.Elements().Any(e => e.Name.LocalName == "OutputPath"))
@@ -159,7 +157,6 @@ namespace CheckoutAndBuild.Core.Model
 
 		private static bool DetectTestProject(XElement root, Func<string, string> getProperty)
 		{
-			// modern: MSTest/xunit/nunit package references
 			bool hasTestPackage = root.Descendants()
 				.Where(e => e.Name.LocalName == "PackageReference")
 				.Select(e => (string)e.Attribute("Include") ?? (string)e.Attribute("Update") ?? string.Empty)
@@ -167,7 +164,6 @@ namespace CheckoutAndBuild.Core.Model
 			if (hasTestPackage)
 				return true;
 
-			// legacy: MSTest assembly reference
 			bool hasQualityToolsReference = root.Descendants()
 				.Where(e => e.Name.LocalName == "Reference")
 				.Select(e => (string)e.Attribute("Include") ?? string.Empty)
@@ -175,7 +171,6 @@ namespace CheckoutAndBuild.Core.Model
 			if (hasQualityToolsReference)
 				return true;
 
-			// explicit markers
 			if (getProperty("TestProjectType") != null)
 				return true;
 			string projectTypeGuids = getProperty("ProjectTypeGuids");

@@ -23,7 +23,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			PreviewKeyDown += OnPreviewKeyDown;
 		}
 
-		/// <summary>Ctrl+E focuses the filter box (old SearchBox shortcut); Esc in the box clears it.</summary>
 		private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
 		{
 			if (e.Key == System.Windows.Input.Key.E
@@ -39,14 +38,8 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			}
 		}
 
-		/// <summary>Opens the global settings view (used by the Tools → Options page).</summary>
 		internal void ShowSettings() => viewModel.OpenGlobalSettings();
 
-		/// <summary>
-		/// Opens the per-solution services popover. StaysOpen=False closes the popup on the mouse-down
-		/// of the very click that should toggle it shut, so a click arriving right after a close is
-		/// swallowed instead of instantly reopening (old ProjectViewModel.canOpenPopup behavior).
-		/// </summary>
 		private void OnServicesLinkClick(object sender, RoutedEventArgs e)
 		{
 			if (!((sender as FrameworkElement)?.Tag is Popup popup))
@@ -60,7 +53,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 
 		private void OnServicesPopupClosed(object sender, EventArgs e) => lastServicesPopupClose = DateTime.UtcNow;
 
-		/// <summary>Branch link of a single repository (inline mode, up to 3 repos per folder).</summary>
 		private async void OnBranchLinkClick(object sender, RoutedEventArgs e)
 		{
 			if (!((sender as FrameworkElement)?.DataContext is RepositoryBranchViewModel repository))
@@ -73,10 +65,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			popup.IsOpen = true;
 		}
 
-		/// <summary>
-		/// Summary button when a folder has many repositories: popup with a searchable repo list;
-		/// clicking a repo swaps in its branch panel (with a back link).
-		/// </summary>
 		private void OnRepositoriesLinkClick(object sender, RoutedEventArgs e)
 		{
 			if (!((sender as FrameworkElement)?.DataContext is WorkingFolderViewModel folder))
@@ -187,10 +175,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			return popup;
 		}
 
-		/// <summary>
-		/// Branch panel of one repository: filter box (Enter = first match), scrolling branch list
-		/// and the worktrees section. Long names are trimmed with the full name in the tooltip.
-		/// </summary>
 		private async System.Threading.Tasks.Task<FrameworkElement> BuildBranchPanelAsync(
 			RepositoryBranchViewModel repository, System.Windows.Controls.Primitives.Popup popup, Action goBack)
 		{
@@ -218,7 +202,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 
 			var panel = new StackPanel { MinWidth = 220, MaxWidth = 340 };
 
-			// header: back link (multi-repo mode) + repo name
 			if (goBack != null)
 			{
 				var headerRow = new DockPanel { Margin = new Thickness(6, 6, 6, 0) };
@@ -289,7 +272,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			panel.Children.Add(searchBox);
 			panel.Children.Add(list);
 
-			// worktrees section
 			if (worktrees.Count > 0)
 			{
 				var separator = new Border { Height = 1, Margin = new Thickness(4, 2, 4, 4) };
@@ -346,7 +328,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			return panel;
 		}
 
-		/// <summary>Enter in the priority box applies the value immediately (binding updates on focus loss).</summary>
 		private void OnPriorityBoxKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
 		{
 			if (e.Key != System.Windows.Input.Key.Enter)
@@ -357,7 +338,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			e.Handled = true;
 		}
 
-		/// <summary>Opens the "More" drop-down (context menu) below the toolbar button.</summary>
 		private void OnMoreClick(object sender, RoutedEventArgs e)
 		{
 			var button = (Button)sender;

@@ -35,7 +35,6 @@ namespace CheckoutAndBuild.Core.Analysis
 				referenced[solution.ItemPath] = referencedNames;
 			}
 
-			// edges: solution -> solutions it depends on
 			var dependsOn = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 			foreach (var solution in solutions)
 			{
@@ -46,7 +45,6 @@ namespace CheckoutAndBuild.Core.Analysis
 					.ToList();
 			}
 
-			// depth = 1 + max(depth of dependencies); cycles are broken by treating the back edge as depth 0
 			var depth = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 			var onStack = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -55,7 +53,7 @@ namespace CheckoutAndBuild.Core.Analysis
 				if (depth.TryGetValue(path, out int known))
 					return known;
 				if (!onStack.Add(path))
-					return 0; // cycle
+					return 0;
 				int value = 0;
 				foreach (string dependency in dependsOn[path])
 					value = Math.Max(value, Depth(dependency) + 1);

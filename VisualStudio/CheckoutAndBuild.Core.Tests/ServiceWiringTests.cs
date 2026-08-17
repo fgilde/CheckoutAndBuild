@@ -94,7 +94,7 @@ namespace CheckoutAndBuild.Core.Tests
 				new PipelineContext { Settings = settings }, new PausableCancellationTokenSource());
 
 			string[] lines = File.ReadAllLines(marker);
-			Assert.Equal(2, lines.Length); // pre + post
+			Assert.Equal(2, lines.Length);
 			Assert.All(lines, line => Assert.Contains("\"Noop\"", line));
 			Assert.All(lines, line => Assert.Contains("My.sln", line));
 		}

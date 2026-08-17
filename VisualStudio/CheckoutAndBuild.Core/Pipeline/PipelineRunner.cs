@@ -69,7 +69,6 @@ namespace CheckoutAndBuild.Core.Pipeline
                 }
                 catch (Exception e)
                 {
-                    // old semantics: a failing service is logged and the pipeline continues
                     ReportError(context, service.OperationName, i, orderedServices.Count,
                         $"Error in {service.OperationName}-Service: {e.Message}");
                 }
@@ -88,7 +87,6 @@ namespace CheckoutAndBuild.Core.Pipeline
             }
         }
 
-        /// <summary>Runs all plugin custom actions for one service; a failing action is reported and skipped.</summary>
         private static void RunCustomActions(PipelineContext context, IOperationService service,
             IReadOnlyList<ISolutionProjectModel> projects, bool isPre, int index, int count)
         {
@@ -115,11 +113,6 @@ namespace CheckoutAndBuild.Core.Pipeline
             }
         }
 
-        /// <summary>
-        /// Runs the per-project Pre-/Post-Service scripts (MiscellaneousSettings); a failing
-        /// script is reported and the pipeline continues (old ExternalActionService semantics).
-        /// Scripts receive the service name and solution path as arguments.
-        /// </summary>
         private static async Task RunServiceScriptsAsync(PipelineContext context, IOperationService service,
             IReadOnlyList<ISolutionProjectModel> projects, bool isPre, int index, int count,
             PausableCancellationTokenSource cancellation)
@@ -140,7 +133,7 @@ namespace CheckoutAndBuild.Core.Pipeline
                 }
                 catch (Exception)
                 {
-                    continue; // host without settings provider — nothing to run
+                    continue;
                 }
                 if (string.IsNullOrEmpty(script) || !File.Exists(script))
                     continue;

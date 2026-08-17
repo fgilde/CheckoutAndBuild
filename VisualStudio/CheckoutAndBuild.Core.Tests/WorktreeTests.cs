@@ -38,7 +38,6 @@ public sealed class WorktreeTests : IDisposable
 		}
 		catch
 		{
-			// best effort — temp dir cleanup
 		}
 	}
 

@@ -46,10 +46,8 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 
 		public ICommand CloseCommand { get; }
 
-		/// <summary>Export/Import/Copy/Reset section; set for the global settings page only.</summary>
 		public MaintenanceViewModel Maintenance { get; set; }
 
-		/// <summary>Plugin management section; set for the global settings page only.</summary>
 		public PluginsViewModel Plugins { get; set; }
 
 		public ObservableCollection<SettingsGroupViewModel> Groups { get; } = new ObservableCollection<SettingsGroupViewModel>();
@@ -106,7 +104,6 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 				return new IntSettingViewModel(property, settings, context);
 			if (type == typeof(string[]))
 				return new StringArraySettingViewModel(property, settings, context);
-			// string is the fallback; add editors when a settings class introduces new types
 			return new StringSettingViewModel(property, settings, context);
 		}
 	}
@@ -197,14 +194,12 @@ namespace CheckoutAndBuild.VisualStudio.Settings
 			set { if (SetProperty(ref this.value, value ?? string.Empty)) SaveValue(this.value); }
 		}
 
-		/// <summary>Show a "…" browse button for path-like properties (name contains Path/File/Location).</summary>
 		public bool ShowBrowse => NameContains("Path") || NameContains("File") || NameContains("Location");
 
 		public ICommand BrowseCommand { get; }
 
 		private void Browse()
 		{
-			// File dialog for file-like names, folder browser for plain paths.
 			if (NameContains("File") || NameContains("Location") || NameContains("Exe"))
 			{
 				var dialog = new Microsoft.Win32.OpenFileDialog { Title = DisplayName, CheckFileExists = true };

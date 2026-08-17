@@ -3,6 +3,5 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:toolWindows="clr-namespace:CheckoutAndBuild.VisualStudio.ToolWindows"
              MaxHeight="600">
-    <!-- Own MainToolWindowControl instance (a WPF element has only one parent); state is shared via MainViewModel.Shared. -->
     <toolWindows:MainToolWindowControl />
 </UserControl>

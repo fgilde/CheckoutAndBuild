@@ -30,7 +30,6 @@ namespace CheckoutAndBuild.VisualStudio.ErrorList
 			};
 		}
 
-		/// <summary>True when we currently show at least one entry (drives the Clear command visibility).</summary>
 		public bool HasTasks
 		{
 			get
@@ -55,7 +54,6 @@ namespace CheckoutAndBuild.VisualStudio.ErrorList
 						ErrorCategory = error.IsWarning ? TaskErrorCategory.Warning : TaskErrorCategory.Error,
 						Text = string.IsNullOrEmpty(error.Code) ? error.Message : $"{error.Code}: {error.Message}",
 						Document = error.File,
-						// ErrorTask is 0-based, msbuild output is 1-based
 						Line = Math.Max(0, error.Line - 1),
 						Column = Math.Max(0, error.Column - 1)
 					};
@@ -126,7 +124,6 @@ namespace CheckoutAndBuild.VisualStudio.ErrorList
 			}
 			catch (Exception)
 			{
-				// file may be deleted/unopenable; navigation is best effort
 			}
 		}
 	}

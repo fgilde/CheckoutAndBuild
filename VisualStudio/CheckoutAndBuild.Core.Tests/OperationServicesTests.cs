@@ -93,7 +93,6 @@ namespace CheckoutAndBuild.Core.Tests
 
 		private static string RepoRoot()
 		{
-			// the test runs inside the CheckoutAndBuild git repo — walk up to it
 			var dir = new DirectoryInfo(AppContext.BaseDirectory);
 			while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, ".git")))
 				dir = dir.Parent;
@@ -219,10 +218,8 @@ namespace CheckoutAndBuild.Core.Tests
 		[Fact]
 		public void GetTestAssemblies_FindsBuiltTestProjectOutput()
 		{
-			// our own test assembly is a perfect fixture: SdkTests fixture project is a test project but not built
 			string fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "TestSolution.sln");
 			var model = SolutionParser.Parse(fixture);
-			// not built -> no dll on disk -> empty list (no exception)
 			Assert.Empty(TestService.GetTestAssemblies(model));
 		}
 

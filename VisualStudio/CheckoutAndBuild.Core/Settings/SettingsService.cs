@@ -10,7 +10,6 @@ namespace CheckoutAndBuild.Core.Settings
 		T Get<T>(string key, SettingsContext context, T defaultValue = default);
 		void Set<T>(string key, SettingsContext context, T value);
 
-		/// <summary>Moves every stored key of <paramref name="oldProfile"/> to <paramref name="newProfile"/> (profile rename keeps its settings).</summary>
 		void RenameProfile(string oldProfile, string newProfile);
 
 		void Save();
@@ -154,7 +153,6 @@ namespace CheckoutAndBuild.Core.Settings
 			}
 		}
 
-		/// <summary>Most specific first: branch-scoped, repo-scoped, global.</summary>
 		private static IEnumerable<string> GetCandidateKeys(string key, SettingsContext context)
 		{
 			string profile = GetProfile(context);
@@ -198,7 +196,6 @@ namespace CheckoutAndBuild.Core.Settings
 			}
 			catch (JsonException)
 			{
-				// corrupt settings file: start fresh
 				return new Dictionary<string, JsonElement>();
 			}
 		}

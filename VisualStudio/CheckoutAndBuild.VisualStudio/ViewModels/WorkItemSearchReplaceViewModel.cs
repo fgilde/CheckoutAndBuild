@@ -95,7 +95,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { if (SetProperty(ref wiql, value)) settingsService.Set(wiqlKey, globalContext, value); }
 		}
 
-		/// <summary>PAT lives outside bindings (PasswordBox); persisted DPAPI-protected per user.</summary>
 		public string Pat
 		{
 			get { return pat; }
@@ -161,7 +160,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public ObservableCollection<WorkItemData> QueryResults { get; } = new ObservableCollection<WorkItemData>();
 
-		/// <summary>"(All)" plus the distinct work item types of the last query result.</summary>
 		public ObservableCollection<string> QueryTypes { get; } = new ObservableCollection<string> { allTypesFilter };
 
 		public ICommand RunQueryCommand { get; }
@@ -218,7 +216,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				QueryResults.Add(item);
 		}
 
-		/// <summary>Opens the browser on the "create work item" page for the selected type (Bug when unfiltered).</summary>
 		private void NewWorkItem()
 		{
 			string type = selectedQueryType == allTypesFilter ? "Bug" : selectedQueryType;

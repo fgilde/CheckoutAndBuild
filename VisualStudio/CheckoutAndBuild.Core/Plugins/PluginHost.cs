@@ -19,7 +19,6 @@ namespace CheckoutAndBuild.Core.Plugins
 		private readonly List<string> errors = new List<string>();
 		private CompositionContainer container;
 
-		/// <summary>Per-DLL load and per-plugin init failures collected during <see cref="LoadAsync"/>; never thrown.</summary>
 		public IReadOnlyList<string> Errors => errors;
 
 		public bool IsLoaded => container != null;
@@ -46,7 +45,7 @@ namespace CheckoutAndBuild.Core.Plugins
 				try
 				{
 					var assemblyCatalog = new AssemblyCatalog(dll);
-					assemblyCatalog.Parts.ToList(); // force assembly load: a broken DLL fails here, not at composition
+					assemblyCatalog.Parts.ToList();
 					catalog.Catalogs.Add(assemblyCatalog);
 				}
 				catch (Exception e)

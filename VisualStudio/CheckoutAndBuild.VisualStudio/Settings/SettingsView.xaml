@@ -10,7 +10,6 @@
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-            <!-- bool -> CheckBox -->
             <DataTemplate DataType="{x:Type local:BoolSettingViewModel}">
                 <CheckBox Content="{Binding DisplayName}"
                           IsChecked="{Binding Value}"
@@ -20,7 +19,6 @@
                           ToolTip="{Binding Description}" />
             </DataTemplate>
 
-            <!-- enum -> ComboBox -->
             <DataTemplate DataType="{x:Type local:EnumSettingViewModel}">
                 <StackPanel Margin="0,4">
                     <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
@@ -32,7 +30,6 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!-- int -> validated TextBox -->
             <DataTemplate DataType="{x:Type local:IntSettingViewModel}">
                 <StackPanel Margin="0,4">
                     <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
@@ -54,7 +51,6 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!-- string -> TextBox (+ browse for path-like properties) -->
             <DataTemplate DataType="{x:Type local:StringSettingViewModel}">
                 <StackPanel Margin="0,4">
                     <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
@@ -72,7 +68,6 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!-- string[] -> multi-line TextBox, one entry per line -->
             <DataTemplate DataType="{x:Type local:StringArraySettingViewModel}">
                 <StackPanel Margin="0,4">
                     <TextBlock Text="{Binding DisplayName}" Margin="0,0,0,2" ToolTip="{Binding Description}" />
@@ -88,7 +83,6 @@
     </UserControl.Resources>
 
     <DockPanel Margin="8">
-        <!-- header: back button + title -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
             <Button DockPanel.Dock="Left"
                     Style="{StaticResource CoabIconButton}"
@@ -131,7 +125,6 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- ===== plugins (global page only) ===== -->
             <Expander IsExpanded="False" Margin="0,0,0,4"
                       Template="{StaticResource CoabExpanderTemplate}"
                       HorizontalContentAlignment="Stretch"
@@ -171,7 +164,6 @@
                 </StackPanel>
             </Expander>
 
-            <!-- ===== maintenance: export/import/copy/reset (global page only) ===== -->
             <Expander IsExpanded="False" Margin="0,0,0,4"
                       Template="{StaticResource CoabExpanderTemplate}"
                       HorizontalContentAlignment="Stretch"

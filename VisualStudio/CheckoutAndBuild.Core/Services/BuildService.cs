@@ -44,7 +44,6 @@ namespace CheckoutAndBuild.Core.Services
 	/// </summary>
 	public class BuildService : OperationServiceBase
 	{
-		// e.g. C:\x\Foo.cs(12,5): error CS1002: ; expected [C:\x\Foo.csproj]
 		private static readonly Regex errorLine = new Regex(
 			@"^\s*(?<file>[^(]+)\((?<line>\d+),(?<col>\d+)\):\s+(?<sev>error|warning)\s+(?<code>[A-Za-z]+\d+)\s*:\s*(?<msg>.*?)(\s*\[[^\]]+\])?\s*$",
 			RegexOptions.Compiled);
@@ -53,7 +52,6 @@ namespace CheckoutAndBuild.Core.Services
 		public override int Order => ServicePriorities.BuildServicePriority;
 		public override string OperationName => "Build";
 
-		/// <summary>Plugin providers contributing extra default /p: properties per project (wired by the host; default: none). Explicit model properties win.</summary>
 		public IReadOnlyCollection<IProjectBuildPropertiesProvider> BuildPropertiesProviders { get; set; }
 
 		protected override async Task ExecuteCoreAsync(IReadOnlyList<ISolutionProjectModel> solutionProjects, IServiceSettings settings, PausableCancellationTokenSource cancellation)
@@ -84,7 +82,6 @@ namespace CheckoutAndBuild.Core.Services
 			}
 		}
 
-		/// <summary>Merges all solutions into one temporary solution and builds that (old MergedBuild mode, dependency order via msbuild).</summary>
 		private async Task BuildMergedAsync(IReadOnlyList<ISolutionProjectModel> solutionProjects, IServiceSettings settings,
 			BuildServiceSettings buildSettings, PausableCancellationTokenSource cancellation)
 		{
@@ -210,7 +207,6 @@ namespace CheckoutAndBuild.Core.Services
 
 			if (model.IsDelphiProject && !string.IsNullOrEmpty(settings?.DelphiPath))
 			{
-				// Delphi: rsvars.bat sets BDS/framework env, then msbuild builds the .dproj/.groupproj (old bds path)
 				string rsvars = File.Exists(settings.DelphiPath) && settings.DelphiPath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)
 					? settings.DelphiPath
 					: Path.Combine(settings.DelphiPath, "bin", "rsvars.bat");
@@ -257,7 +253,6 @@ namespace CheckoutAndBuild.Core.Services
 			}
 		}
 
-		/// <summary>Frees locked outputs before building by killing processes running from the output directories.</summary>
 		private static void KillDependentProcessesIfConfigured(IReadOnlyList<ISolutionProjectModel> models, BuildServiceSettings buildSettings)
 		{
 			if (!buildSettings.KillDependendProcesses)
@@ -268,7 +263,6 @@ namespace CheckoutAndBuild.Core.Services
 				CoabLog.Info($"Killed {killed} process(es) locking build output.");
 		}
 
-		/// <summary>Existing output directories of all projects of a solution.</summary>
 		internal static IReadOnlyList<string> GetOutputDirectories(ISolutionProjectModel solution)
 		{
 			var model = solution as Model.SolutionProjectModel ?? Model.SolutionParser.Parse(solution.ItemPath);

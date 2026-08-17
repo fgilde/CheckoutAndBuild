@@ -10,17 +10,13 @@ namespace CheckoutAndBuild.Core.Model
 	public class ProjectInfo
 	{
 		public string Name { get; set; }
-		/// <summary>Absolute path to the project file (.csproj etc.).</summary>
 		public string ProjectFilePath { get; set; }
 		public string ProjectGuid { get; set; }
 		public string ProjectTypeGuid { get; set; }
 		public bool IsSdkStyle { get; set; }
-		/// <summary>Absolute output path (Debug configuration).</summary>
 		public string OutputPath { get; set; }
-		/// <summary>Absolute intermediate output path (Debug configuration).</summary>
 		public string IntermediateOutputPath { get; set; }
 		public string AssemblyName { get; set; }
-		/// <summary>TargetFramework (SDK-style) or TargetFrameworkVersion (classic).</summary>
 		public string TargetFramework { get; set; }
 		public bool IsTestProject { get; set; }
 		/// <summary>Maps a solution configuration (e.g. "Debug|Any CPU") to the project configuration (ActiveCfg) from the source .sln.</summary>
@@ -47,7 +43,6 @@ namespace CheckoutAndBuild.Core.Model
 			ItemPath = Path.GetFullPath(solutionPath);
 		}
 
-		/// <summary>Absolute path of the solution file.</summary>
 		public string ItemPath { get; }
 
 		public string SolutionFileName => Path.GetFileName(ItemPath);
@@ -58,7 +53,6 @@ namespace CheckoutAndBuild.Core.Model
 
 		public bool IsGitSourceControlled => GitRepositoryRoot != null;
 
-		/// <summary>Root directory of the git repository containing the solution, or null.</summary>
 		public string GitRepositoryRoot => FindGitRoot(SolutionFolder);
 
 		public OperationInfo CurrentOperation
@@ -91,13 +85,10 @@ namespace CheckoutAndBuild.Core.Model
 			set { SetProperty(ref errorContent, value); }
 		}
 
-		/// <summary>Result of the last operation, set via <see cref="SetResult"/>.</summary>
 		public object Result { get; private set; }
 
-		/// <summary>Detailed per-project information parsed from the project files.</summary>
 		public IList<ProjectInfo> Projects => projects;
 
-		/// <summary>Solution configurations, e.g. "Debug|Any CPU".</summary>
 		public IList<string> SolutionConfigurations => solutionConfigurations;
 
 		public IEnumerable<string> BuildTargets => buildTargets;

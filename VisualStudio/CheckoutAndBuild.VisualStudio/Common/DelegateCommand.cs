@@ -24,7 +24,6 @@ namespace CheckoutAndBuild.VisualStudio.Common
 
 		public void Execute(object parameter) => executeMethod(parameter);
 
-		/// <summary>Requery is delegated to the WPF CommandManager so state changes re-evaluate all commands.</summary>
 		public event EventHandler CanExecuteChanged
 		{
 			add { CommandManager.RequerySuggested += value; }

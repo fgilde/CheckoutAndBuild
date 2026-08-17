@@ -7,12 +7,6 @@ namespace CheckoutAndBuild.Core.Contracts.Service
     /// </summary>
     public interface IPowerShellExecutor
     {
-        /// <summary>
-        /// Executes a powershell script
-        /// </summary>
-        /// <param name="fileNameOrContent">Eiter the path to the script or the script itself</param>
-        /// <param name="parameters">parameters, can be null</param>
-        /// <returns></returns>
         bool Execute(string fileNameOrContent, IDictionary<string, object> parameters = null);
     }
 }

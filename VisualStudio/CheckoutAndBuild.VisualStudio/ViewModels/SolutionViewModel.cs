@@ -71,7 +71,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			CopyFullPathCommand = new DelegateCommand(() => Clipboard.SetText(ItemPath));
 		}
 
-		/// <summary>Opens the solution in this Visual Studio instance.</summary>
 		private void OpenSolution()
 		{
 			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
@@ -80,7 +79,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			solution?.OpenSolutionFile(0, ItemPath);
 		}
 
-		/// <summary>First project output directory (Debug) that exists on disk, or null.</summary>
 		private string FirstExistingOutputPath()
 		{
 			return Model.Projects
@@ -88,10 +86,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				.FirstOrDefault(p => !string.IsNullOrEmpty(p) && Directory.Exists(p));
 		}
 
-		/// <summary>True when the solution was added manually via "Add Solution…" (removable again).</summary>
 		public bool IsCustom { get; set; }
 
-		/// <summary>VS image catalog icon for the row (theme-aware, like the old project-type icon).</summary>
 		public Microsoft.VisualStudio.Imaging.Interop.ImageMoniker IconMoniker =>
 			Model.IsDelphiProject
 				? Microsoft.VisualStudio.Imaging.KnownMonikers.ApplicationGroup
@@ -102,7 +98,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private string executablePath;
 		private bool executableSearched;
 
-		/// <summary>First built .exe of the solution's projects (cached; refreshed after each run via RefreshResult).</summary>
 		internal string FindExecutable()
 		{
 			if (executableSearched)
@@ -152,7 +147,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Kills every process running from this solution's output directories.</summary>
 		private void StopExecutable()
 		{
 			try
@@ -168,7 +162,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Opens the solution in another installed VS (or a new instance of the current one).</summary>
 		private void OpenWith(VsInstance instance)
 		{
 			try
@@ -196,7 +189,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			public int Line { get; set; }
 		}
 
-		/// <summary>Error list dialog for the last failed run; double-click opens the file, Retry re-runs the failed service.</summary>
 		private void ShowErrors()
 		{
 			object result = Model.Result ?? Model.ErrorContent;
@@ -272,7 +264,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			catch (Exception)
 			{
-				// file may be gone — the dialog row is informational either way
 			}
 		}
 
@@ -290,7 +281,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { Model.IsIncluded = value; }
 		}
 
-		/// <summary>Lower value builds earlier ("higher" priority).</summary>
 		public int BuildPriority
 		{
 			get { return Model.BuildPriority; }
@@ -336,7 +326,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public bool HasAnyServiceEnabled =>
 			IsCleanEnabled || IsCheckoutEnabled || IsRestoreEnabled || IsBuildEnabled || IsTestEnabled;
 
-		/// <summary>Effective services of this solution, comma separated (old ServicesCaption).</summary>
 		public string ServicesCaption
 		{
 			get
@@ -351,7 +340,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Caption truncated to 40 chars for the row link (old ServicesCaptionSmall).</summary>
 		public string ServicesCaptionSmall
 		{
 			get
@@ -378,7 +366,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RefreshServiceFlags();
 		}
 
-		/// <summary>Re-raises the effective service flags (called when the global step checkboxes change).</summary>
 		internal void RefreshServiceFlags()
 		{
 			RaisePropertyChanged(nameof(IsCleanEnabled));
@@ -391,7 +378,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(ServicesCaptionSmall));
 		}
 
-		/// <summary>Re-reads the scoped per-solution state after a profile or branch switch.</summary>
 		internal void ReloadProfileScopedState()
 		{
 			serviceOverrides = owner.Settings.Get<Dictionary<string, bool>>(ServicesKey, owner.ContextFor(Model))
@@ -402,7 +388,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(BuildTargetsCaption));
 		}
 
-		/// <summary>Pushes the persisted build properties/targets into the pipeline model.</summary>
 		private void ApplyBuildOptionsToModel()
 		{
 			var context = owner.ContextFor(Model);
@@ -413,7 +398,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			Model.SetBuildTargets(owner.Settings.Get<List<string>>(BuildTargetsKey, context));
 		}
 
-		/// <summary>Key/value grid dialog; saved on close (old DictionaryEdit behavior).</summary>
 		private void EditBuildProperties()
 		{
 			var rows = new ObservableCollection<BuildPropertyRow>(
@@ -452,7 +436,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RaisePropertyChanged(nameof(BuildPropertiesCaption));
 		}
 
-		/// <summary>Comma-separated targets textbox dialog; saved on close.</summary>
 		private void EditBuildTargets()
 		{
 			var textBox = new TextBox { Text = string.Join(", ", Model.BuildTargets), Margin = new Thickness(8) };
@@ -523,7 +506,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>True when the last result is a failure (exception, failed build or failed tests).</summary>
 		public bool HasFailed
 		{
 			get
@@ -535,10 +517,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>True when there is a result and it is not a failure.</summary>
 		public bool HasSucceeded => !HasFailed && (Model.Result ?? Model.ErrorContent) != null;
 
-		/// <summary>Short text for the result of the last operation.</summary>
 		public string ResultText
 		{
 			get
@@ -575,7 +555,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand OpenSolutionCommand { get; }
 		public ICommand RemoveFromListCommand { get; }
 
-		/// <summary>"Open with…" submenu: a new instance of the current VS plus every installed VS.</summary>
 		public IEnumerable<OpenWithOption> OpenWithOptions
 		{
 			get
@@ -598,7 +577,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>
 		public void RefreshResult() => OnUI(() =>
 		{
-			executableSearched = false; // a build may have produced/removed the exe
+			executableSearched = false;
 			RaiseStatus();
 		});
 
@@ -634,7 +613,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			});
 		}
 
-		/// <summary>Measures how long each operation ran on this solution (feeds the ETA of the status bar).</summary>
 		private void TrackOperationDuration(OperationInfo newOperation)
 		{
 			if (runningOperationName != null && newOperation?.StatusText != runningOperationName)
@@ -649,7 +627,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Row tooltip: path plus the last measured durations.</summary>
 		public string RowToolTip
 		{
 			get

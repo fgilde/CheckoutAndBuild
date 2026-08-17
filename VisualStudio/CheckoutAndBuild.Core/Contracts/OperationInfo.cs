@@ -37,10 +37,6 @@ namespace CheckoutAndBuild.Core.Contracts
 			set { SetProperty(ref statusText, value); }
 		}
 
-		/// <summary>
-		/// WPF color name for the progress indication (was a Brush in the old TFS-bound contract;
-		/// hosts convert the name to their UI color type).
-		/// </summary>
 		public string ColorName
 		{
 			get { return colorName; }

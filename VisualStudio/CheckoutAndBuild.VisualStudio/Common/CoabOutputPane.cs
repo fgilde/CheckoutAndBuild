@@ -42,7 +42,7 @@ namespace CheckoutAndBuild.VisualStudio.Common
 			var configured = settingsService?.Get("LogLevel", globalContext, LoggerVerbosity.Minimal) ?? LoggerVerbosity.Minimal;
 			if (level > configured)
 				return;
-#pragma warning disable VSTHRD010 // OutputStringThreadSafe is callable from any thread
+#pragma warning disable VSTHRD010
 			pane.OutputStringThreadSafe(message + Environment.NewLine);
 #pragma warning restore VSTHRD010
 		}

@@ -64,7 +64,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			};
 		}
 
-		/// <summary>Up to three repositories fit as inline branch links; more collapse into one summary button.</summary>
 		public bool ShowRepositoriesInline => Repositories.Count > 0 && Repositories.Count <= 3;
 
 		public bool ShowRepositoriesSummary => Repositories.Count > 3;
@@ -78,7 +77,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>Distinct git repositories of the solutions beneath this folder (branch selector in the header).</summary>
 		public ObservableCollection<RepositoryBranchViewModel> Repositories { get; } = new ObservableCollection<RepositoryBranchViewModel>();
 
-		/// <summary>Filtered live view of <see cref="Solutions"/> for the "Included" area.</summary>
 		public ICollectionView IncludedSolutions { get; }
 
 		/// <summary>Sorts in place by the owner's sort mode/direction.</summary>
@@ -113,12 +111,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public string RepositoryPath { get; }
 
-		/// <summary>True when the working folder contains more than one repository ("RepoName: branch").</summary>
 		public bool ShowRepositoryName { get; }
 
 		public string RepositoryName => System.IO.Path.GetFileName(RepositoryPath);
 
-		/// <summary>Checked-out branch; null until loaded (link stays hidden).</summary>
 		public string CurrentBranch
 		{
 			get { return currentBranch; }
@@ -136,7 +132,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private string syncBadge;
 
-		/// <summary>"↑n ↓m" against the upstream; empty without one.</summary>
 		public string SyncBadge
 		{
 			get { return syncBadge; }
@@ -254,10 +249,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private static MainViewModel shared;
 
-		/// <summary>
-		/// Shared UI instance so the tool window and the Team Explorer section show the same state.
-		/// Create/access on the UI thread only (the ctor captures the current dispatcher).
-		/// </summary>
 		public static MainViewModel Shared => shared ?? (shared = new MainViewModel());
 
 		public MainViewModel() : this(JsonSettingsService.CreateDefault())
@@ -269,7 +260,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			dispatcher = Dispatcher.CurrentDispatcher;
 			settings = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
 
-			// working profiles: list + last selection are global; profileContext scopes everything else
 			Profiles = new ObservableCollection<string>(
 				settings.Get<List<string>>(profilesKey, globalContext) ?? new List<string>());
 			if (!Profiles.Contains(SettingsContext.DefaultProfile))
@@ -281,7 +271,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 			serviceSettings = new ServiceSettingsAdapter(settings, profileContext);
 
-			// default: everything on except Clean + Test (matches the old default roughly)
 			cleanEnabled = settings.Get("Services.Clean", profileContext, false);
 			checkoutEnabled = settings.Get("Services.Checkout", profileContext, true);
 			restoreEnabled = settings.Get("Services.Restore", profileContext, true);
@@ -330,28 +319,15 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				() => !IsRunning && CurrentProfile != SettingsContext.DefaultProfile);
 		}
 
-		/// <summary>Error List sink; set by the tool window control (null in tests).</summary>
 		internal CoabErrorListProvider ErrorSink { get; set; }
 
-		/// <summary>Settings store, shared with the solution view models (per-solution overrides).</summary>
 		internal ISettingsService Settings => settings;
 
-		/// <summary>
-		/// Settings context of the current working profile. Shared mutable instance: switching the
-		/// profile updates it in place, so the solution view models and the ServiceSettingsAdapter
-		/// always read/write the active profile's scope.
-		/// </summary>
 		internal SettingsContext ProfileContext => profileContext;
 
 		private bool UseBranchSpecificSettings =>
 			settings.Get("MiscellaneousSettings.UseBranchSpecificSettings", profileContext, false);
 
-		/// <summary>
-		/// Settings context for a solution's reads/writes: the shared profile context, or — with
-		/// "Use branch specific settings" enabled — a per-call context additionally scoped to the
-		/// solution's repository and its current branch (reads fall back branch → repo → global,
-		/// so branch-independent values keep working until overridden on a branch).
-		/// </summary>
 		internal SettingsContext ContextFor(SolutionProjectModel model)
 		{
 			string repository = model?.GitRepositoryRoot;
@@ -365,7 +341,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			return new SettingsContext { Profile = profileContext.Profile, RepositoryPath = repository, Branch = branch };
 		}
 
-		/// <summary>Re-reads the branch-scoped state of the repository's solutions after a branch load/switch.</summary>
 		internal void OnRepositoryBranchChanged(RepositoryBranchViewModel repository)
 		{
 			if (!UseBranchSpecificSettings)
@@ -385,14 +360,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		public ObservableCollection<WorkingFolderViewModel> WorkingFolders { get; } = new ObservableCollection<WorkingFolderViewModel>();
 
-		/// <summary>All working profile names; always contains at least "Default".</summary>
 		public ObservableCollection<string> Profiles { get; }
 
-		/// <summary>
-		/// Active working profile. Every solution-related setting (included, priority, services,
-		/// build properties/targets, step flags, SettingsProperty values) is scoped by it;
-		/// the working folders themselves are shared between profiles.
-		/// </summary>
 		public string CurrentProfile
 		{
 			get { return currentProfile; }
@@ -402,7 +371,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					return;
 				if (IsRunning || !Profiles.Contains(value))
 				{
-					// snap the ComboBox back to the real value
 					dispatcher.BeginInvoke(new Action(() => RaisePropertyChanged(nameof(CurrentProfile))));
 					return;
 				}
@@ -441,7 +409,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand RetryFailedCommand { get; }
 		public ICommand SuggestPrioritiesCommand { get; }
 
-		/// <summary>Applies dependency-scan priorities (referenced solutions build first).</summary>
 		private async Task SuggestPrioritiesAsync()
 		{
 			var solutions = AllSolutions().ToList();
@@ -474,7 +441,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private static string DurationsKey(string solutionPath) => "Durations:" + solutionPath;
 
-		/// <summary>Stores the last duration of one operation for a solution (fed by SolutionViewModel).</summary>
 		internal void RecordDuration(SolutionViewModel solution, string operationName, TimeSpan duration)
 		{
 			if (string.IsNullOrEmpty(operationName) || duration <= TimeSpan.Zero)
@@ -489,7 +455,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			settings.Get<Dictionary<string, double>>(DurationsKey(solution.ItemPath), globalContext)
 			?? new Dictionary<string, double>();
 
-		/// <summary>Sum of stored durations for everything about to run (unknown pairs contribute nothing).</summary>
 		private TimeSpan? EstimateRun(IReadOnlyCollection<SolutionViewModel> solutions)
 		{
 			var operationNames = new List<string>();
@@ -511,7 +476,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			return total > 1 ? TimeSpan.FromSeconds(total) : (TimeSpan?)null;
 		}
 
-		/// <summary>Service OperationName → OperationInfo.StatusText used as the duration key.</summary>
 		private static string MapOperationName(string serviceOperationName)
 		{
 			switch (serviceOperationName)
@@ -567,7 +531,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#region filter + sort
 
-		/// <summary>Filter over the solution names (search box, Ctrl+E).</summary>
 		public string FilterText
 		{
 			get { return filterText; }
@@ -612,7 +575,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		// checkable menu flags (avoids an enum converter in XAML)
 		public bool IsSortByPriority => sortMode == SolutionSortMode.BuildPriority;
 		public bool IsSortByName => sortMode == SolutionSortMode.Name;
 		public bool IsSortByServices => sortMode == SolutionSortMode.Services;
@@ -638,7 +600,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				folder.Resort();
 		}
 
-		/// <summary>Sort order used by the working folder lists (secondary key: name).</summary>
 		internal IEnumerable<SolutionViewModel> SortSolutions(IEnumerable<SolutionViewModel> solutions)
 		{
 			IOrderedEnumerable<SolutionViewModel> ordered;
@@ -663,7 +624,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#endregion
 
-		/// <summary>Non-null while the settings "page" is shown instead of the main content.</summary>
 		public SettingsViewModel ActiveSettings
 		{
 			get { return activeSettings; }
@@ -682,7 +642,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ActiveSettings = viewModel;
 		}
 
-		/// <summary>Re-reads everything from the store after an import/copy/reset.</summary>
 		private void ReloadAfterStoreChange()
 		{
 			Profiles.Clear();
@@ -697,7 +656,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ReloadProfileScopedState();
 		}
 
-		/// <summary>Opens the solution-scoped settings editor (solution context menu).</summary>
 		internal void OpenSolutionSettings(SolutionViewModel solution)
 		{
 			ActiveSettings = new SettingsViewModel(settings, $"Settings — {solution.SolutionFileName}", solution.ItemPath, CloseSettings,
@@ -707,11 +665,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private void CloseSettings()
 		{
 			ActiveSettings = null;
-			// options may have changed (e.g. "Use branch specific settings"): re-read the scoped state
 			ReloadProfileScopedState();
 		}
 
-		/// <summary>Re-reads a solution's scoped values (profile + optional branch scope).</summary>
 		private void ReloadSolutionScopedState(SolutionViewModel solution)
 		{
 			var context = ContextFor(solution.Model);
@@ -796,7 +752,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Segoe MDL2 glyph shown before the status text.</summary>
 		public string StatusGlyph
 		{
 			get
@@ -820,7 +775,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private static string FormatElapsed(TimeSpan elapsed) =>
 			elapsed.TotalHours >= 1 ? elapsed.ToString("h\\:mm\\:ss") : elapsed.ToString("mm\\:ss");
 
-		/// <summary>Composed status line: operation + counters + elapsed time / result summary.</summary>
 		public string StatusLineText
 		{
 			get
@@ -874,7 +828,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ShowToastIfBackground();
 		}
 
-		/// <summary>Balloon notification when the run finishes while VS is not the foreground window.</summary>
 		private void ShowToastIfBackground()
 		{
 			try
@@ -899,7 +852,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Mirrors the run progress into the Windows taskbar icon of the VS main window.</summary>
 		private void UpdateTaskbar()
 		{
 			try
@@ -946,7 +898,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			internal set { SetProperty(ref lastError, value); }
 		}
 
-		/// <summary>Neutral status line (e.g. "Exported: c:\...\CheckoutAndBuild.bat").</summary>
 		public string StatusMessage
 		{
 			get { return statusMessage; }
@@ -983,7 +934,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { if (SetProperty(ref testEnabled, value)) { settings.Set("Services.Test", profileContext, value); RefreshSolutionServiceFlags(); } }
 		}
 
-		/// <summary>Global step checkboxes are the fallback of the per-solution flags: re-raise them all.</summary>
 		private void RefreshSolutionServiceFlags()
 		{
 			foreach (var solution in AllSolutions())
@@ -1019,10 +969,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>
-		/// Loads MEF plugins from &lt;ExtensionDir&gt;\Plugins plus the optional "PluginDirectories"
-		/// setting (semicolon-separated) on a background thread; failures only go to the trace log.
-		/// </summary>
 		private async Task LoadPluginsAsync()
 		{
 			try
@@ -1079,7 +1025,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			settings.RenameProfile(oldName, name);
 			Profiles[Profiles.IndexOf(oldName)] = name;
 			PersistProfiles();
-			// keys were moved along, so no ReloadProfileScopedState needed
 			currentProfile = name;
 			profileContext.Profile = name;
 			settings.Set(currentProfileKey, globalContext, name);
@@ -1095,7 +1040,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
 				return;
 
-			// the profile's stored settings stay in the file; only the list entry goes
 			CurrentProfile = SettingsContext.DefaultProfile;
 			Profiles.Remove(name);
 			PersistProfiles();
@@ -1106,10 +1050,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			settings.Set(profilesKey, globalContext, Profiles.ToList());
 		}
 
-		/// <summary>
-		/// Re-reads all profile-scoped values (step flags + per-solution state) after a profile
-		/// switch. No file rescan: the solutions stay, only their stored settings are re-read.
-		/// </summary>
 		private void ReloadProfileScopedState()
 		{
 			cleanEnabled = settings.Get("Services.Clean", profileContext, false);
@@ -1132,7 +1072,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Small modal name editor (analog to the solution option dialogs). Returns null on cancel/empty.</summary>
 		private static string PromptForProfileName(string title, string initialValue)
 		{
 			var textBox = new TextBox { Text = initialValue, Margin = new Thickness(8, 4, 8, 0) };
@@ -1162,7 +1101,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			if (window.ShowDialog() != true)
 				return null;
 
-			// "$" is the settings key separator and must not appear in a profile name
 			string name = textBox.Text?.Trim().Replace("$", string.Empty);
 			return string.IsNullOrEmpty(name) ? null : name;
 		}
@@ -1243,12 +1181,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					}
 					catch (Exception)
 					{
-						// unparsable custom solution: skip it
 					}
 				}
 				foreach (var model in found)
 				{
-					// branch not loaded yet at this point: read profile-scoped; OnRepositoryBranchChanged re-applies
 					model.IsIncluded = settings.Get($"IsIncluded:{model.ItemPath}", profileContext, true);
 					model.BuildPriority = GetInitialBuildPriority(model, profileContext);
 				}
@@ -1268,7 +1204,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			folder.Resort();
 
-			// branch selector: distinct repos of the folder's solutions; branches load async
 			var repositoryRoots = models.Select(m => m.GitRepositoryRoot)
 				.Where(r => r != null)
 				.Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1281,7 +1216,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Stored priority wins; without one, a plugin IDefaultBuildPriorityManager may supply the default.</summary>
 		private int GetInitialBuildPriority(ISolutionProjectModel model, SettingsContext context)
 		{
 			int stored = settings.Get($"BuildPriority:{model.ItemPath}", context, int.MinValue);
@@ -1315,7 +1249,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private static string CustomSolutionsKey(string folderPath) => "CustomSolutions:" + folderPath;
 
-		/// <summary>Adds a folder programmatically (worktree manager); no-op when it is already listed.</summary>
 		internal void AddFolderByPath(string path)
 		{
 			if (string.IsNullOrEmpty(path) || !Directory.Exists(path)
@@ -1335,7 +1268,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}));
 		}
 
-		/// <summary>Adds solutions outside the folder scan via multi-select file dialog (old AddSolution).</summary>
 		private async Task AddSolutionAsync(WorkingFolderViewModel folder)
 		{
 			if (folder == null)
@@ -1382,7 +1314,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Removes a manually added solution from its folder list again.</summary>
 		internal void RemoveCustomSolution(SolutionViewModel solution)
 		{
 			if (solution == null)
@@ -1400,7 +1331,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			settings.Set(CustomSolutionsKey(folder.Path), globalContext, custom);
 		}
 
-		/// <summary>Merges all included solutions of the folder into one !Merged_Build_*.sln (old "Merge to One Solution").</summary>
 		private void MergeFolder(WorkingFolderViewModel folder)
 		{
 			if (folder == null)
@@ -1444,7 +1374,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Inserts alphabetically into the flat excluded list.</summary>
 		private void InsertExcluded(SolutionViewModel solution)
 		{
 			int index = 0;
@@ -1472,7 +1401,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 						}
 						catch (Exception)
 						{
-							// unparsable solution: skip it
 						}
 					}
 
@@ -1502,10 +1430,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private void Resume() => cancellation?.Resume();
 
-		/// <summary>
-		/// PausableCancellationTokenSource.PausedChanged: updates IsPaused and re-raises the status
-		/// of every solution so busy rows show "Paused" (orange) while the pipeline is held.
-		/// </summary>
 		private void OnPausedChanged(object sender, bool paused)
 		{
 			if (!dispatcher.CheckAccess())
@@ -1529,7 +1453,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var solutions = AllSolutions().Where(s => !onlyFailed || s.HasFailed).ToList();
 			var models = solutions.Select(s => (ISolutionProjectModel)s.Model).ToList();
 
-			// per-service solution sets: solution overrides win over the global step checkboxes
 			var enabledModels = AllServices().ToDictionary(
 				service => service,
 				service => new HashSet<ISolutionProjectModel>(solutions
@@ -1579,7 +1502,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Runs a single service for a single solution (context menu: build/clean/test only).</summary>
 		internal async Task RunSingleServiceAsync(SolutionViewModel solution, IOperationService service)
 		{
 			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -1629,7 +1551,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ReportResultsToErrorList();
 		}
 
-		/// <summary>Pushes the failures of the last run into the VS Error List (no-op without a sink).</summary>
 		private void ReportResultsToErrorList()
 		{
 			Microsoft.VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
@@ -1639,8 +1560,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				foreach (var solution in AllSolutions())
 				{
-					// Model.Result only keeps the LAST operation's result, so build errors
-					// vanish from the list when tests ran afterwards; keep per-service results if that hurts
 					switch (solution.Model.Result)
 					{
 						case BuildResult build when build.Errors.Count > 0:
@@ -1693,7 +1612,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			yield return testService;
 		}
 
-		/// <summary>Effective (solution-override or global) enable flag of a service for a solution.</summary>
 		private bool IsServiceEnabledFor(IOperationService service, SolutionViewModel solution)
 		{
 			if (ReferenceEquals(service, cleanService)) return solution.IsCleanEnabled;

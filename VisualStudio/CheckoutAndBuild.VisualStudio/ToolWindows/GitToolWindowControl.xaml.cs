@@ -18,13 +18,10 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			Loaded += async (sender, e) => await viewModel.LoadAsync();
 		}
 
-		/// <summary>Selects the repository and switches to the History tab (solution context menu).</summary>
 		internal System.Threading.Tasks.Task ShowHistoryAsync(string repositoryPath) => viewModel.ShowHistoryAsync(repositoryPath);
 
-		/// <summary>Selects the repository and switches to the Worktrees tab (main window branch dropdown).</summary>
 		internal System.Threading.Tasks.Task ShowWorktreesAsync(string repositoryPath) => viewModel.ShowWorktreesAsync(repositoryPath);
 
-		/// <summary>Double-click on a feed commit jumps to the History tab of its repository.</summary>
 		private async void OnFeedDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			var feedCommit = ((ListBox)sender).SelectedItem as FeedCommitViewModel;
@@ -32,7 +29,6 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 				await viewModel.ShowCommitInHistoryAsync(feedCommit);
 		}
 
-		/// <summary>Double-click on a change opens the file in the editor.</summary>
 		private void OnChangeDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();

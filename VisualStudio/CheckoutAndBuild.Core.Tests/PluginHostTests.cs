@@ -59,7 +59,6 @@ public class PluginHostTests
             var errors = await host.LoadAsync(new[] { dir }, null, typeof(PluginHostTests).Assembly);
 
             Assert.Contains(errors, e => e.Contains("broken.dll"));
-            // load stays functional despite the broken DLL
             Assert.NotEmpty(host.GetExportedValues<ICheckoutAndBuildPlugin>());
         }
         finally

@@ -9,7 +9,6 @@ namespace CheckoutAndBuild.Core.Git
             FilePath = filePath;
         }
 
-        /// <summary>Single-letter git status (A, M, D, R, ...).</summary>
         public string Status { get; }
         public string FilePath { get; }
     }

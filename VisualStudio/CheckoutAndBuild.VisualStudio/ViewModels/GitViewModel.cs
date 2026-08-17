@@ -143,7 +143,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public string Name { get; }
 		public bool IsCurrent { get; }
 
-		/// <summary>"↑n ↓m" against the upstream, null without one.</summary>
 		public string SyncBadge
 		{
 			get { return syncBadge; }
@@ -180,7 +179,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { SetProperty(ref syncBadge, value); }
 		}
 
-		/// <summary>Last per-repo error (or null).</summary>
 		public string Status
 		{
 			get { return status; }
@@ -375,14 +373,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand CommitAndPushCommand { get; }
 		public ICommand ClearHistoryPathFilterCommand { get; }
 
-		/// <summary>Commit message of the Changes tab commit row.</summary>
 		public string CommitMessage
 		{
 			get { return commitMessage; }
 			set { SetProperty(ref commitMessage, value); }
 		}
 
-		/// <summary>Non-null while the History tab is filtered to a single file.</summary>
 		public string HistoryPathFilter
 		{
 			get { return historyPathFilter; }
@@ -435,7 +431,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Worktrees.Add(new WorktreeViewModel(worktree));
 		}
 
-		/// <summary>Add-worktree dialog: branch (existing ones not in use, or a new name) + target path preview.</summary>
 		private async Task AddWorktreeAsync()
 		{
 			var repo = SelectedRepository;
@@ -470,7 +465,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			branchBox.AddHandler(System.Windows.Controls.TextBox.TextChangedEvent,
 				new System.Windows.Controls.TextChangedEventHandler(UpdatePreview));
-			// SelectionChanged fires before the editable text updates — defer the preview one dispatcher hop
 			branchBox.SelectionChanged += (s, e) =>
 				Application.Current?.Dispatcher.BeginInvoke(new Action(() => UpdatePreview(null, EventArgs.Empty)));
 			UpdatePreview(null, EventArgs.Empty);
@@ -570,7 +564,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await LoadWorktreesAsync();
 		}
 
-		/// <summary>Opens the first solution of the worktree in a new VS instance.</summary>
 		private void OpenWorktreeSolution(WorktreeViewModel worktree)
 		{
 			if (worktree == null || !worktree.Worktree.Exists)
@@ -596,7 +589,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Adds the worktree directory as a working folder of the main tool window.</summary>
 		private void AddWorktreeAsWorkingFolder(WorktreeViewModel worktree)
 		{
 			if (worktree == null)
@@ -614,7 +606,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#endregion
 
-		/// <summary>Branch name for the multi-repo checkout row of the Sync tab.</summary>
 		public string MultiRepoBranch
 		{
 			get { return multiRepoBranch; }
@@ -627,7 +618,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { SetProperty(ref createBranchIfMissing, value); }
 		}
 
-		/// <summary>Checks out the same branch in every repository (optionally creating it where missing).</summary>
 		private async Task CheckoutAllAsync()
 		{
 			string branch = MultiRepoBranch.Trim();
@@ -664,7 +654,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await RefreshRepositoryAsync();
 		}
 
-		/// <summary>Dialog listing merged local branches over all repositories; selected ones are deleted (git branch -d).</summary>
 		private async Task CleanupMergedBranchesAsync()
 		{
 			StatusMessage = "Scanning merged branches…";
@@ -745,7 +734,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await LoadBranchesAsync();
 		}
 
-		/// <summary>Opens the create-PR page of GitHub / Azure DevOps for the repo's current branch.</summary>
 		private async Task CreatePullRequestAsync(RepoSyncViewModel row)
 		{
 			if (row == null)
@@ -766,13 +754,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			System.Diagnostics.Process.Start(url);
 		}
 
-		/// <summary>Compare/PR-create URL for GitHub and Azure DevOps remotes; null for unknown hosts.</summary>
 		internal static string BuildPullRequestUrl(string remoteUrl, string branch)
 		{
 			string url = remoteUrl.Trim();
 			if (url.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
 				url = url.Substring(0, url.Length - 4);
-			// ssh → https (git@host:owner/repo)
 			if (url.StartsWith("git@", StringComparison.OrdinalIgnoreCase))
 				url = "https://" + url.Substring(4).Replace(":", "/");
 
@@ -886,7 +872,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Selected tab of the tool window (0 = Changes, 1 = Stashes, 2 = History, 3 = Branches, 4 = Sync, 5 = Feed).</summary>
 		public int SelectedTabIndex
 		{
 			get { return selectedTabIndex; }
@@ -894,7 +879,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				if (SetProperty(ref selectedTabIndex, value))
 				{
-					// lazy-load the multi-repo tabs on first visit
 					if (value == syncTabIndex && SyncRows.Count == 0)
 						RunSafe(RefreshSyncAsync);
 					else if (value == feedTabIndex && FeedCommits.Count == 0)
@@ -935,28 +919,24 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { SetProperty(ref newBranchName, value); }
 		}
 
-		/// <summary>Message filter for History and Feed ("git log --grep -i").</summary>
 		public string HistoryGrep
 		{
 			get { return historyGrep; }
 			set { SetProperty(ref historyGrep, value); }
 		}
 
-		/// <summary>Author filter for History and Feed (ignored while <see cref="OnlyMine"/> is set).</summary>
 		public string HistoryAuthor
 		{
 			get { return historyAuthor; }
 			set { SetProperty(ref historyAuthor, value); }
 		}
 
-		/// <summary>Filter History and Feed to commits of the configured "git config user.name".</summary>
 		public bool OnlyMine
 		{
 			get { return onlyMine; }
 			set { SetProperty(ref onlyMine, value); }
 		}
 
-		/// <summary>Index into All/7/30/90 days (History and Feed).</summary>
 		public int HistoryPeriodIndex
 		{
 			get { return historyPeriodIndex; }
@@ -1000,7 +980,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var repo = Repositories.FirstOrDefault(r => string.Equals(r.Path, repositoryPath, StringComparison.OrdinalIgnoreCase));
 			if (repo == null)
 			{
-				// repo lives outside the configured working folders — add it on the fly
 				repo = new GitRepositoryViewModel(repositoryPath);
 				Repositories.Add(repo);
 			}
@@ -1008,7 +987,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			SelectedRepository = repo;
 		}
 
-		/// <summary>Fire-and-forget wrapper: every failure lands in the status line instead of crashing WPF.</summary>
 		private async void RunSafe(Func<Task> action) => await GuardedAsync(action);
 
 		private async Task GuardedAsync(Func<Task> action)
@@ -1045,7 +1023,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			if (SelectedRepository == null)
 				StatusMessage = "No git repositories found beneath the configured working folders.";
 
-			// multi-repo tabs: reload immediately when visible, otherwise lazily on next visit
 			SyncRows.Clear();
 			FeedCommits.Clear();
 			if (SelectedTabIndex == syncTabIndex)
@@ -1078,7 +1055,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await LoadBranchesAsync();
 		}
 
-		/// <summary>Resolves the effective author filter (OnlyMine wins over the author text box).</summary>
 		private async Task<string> GetEffectiveAuthorAsync(string repoDir)
 		{
 			if (OnlyMine)
@@ -1103,7 +1079,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 			catch (InvalidOperationException)
 			{
-				// repository without commits — history stays empty
 			}
 		}
 
@@ -1130,7 +1105,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			CommitFileDiffText = await git.GetFileDiffAsync(repo.Path, commit.Sha, file.FilePath);
 		}
 
-		// ahead/behind is one git call per branch, sequential — batch via for-each-ref if repos with many branches feel slow
 		private async Task LoadBranchesAsync()
 		{
 			var repo = SelectedRepository;
@@ -1254,7 +1228,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		/// <summary>Force push with an explicit confirmation (old ExtendedGitSyncSection link).</summary>
 		private void ForcePushWithConfirm(RepoSyncViewModel row)
 		{
 			if (row == null)
@@ -1306,7 +1279,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				}
 				catch (InvalidOperationException)
 				{
-					// repository without commits — skip
 				}
 			}
 			FeedCommits.Clear();
@@ -1326,7 +1298,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				SelectedTabIndex = historyTabIndex;
 				if (!ReferenceEquals(SelectedRepository, feedCommit.Repository))
 				{
-					// set the backing field directly: the setter would kick off a concurrent fire-and-forget refresh
 					selectedRepository = feedCommit.Repository;
 					RaisePropertyChanged(nameof(SelectedRepository));
 					await RefreshRepositoryAsync();
@@ -1395,7 +1366,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#region change file actions (VS-like git changes context menu)
 
-		/// <summary>Real VS diff: HEAD version (temp file) against the working tree file.</summary>
 		private async Task CompareChangeAsync(ChangeViewModel change)
 		{
 			var repo = SelectedRepository;
@@ -1435,7 +1405,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider, change.FullPath);
 		}
 
-		/// <summary>Switches to the History tab filtered to this file (git log --follow).</summary>
 		private async Task ShowFileHistoryAsync(ChangeViewModel change)
 		{
 			if (change == null)
@@ -1478,7 +1447,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private bool CanCommit() =>
 			HasRepository && !IsBusy && Changes.Count > 0 && !string.IsNullOrWhiteSpace(CommitMessage);
 
-		/// <summary>Commits all changes (git add -A + commit), optionally pushing afterwards.</summary>
 		private async Task CommitAllAsync(bool push)
 		{
 			var repo = SelectedRepository;
@@ -1499,7 +1467,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		#endregion
 
-		/// <summary>Applies a .patch file to the selected repository (old "Apply a Git patch file...").</summary>
 		private async Task ApplyPatchAsync()
 		{
 			var repo = SelectedRepository;
@@ -1513,11 +1480,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await RefreshRepositoryAsync();
 		}
 
-		/// <summary>
-		/// Branch name suggestion from a work item (old ExtendedGitBranchesSection "Branch Suggestion"):
-		/// asks for a work item id + prefix, resolves the title via the Azure DevOps REST settings
-		/// of the Work Items window and writes "prefix/id-title-slug" into the new-branch box.
-		/// </summary>
 		private async Task SuggestBranchNameAsync()
 		{
 			var idBox = new System.Windows.Controls.TextBox { Margin = new Thickness(8, 2, 8, 4) };
@@ -1560,7 +1522,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				: "Suggested: " + NewBranchName;
 		}
 
-		/// <summary>Title via the Work Items window's connection settings; null when not configured/reachable.</summary>
 		private async Task<string> TryGetWorkItemTitleAsync(int workItemId)
 		{
 			try
@@ -1629,7 +1590,6 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			StatusMessage = "Exported: " + dialog.FileName;
 		}
 
-		/// <summary>All git roots at or beneath the working folders (cheap .git probe, no git.exe).</summary>
 		private static List<string> FindRepositoryRoots(IEnumerable<string> workingFolders)
 		{
 			var roots = new List<string>();
@@ -1646,7 +1606,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 					{
 						if (!roots.Contains(directory, StringComparer.OrdinalIgnoreCase))
 							roots.Add(directory);
-						return; // nested repos below a root are not interesting here
+						return;
 					}
 					if (depth >= maxScanDepth)
 						return;

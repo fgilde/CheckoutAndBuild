@@ -36,7 +36,6 @@ public sealed class GitServiceTests : IDisposable
         }
         catch
         {
-            // best effort — temp dir cleanup
         }
     }
 

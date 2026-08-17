@@ -8,13 +8,10 @@ namespace CheckoutAndBuild.Core.Contracts
     [InheritedExport]
     public interface ISourceControlContext
     {
-        /// <summary>Root directory of the current git repository.</summary>
         string RepositoryPath { get; }
 
-        /// <summary>Name of the currently checked out branch.</summary>
         string CurrentBranch { get; }
 
-        /// <summary>True if <see cref="RepositoryPath"/> points into a git repository.</summary>
         bool IsGitRepository { get; }
     }
 }

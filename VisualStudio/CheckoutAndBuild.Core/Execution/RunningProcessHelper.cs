@@ -33,7 +33,7 @@ namespace CheckoutAndBuild.Core.Execution
 				}
 				catch (Exception)
 				{
-					continue; // access denied / exited / 32-vs-64-bit — not ours
+					continue;
 				}
 				if (path != null && roots.Any(root => path.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
 					found.Add(process);
@@ -55,7 +55,6 @@ namespace CheckoutAndBuild.Core.Execution
 				}
 				catch (Exception)
 				{
-					// already exited or no rights — locked file stays locked, build will report it
 				}
 			}
 			return killed;

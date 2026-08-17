@@ -102,7 +102,7 @@ namespace CheckoutAndBuild.Core.Tests
 				var ids = Enumerable.Range(1, 250).ToArray();
 				var workItems = await client.GetWorkItemsAsync(ids);
 
-				Assert.Equal(2, handler.Calls.Count); // 200 + 50
+				Assert.Equal(2, handler.Calls.Count);
 				Assert.Equal(250, workItems.Count);
 				Assert.Equal("T1", workItems[0].Title);
 				Assert.False(workItems[0].Fields.ContainsKey("Microsoft.VSTS.Common.Priority")); // non-string skipped

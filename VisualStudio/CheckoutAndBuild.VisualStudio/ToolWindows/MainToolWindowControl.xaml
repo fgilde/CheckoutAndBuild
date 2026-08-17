@@ -19,7 +19,6 @@
     </UserControl.Resources>
     <Grid>
 
-    <!-- ===== main page (hidden while the settings view is open) ===== -->
     <DockPanel Margin="8">
         <DockPanel.Style>
             <Style TargetType="DockPanel">
@@ -32,13 +31,11 @@
             </Style>
         </DockPanel.Style>
 
-        <!-- ===== status line: state-colored bar with shimmer animation, glyph and elapsed time ===== -->
         <Border DockPanel.Dock="Top" Height="20" Margin="0,0,0,8"
                 CornerRadius="3" ClipToBounds="True"
                 BorderThickness="1"
                 BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}">
             <Grid>
-                <!-- state-colored fill by pipeline progress -->
                 <ProgressBar Style="{StaticResource COABProgressBar}"
                              Background="Transparent"
                              Foreground="{Binding StateBrush}"
@@ -46,7 +43,6 @@
                              Minimum="0" Maximum="100"
                              Value="{Binding ProgressValue, Mode=OneWay}" />
 
-                <!-- moving shimmer band while running -->
                 <Rectangle x:Name="shimmer" Width="140" HorizontalAlignment="Left" IsHitTestVisible="False">
                     <Rectangle.Fill>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
@@ -81,7 +77,6 @@
                     </Rectangle.Style>
                 </Rectangle>
 
-                <!-- glyph + status text -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock FontFamily="Segoe MDL2 Assets"
                                Text="{Binding StatusGlyph}"
@@ -97,7 +92,6 @@
             </Grid>
         </Border>
 
-        <!-- ===== actions row: pipeline steps left, folder tools right ===== -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button Style="{StaticResource CoabIconButton}"
@@ -146,7 +140,6 @@
                     </Button.ContextMenu>
                 </Button>
             </StackPanel>
-            <!-- working profile selector (settings scope; folders are shared between profiles) -->
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,10,0" VerticalAlignment="Center">
                 <ComboBox ItemsSource="{Binding Profiles}"
                           SelectedItem="{Binding CurrentProfile}"
@@ -195,7 +188,6 @@
             </WrapPanel>
         </DockPanel>
 
-        <!-- ===== main button row: big run button, pause/resume + stop icon buttons ===== -->
         <Grid DockPanel.Dock="Top" Margin="0,4,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -204,7 +196,6 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- retry failed (visible after a failed run) -->
             <Button Grid.Column="3" MinHeight="24" Margin="4,0,0,0" Padding="8,0"
                     Command="{Binding RetryFailedCommand}"
                     ToolTip="Run the pipeline again for the failed solutions only">
@@ -239,7 +230,6 @@
                 </StackPanel>
             </Button>
 
-            <!-- pause (running, not paused) -->
             <Button Grid.Column="1" Width="36" MinHeight="24" Margin="4,0,0,0"
                     Command="{Binding PauseCommand}"
                     ToolTip="Pause the pipeline run">
@@ -258,7 +248,6 @@
                       Stretch="Uniform" Width="10" Height="10" />
             </Button>
 
-            <!-- resume (paused) -->
             <Button Grid.Column="1" Width="36" MinHeight="24" Margin="4,0,0,0"
                     Command="{Binding ResumeCommand}"
                     ToolTip="Resume the pipeline run">
@@ -277,7 +266,6 @@
                       Stretch="Uniform" Width="10" Height="10" />
             </Button>
 
-            <!-- stop -->
             <Button Grid.Column="2" Width="36" MinHeight="24" Margin="4,0,0,0"
                     Style="{StaticResource CoabButton}"
                     Command="{Binding CancelCommand}"
@@ -288,19 +276,16 @@
             </Button>
         </Grid>
 
-        <!-- ===== filter box (Ctrl+E) ===== -->
         <TextBox DockPanel.Dock="Top" x:Name="filterBox" Margin="0,0,0,6" FontSize="11"
                  Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                  ToolTip="Filter solutions by name (Ctrl+E focuses this box, Esc clears)" />
 
-        <!-- ===== last error ===== -->
         <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
                    Text="{Binding LastError}"
                    Foreground="{StaticResource CoabErrorBrush}"
                    TextWrapping="Wrap"
                    ToolTip="{Binding LastError}" />
 
-        <!-- ===== neutral status (e.g. exported script path) ===== -->
         <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
                    Text="{Binding StatusMessage}"
                    Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}"
@@ -308,7 +293,6 @@
                    TextWrapping="Wrap"
                    ToolTip="{Binding StatusMessage}" />
 
-        <!-- ===== working folders with their included solutions + flat excluded area ===== -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
             <ItemsControl ItemsSource="{Binding WorkingFolders}">
@@ -354,7 +338,6 @@
                                         <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabCancelGeometry}" Width="9" Height="9" />
                                     </Button>
 
-                                    <!-- many repos: one compact summary button instead of a link per repo -->
                                     <Button DockPanel.Dock="Right" FontSize="11" Margin="8,0,0,0"
                                             Click="OnRepositoriesLinkClick"
                                             ToolTip="Branches and worktrees of all repositories in this folder"
@@ -373,7 +356,6 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- branch selector per git repository of this folder (old GitBranchSelector, up to 3 repos) -->
                                     <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding Repositories}"
                                                   VerticalAlignment="Center" Margin="8,0,0,0"
                                                   Visibility="{Binding ShowRepositoriesInline, Converter={StaticResource BoolToVis}}">
@@ -500,7 +482,6 @@
                                                                     Margin="0,0,2,0"
                                                                     VerticalAlignment="Center" />
 
-                                                <!-- priority: value + compact spinner, rightmost -->
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                                             VerticalAlignment="Center" Margin="8,0,0,0"
                                                             ToolTip="Build priority (lower builds first)">
@@ -541,7 +522,6 @@
                                                     </StackPanel>
                                                 </StackPanel>
 
-                                                <!-- per-solution services link + options popover (old DropDownTextLink) -->
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                                             VerticalAlignment="Center" Margin="8,0,0,0">
                                                     <Button x:Name="servicesLink"
@@ -604,7 +584,6 @@
                                                     </Popup>
                                                 </StackPanel>
 
-                                                <!-- busy: italic status text in the operation color (old operation row look) -->
                                                 <TextBlock DockPanel.Dock="Right"
                                                            Text="{Binding StatusText}"
                                                            Foreground="{Binding StatusBrush}"
@@ -615,7 +594,6 @@
                                                            ToolTip="{Binding StatusText}"
                                                            Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
 
-                                                <!-- idle: result icon + text, right aligned -->
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                                             VerticalAlignment="Center" Margin="6,0,0,0">
                                                     <StackPanel.Style>
@@ -650,7 +628,6 @@
                                                                ToolTip="{Binding ResultText}" />
                                                 </StackPanel>
 
-                                                <!-- solution name fills, bold while busy -->
                                                 <TextBlock Text="{Binding SolutionFileName}"
                                                            Margin="4,0,8,0"
                                                            VerticalAlignment="Center"
@@ -669,7 +646,6 @@
                                                 </TextBlock>
                                             </DockPanel>
 
-                                            <!-- thin per-solution progress, only while busy -->
                                             <ProgressBar Grid.Row="1" Height="3" Margin="24,1,0,1"
                                                          Style="{StaticResource COABProgressBar}"
                                                          Foreground="{Binding StatusBrush}"
@@ -686,7 +662,6 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- ===== excluded solutions (collapsed by default, hidden when empty) ===== -->
             <Expander IsExpanded="False"
                       Margin="0,8,0,4"
                       Template="{StaticResource CoabExpanderTemplate}"
@@ -729,7 +704,6 @@
         </ScrollViewer>
     </DockPanel>
 
-    <!-- ===== settings "page" (simple visibility toggle, no navigation framework) ===== -->
     <settings:SettingsView DataContext="{Binding ActiveSettings}">
         <settings:SettingsView.Style>
             <Style TargetType="{x:Type settings:SettingsView}">

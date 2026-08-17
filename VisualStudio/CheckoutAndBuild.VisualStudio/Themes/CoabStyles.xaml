@@ -2,7 +2,6 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0">
 
-    <!-- ================= Icon geometries (ported from FG.CheckoutAndBuild2.Common.Pathes) ================= -->
     <Geometry x:Key="CoabPlayGeometry">M0,0L226.984205022454,114.765510559082 453.999997869134,229.468978881836 226.984205022454,344.234497070313 0,459 0,229.468978881836z</Geometry>
     <Geometry x:Key="CoabPauseGeometry">M27.270001,0L44.310001,0 44.310001,48.643002 27.270001,48.643002z M0,0L17.040001,0 17.040001,48.643002 0,48.643002z</Geometry>
     <Geometry x:Key="CoabStopGeometry">M0,0L48,0 48,48 0,48z</Geometry>
@@ -15,12 +14,10 @@
     <Geometry x:Key="CoabUpGeometry">M0,4L3.5,0 7,4z</Geometry>
     <Geometry x:Key="CoabDownGeometry">M0,0L3.5,4 7,0z</Geometry>
 
-    <!-- ================= Operation status colors (old look: Green / Firebrick / LightSteelBlue track) ================= -->
     <SolidColorBrush x:Key="CoabSuccessBrush" Color="Green" />
     <SolidColorBrush x:Key="CoabErrorBrush" Color="Firebrick" />
     <SolidColorBrush x:Key="CoabProgressTrackBrush" Color="LightSteelBlue" />
 
-    <!-- ================= Default icon path style ================= -->
     <Style x:Key="CoabIcon" TargetType="Path">
         <Setter Property="Fill" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
         <Setter Property="Stretch" Value="Uniform" />
@@ -29,7 +26,6 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- ================= Flat VS-themed button (main actions, ported flat look) ================= -->
     <Style x:Key="CoabButton" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ButtonTextBrushKey}}" />
         <Setter Property="Background" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemButtonFaceBrushKey}}" />
@@ -68,7 +64,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= Borderless icon button (toolbar / hover actions) ================= -->
     <Style x:Key="CoabIconButton" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
         <Setter Property="Background" Value="Transparent" />
@@ -102,7 +97,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= Tiny priority spinner button ================= -->
     <Style x:Key="CoabSpinnerButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Width" Value="14" />
@@ -127,7 +121,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= Link-look button (ported DropDownTextLink optic: link color, underline on hover) ================= -->
     <Style x:Key="CoabLinkButton" TargetType="Button">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
         <Setter Property="Background" Value="Transparent" />
@@ -162,13 +155,6 @@
         </Setter>
     </Style>
 
-    <!-- ================================================================================
-         Implicit theme styles: every COAB view merges this dictionary, so plain
-         CheckBox/TextBox/PasswordBox/ComboBox/ListView follow the VS theme everywhere
-         (default WPF templates stay light in the dark theme).
-         ================================================================================ -->
-
-    <!-- ================= CheckBox: themed box + glyph (default template box stays white in dark theme) ================= -->
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:CommonControlsColors.CheckBoxTextBrushKey}}" />
         <Setter Property="Background" Value="{DynamicResource {x:Static platformUi:CommonControlsColors.CheckBoxBackgroundBrushKey}}" />
@@ -230,7 +216,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= TextBox / PasswordBox: themed colors (default templates honor these) ================= -->
     <Style TargetType="TextBox">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:CommonControlsColors.TextBoxTextBrushKey}}" />
         <Setter Property="Background" Value="{DynamicResource {x:Static platformUi:CommonControlsColors.TextBoxBackgroundBrushKey}}" />
@@ -252,7 +237,6 @@
         <Setter Property="Padding" Value="2,1" />
     </Style>
 
-    <!-- ================= ComboBox: custom flat template (default template ignores Background in dark theme) ================= -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:CommonControlsColors.ComboBoxListItemTextBrushKey}}" />
         <Setter Property="Padding" Value="4,2" />
@@ -350,7 +334,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= List controls: themed row + transparent chrome ================= -->
     <Style TargetType="ListBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
         <Setter Property="Padding" Value="2,1" />
@@ -394,7 +377,6 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <!-- GridView headers: flat, themed, thin separator line -->
     <Style TargetType="GridViewColumnHeader">
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
         <Setter Property="Background" Value="Transparent" />
@@ -437,7 +419,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= ScrollBar: flat themed track + thumb (no arrow buttons, VS style) ================= -->
     <Style x:Key="CoabScrollBarPageButton" TargetType="RepeatButton">
         <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Focusable" Value="False" />
@@ -521,13 +502,11 @@
         </Style.Triggers>
     </Style>
 
-    <!-- ================= Themed checkbox for the steps row ================= -->
     <Style x:Key="CoabCheckBox" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
         <Setter Property="Margin" Value="0,0,10,0" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- ================= Flat progress bar (ported COABProgressBar) ================= -->
     <Style x:Key="COABProgressBar" TargetType="{x:Type ProgressBar}">
         <Setter Property="Background" Value="{StaticResource CoabProgressTrackBrush}" />
         <Setter Property="Foreground" Value="{StaticResource CoabSuccessBrush}" />
@@ -567,7 +546,6 @@
         </Setter>
     </Style>
 
-    <!-- ================= Subtle expander (ported ExpanderTemplate: thin lines, rotating triangle) ================= -->
     <Style x:Key="CoabExpanderToggleButtonStyle" TargetType="{x:Type ToggleButton}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
@@ -655,7 +633,6 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
-    <!-- ================= Vertical separator for action rows ================= -->
     <Style x:Key="CoabVerticalSeparator" TargetType="Separator">
         <Setter Property="Template">
             <Setter.Value>

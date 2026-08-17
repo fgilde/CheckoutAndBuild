@@ -17,7 +17,6 @@ namespace CheckoutAndBuild.Core.Tests
 			try { Directory.Delete(tempDir, true); } catch { }
 		}
 
-		/// <summary>Creates a minimal solution with one SDK-style project, returning the parsed model.</summary>
 		private SolutionProjectModel CreateSolution(string name, string assemblyName, params string[] references)
 		{
 			string dir = Directory.CreateDirectory(Path.Combine(tempDir, name)).FullName;
@@ -54,7 +53,7 @@ EndGlobal
 
 			Assert.Equal(0, priorities[core.ItemPath]);
 			Assert.Equal(1, priorities[app.ItemPath]);
-			Assert.Equal(2, priorities[ui.ItemPath]); // strong-name suffix is stripped
+			Assert.Equal(2, priorities[ui.ItemPath]);
 		}
 
 		[Fact]
@@ -77,7 +76,7 @@ EndGlobal
 
 			var priorities = DependencyAnalyzer.SuggestBuildPriorities(new List<SolutionProjectModel> { a, b });
 
-			Assert.Equal(2, priorities.Count); // levels are arbitrary in a cycle — it just must terminate
+			Assert.Equal(2, priorities.Count);
 		}
 	}
 }

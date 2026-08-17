@@ -11,10 +11,8 @@ namespace CheckoutAndBuild.Core.Settings
 
 		public string Profile { get; set; } = DefaultProfile;
 
-		/// <summary>Repository the setting applies to; null means global.</summary>
 		public string RepositoryPath { get; set; }
 
-		/// <summary>Branch the setting applies to; null means repo-scoped.</summary>
 		public string Branch { get; set; }
 	}
 }

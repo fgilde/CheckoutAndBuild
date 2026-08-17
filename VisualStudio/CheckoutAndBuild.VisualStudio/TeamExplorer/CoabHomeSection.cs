@@ -37,7 +37,6 @@ namespace CheckoutAndBuild.VisualStudio.TeamExplorer
 
 		public bool IsBusy => false;
 
-		// LoadAsync is kicked off by MainToolWindowControl's own Loaded handler (guarded, runs once).
 		public void Initialize(object sender, SectionInitializeEventArgs e) { }
 		public void Loaded(object sender, SectionLoadedEventArgs e) { }
 		public void SaveContext(object sender, SectionSaveContextEventArgs e) { }

@@ -20,7 +20,6 @@
                 <Setter Property="Margin" Value="0,0,0,4" />
                 <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
-            <!-- flat VS-themed tabs (same optic as the git window) -->
             <Style x:Key="CoabTabItem" TargetType="TabItem">
                 <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
                 <Setter Property="Template">
@@ -49,7 +48,6 @@
 
     <DockPanel Margin="8">
 
-        <!-- ===== connection + query (shared by both tabs) ===== -->
         <Expander DockPanel.Dock="Top" IsExpanded="True" Margin="0,0,0,6"
                   Template="{StaticResource CoabExpanderTemplate}"
                   HorizontalContentAlignment="Stretch"
@@ -101,7 +99,6 @@
 
         <TabControl Background="Transparent" BorderThickness="0">
 
-            <!-- ===== search & replace ===== -->
             <TabItem Header="Search &amp; Replace" Style="{StaticResource CoabTabItem}">
                 <DockPanel Margin="0,6,0,0">
                     <Grid DockPanel.Dock="Top">
@@ -150,7 +147,6 @@
                 </DockPanel>
             </TabItem>
 
-            <!-- ===== query results (replacement for the old work items sections) ===== -->
             <TabItem Header="Query" Style="{StaticResource CoabTabItem}">
                 <DockPanel Margin="0,6,0,0">
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">

@@ -32,10 +32,8 @@ namespace CheckoutAndBuild.VisualStudio
 
 		private CoabErrorListProvider errorListProvider;
 
-		/// <summary>Loaded package instance (set in InitializeAsync); used by the options page.</summary>
 		internal static CheckoutAndBuildPackage Instance { get; private set; }
 
-		/// <summary>Lazily created Error List provider (UI thread only).</summary>
 		internal CoabErrorListProvider ErrorListProvider
 		{
 			get
@@ -85,7 +83,6 @@ namespace CheckoutAndBuild.VisualStudio
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
 			var command = (OleMenuCommand)sender;
-			// use the field, not the property: never create the provider just to query status
 			command.Visible = command.Enabled = errorListProvider != null && errorListProvider.HasTasks;
 		}
 
@@ -125,7 +122,6 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showworkitemwindow");
 		}
 
-		/// <summary>Shows the git tool window on the History tab with the given repository selected.</summary>
 		internal void ShowGitHistory(string repositoryPath)
 		{
 			JoinableTaskFactory.RunAsync(async () =>
@@ -136,7 +132,6 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showgithistory");
 		}
 
-		/// <summary>Shows the git tool window on the Worktrees tab with the given repository selected.</summary>
 		internal void ShowGitWorktrees(string repositoryPath)
 		{
 			JoinableTaskFactory.RunAsync(async () =>
@@ -147,7 +142,6 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showgitworktrees");
 		}
 
-		/// <summary>Shows the tool window with the settings view opened (Tools → Options link).</summary>
 		internal void ShowMainWindowSettings()
 		{
 			JoinableTaskFactory.RunAsync(async () =>

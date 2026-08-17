@@ -102,6 +102,6 @@ public class SolutionParserTests
         model.ResetProgress();
         Assert.Equal(0, model.CurrentOperation.Progress);
         model.IncrementProgress();
-        Assert.Equal(50, model.CurrentOperation.Progress); // 1 of 2 projects
+        Assert.Equal(50, model.CurrentOperation.Progress);
     }
 }

@@ -14,17 +14,11 @@ namespace CheckoutAndBuild.Core.Contracts
 	{
 		private bool isNotifying;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="NotificationObject"/> class.
-		/// </summary>
 		protected NotificationObject()
 		{
 			IsNotifying = true;
 		}
 
-		/// <summary>
-		/// Enables/Disables property change notification.
-		/// </summary>
 		public bool IsNotifying
 		{
 			get { return isNotifying; }
@@ -35,21 +29,11 @@ namespace CheckoutAndBuild.Core.Contracts
 			}
 		}
 
-		/// <summary>
-		/// Occurs when a property value changes.
-		/// </summary>
 		public event PropertyChangedEventHandler PropertyChanged;
 
-		/// <summary>
-		/// Occurs when a property value is changing.
-		/// </summary>
 		public event PropertyChangingEventHandler PropertyChanging;
 
-		/// <summary>
-		/// Occurs when [IsNotifying changed].
-		/// </summary>
 		public event EventHandler IsNotifyingChanged;
-
 
 		public virtual void RaisePropertiesChanged(params Expression<Func<object>>[] actions)
 		{
@@ -57,20 +41,17 @@ namespace CheckoutAndBuild.Core.Contracts
 				RaisePropertyChanged(expression);
 		}
 
-
 		public virtual void RaisePropertiesChanging(params Expression<Func<object>>[] actions)
 		{
 			foreach (var expression in actions)
 				RaisePropertyChanging(expression);
 		}
 
-
 		/// <summary>
 		/// Called when [property changed].
 		/// </summary>
 		public virtual void RaisePropertyChanged(Expression<Func<object>> action)
 		{
-			// ReSharper disable once ExplicitCallerInfoArgument
 			RaisePropertyChanged(GetMemberName(action));
 		}
 
@@ -79,29 +60,20 @@ namespace CheckoutAndBuild.Core.Contracts
 		/// </summary>
 		public virtual void RaisePropertyChanging(Expression<Func<object>> action)
 		{
-			// ReSharper disable once ExplicitCallerInfoArgument
 			RaisePropertyChanging(GetMemberName(action));
 		}
 
-		/// <summary>
-		/// Raises for all properties the propertychanged.
-		/// </summary>
 		protected virtual void RaiseAllPropertiesChanged()
 		{
 			var properties = GetType().GetProperties();
 			foreach (PropertyInfo property in properties)
-				// ReSharper disable once ExplicitCallerInfoArgument
 				RaisePropertyChanged(property.Name);
 		}
 
-		/// <summary>
-		/// Raises for all properties the propertychanged.
-		/// </summary>
 		protected virtual void RaiseAllPropertiesChanging()
 		{
 			var properties = GetType().GetProperties();
 			foreach (PropertyInfo property in properties)
-				// ReSharper disable once ExplicitCallerInfoArgument
 				RaisePropertyChanging(property.Name);
 		}
 
@@ -131,26 +103,12 @@ namespace CheckoutAndBuild.Core.Contracts
 			if (handler != null) handler(this, EventArgs.Empty);
 		}
 
-		/// <summary>
-		/// Checks if a property already matches a desired value.  Sets the property and
-		/// notifies listeners only when necessary.
-		/// </summary>
-		/// <typeparam name="T">Type of the property.</typeparam>
-		/// <param name="storage">Reference to a property with both getter and setter.</param>
-		/// <param name="value">Desired value for the property.</param>
-		/// <param name="propertyName">Name of the property.</param>
-		/// <returns>
-		/// True if the value was changed, false if the existing value matched the
-		/// desired value.
-		/// </returns>
 		protected bool SetProperty<T>(ref T storage, T value, [CallerMemberName]string propertyName = null)
 		{
 			if (Equals(storage, value))
 				return false;
-			// ReSharper disable once ExplicitCallerInfoArgument
 			RaisePropertyChanging(propertyName);
 			storage = value;
-			// ReSharper disable once ExplicitCallerInfoArgument
 			RaisePropertyChanged(propertyName);
 			return true;
 		}
@@ -167,11 +125,6 @@ namespace CheckoutAndBuild.Core.Contracts
 			return MemberwiseClone();
 		}
 
-		/// <summary>
-		/// Helper method to get member name with compile time verification to avoid typo.
-		/// </summary>
-		/// <param name="expr">The lambda expression usually in the form of o => o.member.</param>
-		/// <returns>The name of the property.</returns>
 		[SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "Not used in all design time assemblies.")]
 		private static string GetMemberName<T>(Expression<Func<T>> expr)
 		{
