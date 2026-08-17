@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "build", "source control", "other" ],
+  "identity": {
+    "internalName": "CheckoutAndBuild"
+  },
+  "overview": "overview.md",
+  "priceCategory": "free",
+  "publisher": "fgilde",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/fgilde/CheckoutAndBuild"
+}

@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="CheckoutAndBuild.13646d50-ef88-4777-9d09-e55b321cd24f" Version="3.0.0" Language="en-US" Publisher="Florian Gilde" />
+    <Identity Id="CheckoutAndBuild.13646d50-ef88-4777-9d09-e55b321cd24f" Version="3.0.0" Language="en-US" Publisher="fgilde" />
     <DisplayName>CheckoutAndBuild</DisplayName>
-    <Description xml:space="preserve">Local one-click CI for multiple solutions: clean, checkout (git), restore, build and test - directly from Visual Studio.</Description>
-    <Tags>Checkout, Build, MultiSolution, CI, Git</Tags>
+    <Description xml:space="preserve">Local one-click CI for multiple solutions: clean, checkout (git), restore, build and test - directly from Visual Studio. Includes a git cockpit (changes, stashes, history, branches, worktrees, multi-repo sync) and Azure DevOps work item tools.</Description>
+    <MoreInfo>https://github.com/fgilde/CheckoutAndBuild</MoreInfo>
+    <License>Resources\LICENSE.txt</License>
+    <ReleaseNotes>https://github.com/fgilde/CheckoutAndBuild/releases</ReleaseNotes>
+    <Icon>Resources\icon.png</Icon>
+    <PreviewImage>Resources\preview.png</PreviewImage>
+    <Tags>build, ci, git, worktree, multi-solution, msbuild, checkout, test, azure devops, productivity</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">

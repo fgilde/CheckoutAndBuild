@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp version from tag
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+(\.\d+)?$') { throw "Tag '$version' is not a valid version" }
+          $manifest = 'VisualStudio/CheckoutAndBuild.VisualStudio/source.extension.vsixmanifest'
+          (Get-Content $manifest -Raw) -replace '(<Identity[^>]*Version=")[^"]+', "`${1}$version" | Set-Content $manifest -NoNewline
+          Write-Host "Stamped VSIX version $version"
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build VSIX
+        run: msbuild VisualStudio/CheckoutAndBuild.VisualStudio/CheckoutAndBuild.VisualStudio.csproj /restore /p:Configuration=Release /p:DeployExtension=false /v:m
+
+      - name: Test
+        run: dotnet test VisualStudio/CheckoutAndBuild.Core.Tests -c Release --nologo
+        env:
+          DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+
+      - name: Rename artifact
+        shell: pwsh
+        run: Copy-Item VisualStudio/CheckoutAndBuild.VisualStudio/bin/Release/CheckoutAndBuild.VisualStudio.vsix "CheckoutAndBuild-${{ github.ref_name }}.vsix"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CheckoutAndBuild-${{ github.ref_name }}.vsix
+          generate_release_notes: true
+
+      - name: Publish to Visual Studio Marketplace
+        shell: pwsh
+        env:
+          VS_MARKETPLACE_PAT: ${{ secrets.VS_MARKETPLACE_PAT }}
+        run: |
+          if (-not $env:VS_MARKETPLACE_PAT) {
+            Write-Host 'No VS_MARKETPLACE_PAT secret configured - skipping marketplace publish.'
+            exit 0
+          }
+          $installation = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $publisher = Join-Path $installation 'VSSDK\VisualStudioIntegration\Tools\Bin\VsixPublisher.exe'
+          & $publisher publish `
+            -payload "CheckoutAndBuild-${{ github.ref_name }}.vsix" `
+            -publishManifest publishManifest.json `
+            -personalAccessToken $env:VS_MARKETPLACE_PAT
+          if ($LASTEXITCODE -ne 0) { throw "VsixPublisher failed with $LASTEXITCODE" }
