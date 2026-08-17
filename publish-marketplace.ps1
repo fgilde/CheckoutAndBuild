@@ -19,7 +19,7 @@ if (-not $VsixPath) {
 	}
 	try {
 		$msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
-		& $msbuild "$repoRoot/VisualStudio/CheckoutAndBuild.VisualStudio/CheckoutAndBuild.VisualStudio.csproj" /restore /p:Configuration=Release /p:DeployExtension=false /v:m /nologo
+		& $msbuild "$repoRoot/VisualStudio/CheckoutAndBuild.VisualStudio/CheckoutAndBuild.VisualStudio.csproj" /restore /t:Rebuild /p:Configuration=Release /p:DeployExtension=false /v:m /nologo
 		if ($LASTEXITCODE -ne 0) { throw "build failed" }
 	}
 	finally {
