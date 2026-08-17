@@ -2,3 +2,5 @@
 build/
 .intellijPlatform/
 .idea/
+
+.kotlin/
