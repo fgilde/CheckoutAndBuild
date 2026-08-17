@@ -187,8 +187,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 	}
 
 	/// <summary>One row of the Worktrees tab.</summary>
-	public class WorktreeViewModel
+	public class WorktreeViewModel : NotificationObject
 	{
+		private string syncBadge = "…";
+		private string dirtyBadge;
+
 		public WorktreeViewModel(Core.Git.GitWorktree worktree)
 		{
 			Worktree = worktree;
@@ -208,6 +211,18 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public string ShortSha => Worktree.ShortSha;
 		public string Badges { get; }
 		public bool IsMain => Worktree.IsMain;
+
+		public string SyncBadge
+		{
+			get { return syncBadge; }
+			set { SetProperty(ref syncBadge, value); }
+		}
+
+		public string DirtyBadge
+		{
+			get { return dirtyBadge; }
+			set { SetProperty(ref dirtyBadge, value); }
+		}
 	}
 
 	/// <summary>One row of the Feed tab (commit + owning repository).</summary>
@@ -318,6 +333,15 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				p => (p as WorktreeViewModel)?.Worktree.Exists == true);
 			AddWorktreeAsFolderCommand = new DelegateCommand(p => AddWorktreeAsWorkingFolder(p as WorktreeViewModel),
 				p => (p as WorktreeViewModel)?.Worktree.Exists == true);
+			PullWorktreeCommand = new DelegateCommand(p => RunSafe(() => WorktreeActionAsync(p as WorktreeViewModel, "pull")),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true && !IsBusy);
+			PushWorktreeCommand = new DelegateCommand(p => RunSafe(() => WorktreeActionAsync(p as WorktreeViewModel, "push")),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true && !IsBusy);
+			UpdateWorktreeFromBaseCommand = new DelegateCommand(p => RunSafe(() => WorktreeActionAsync(p as WorktreeViewModel, "update")),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true && !IsBusy);
+			SwitchWorktreeBranchCommand = new DelegateCommand(p => RunSafe(() => SwitchWorktreeBranchAsync(p as WorktreeViewModel)),
+				p => (p as WorktreeViewModel)?.Worktree.Exists == true && !IsBusy);
+			FindOrphanWorktreesCommand = new DelegateCommand(() => RunSafe(FindOrphanWorktreesAsync), () => HasRepository && !IsBusy);
 			CheckoutAllCommand = new DelegateCommand(() => RunSafe(CheckoutAllAsync),
 				() => SyncRows.Count > 0 && !string.IsNullOrWhiteSpace(MultiRepoBranch) && !IsBusy);
 			CleanupBranchesCommand = new DelegateCommand(() => RunSafe(CleanupMergedBranchesAsync), () => SyncRows.Count > 0 && !IsBusy);
@@ -401,6 +425,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand OpenWorktreeExplorerCommand { get; }
 		public ICommand OpenWorktreeSolutionCommand { get; }
 		public ICommand AddWorktreeAsFolderCommand { get; }
+		public ICommand PullWorktreeCommand { get; }
+		public ICommand PushWorktreeCommand { get; }
+		public ICommand UpdateWorktreeFromBaseCommand { get; }
+		public ICommand SwitchWorktreeBranchCommand { get; }
+		public ICommand FindOrphanWorktreesCommand { get; }
 
 		public ObservableCollection<WorktreeViewModel> Worktrees { get; } = new ObservableCollection<WorktreeViewModel>();
 
@@ -429,6 +458,132 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 			foreach (var worktree in await git.GetWorktreesAsync(repo.Path))
 				Worktrees.Add(new WorktreeViewModel(worktree));
+			foreach (var row in Worktrees.ToList())
+			{
+				if (!row.Worktree.Exists)
+				{
+					row.SyncBadge = "";
+					continue;
+				}
+				try
+				{
+					var sync = await git.GetAheadBehindAsync(row.Path);
+					var changes = await git.GetStatusAsync(row.Path);
+					row.SyncBadge = !sync.HasUpstream ? "no upstream"
+						: sync.Ahead == 0 && sync.Behind == 0 ? "✓"
+						: ((sync.Ahead > 0 ? $"↑{sync.Ahead} " : "") + (sync.Behind > 0 ? $"↓{sync.Behind}" : "")).Trim();
+					int dirty = changes.Select(c => c.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+					row.DirtyBadge = dirty == 0 ? "" : $"● {dirty}";
+				}
+				catch
+				{
+					row.SyncBadge = "";
+				}
+			}
+		}
+
+		/// <summary>Pull, push (auto upstream) or merge origin/&lt;default&gt; inside one worktree.</summary>
+		private async Task WorktreeActionAsync(WorktreeViewModel worktree, string action)
+		{
+			if (worktree == null || !worktree.Worktree.Exists)
+				return;
+			StatusMessage = $"{action}: {worktree.Name}…";
+			switch (action)
+			{
+				case "pull":
+					await git.PullAsync(worktree.Path);
+					break;
+				case "push":
+					var sync = await git.GetAheadBehindAsync(worktree.Path);
+					await git.PushAsync(worktree.Path, setUpstream: !sync.HasUpstream);
+					break;
+				case "update":
+					await git.UpdateFromBaseAsync(worktree.Path);
+					break;
+			}
+			StatusMessage = $"{action} done: {worktree.Name}";
+			await LoadWorktreesAsync();
+		}
+
+		private async Task SwitchWorktreeBranchAsync(WorktreeViewModel worktree)
+		{
+			var repo = SelectedRepository;
+			if (worktree == null || repo == null || !worktree.Worktree.Exists)
+				return;
+			var branches = await git.GetBranchesAsync(repo.Path);
+			var inUse = new HashSet<string>((await git.GetWorktreesAsync(repo.Path)).Select(w => w.Branch)
+				.Where(b => !string.IsNullOrEmpty(b)), StringComparer.OrdinalIgnoreCase);
+
+			var branchBox = new System.Windows.Controls.ComboBox
+			{
+				IsEditable = true,
+				Margin = new Thickness(8, 2, 8, 4),
+				ItemsSource = branches.Where(b => !inUse.Contains(b)).ToList()
+			};
+			var ok = new System.Windows.Controls.Button
+			{
+				Content = "Switch", Padding = new Thickness(12, 3, 12, 3),
+				Margin = new Thickness(0, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true
+			};
+			var panel = new System.Windows.Controls.StackPanel();
+			panel.Children.Add(new System.Windows.Controls.TextBlock
+			{
+				Text = $"Checkout branch in worktree '{worktree.Name}' (existing or new name):",
+				Margin = new Thickness(8, 8, 8, 0), Opacity = 0.7, TextWrapping = TextWrapping.Wrap
+			});
+			panel.Children.Add(branchBox);
+			panel.Children.Add(ok);
+			var window = new Window
+			{
+				Title = "Switch Branch",
+				Content = panel,
+				Width = 420,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			window.Loaded += (s, e) => branchBox.Focus();
+			if (window.ShowDialog() != true)
+				return;
+			string branch = branchBox.Text?.Trim();
+			if (string.IsNullOrEmpty(branch))
+				return;
+			if (await git.BranchExistsAsync(repo.Path, branch))
+				await git.CheckoutBranchAsync(worktree.Path, branch);
+			else
+				await git.CreateBranchAsync(worktree.Path, branch);
+			StatusMessage = $"Worktree '{worktree.Name}' now on '{branch}'.";
+			await LoadWorktreesAsync();
+		}
+
+		private async Task FindOrphanWorktreesAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			var orphans = GitService.FindOrphanWorktreeDirectories(repo.Path);
+			if (orphans.Count == 0)
+			{
+				StatusMessage = "No orphaned worktree folders found.";
+				return;
+			}
+			var answer = MessageBox.Show(
+				"These folders point to worktree metadata that no longer exists:\n\n" +
+				string.Join("\n", orphans) + "\n\nDelete them?",
+				"Orphaned Worktree Folders", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+			if (answer != MessageBoxResult.Yes)
+				return;
+			foreach (var dir in orphans)
+			{
+				try { System.IO.Directory.Delete(dir, recursive: true); }
+				catch (Exception e) { LastError = $"{dir}: {e.Message}"; }
+			}
+			await git.PruneWorktreesAsync(repo.Path);
+			StatusMessage = $"Deleted {orphans.Count} orphaned folder(s).";
+			await LoadWorktreesAsync();
 		}
 
 		private async Task AddWorktreeAsync()
@@ -518,6 +673,13 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Margin = new Thickness(8, 4, 8, 0),
 				FontSize = 11
 			};
+			var deleteBranch = new System.Windows.Controls.CheckBox
+			{
+				Content = $"Also delete branch '{worktree.Worktree.Branch}'",
+				Margin = new Thickness(8, 4, 8, 0),
+				FontSize = 11,
+				IsEnabled = !worktree.Worktree.IsDetached && !string.IsNullOrEmpty(worktree.Worktree.Branch)
+			};
 			var ok = new System.Windows.Controls.Button
 			{
 				Content = "Remove", Padding = new Thickness(12, 3, 12, 3),
@@ -526,11 +688,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var panel = new System.Windows.Controls.StackPanel();
 			panel.Children.Add(new System.Windows.Controls.TextBlock
 			{
-				Text = $"Remove worktree '{worktree.Name}'?\n{worktree.Path}\n\nThe folder is deleted; the branch stays.",
+				Text = $"Remove worktree '{worktree.Name}'?\n{worktree.Path}\n\nThe folder is deleted.",
 				Margin = new Thickness(8, 8, 8, 0),
 				TextWrapping = TextWrapping.Wrap
 			});
 			panel.Children.Add(force);
+			panel.Children.Add(deleteBranch);
 			panel.Children.Add(ok);
 			var window = new Window
 			{
@@ -549,6 +712,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RunSafe(async () =>
 			{
 				await git.RemoveWorktreeAsync(SelectedRepository.Path, worktree.Path, force.IsChecked == true);
+				if (deleteBranch.IsChecked == true)
+					await git.DeleteBranchAsync(SelectedRepository.Path, worktree.Worktree.Branch, force: force.IsChecked == true);
 				StatusMessage = $"Worktree removed: {worktree.Name}";
 				await LoadWorktreesAsync();
 			});

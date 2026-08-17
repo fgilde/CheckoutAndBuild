@@ -702,6 +702,10 @@
                                 Command="{Binding PruneWorktreesCommand}"
                                 ToolTip="Drop stale worktree entries whose directories were deleted (git worktree prune)" />
                         <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Find Orphans…"
+                                Command="{Binding FindOrphanWorktreesCommand}"
+                                ToolTip="Find sibling folders whose .git file points to worktree metadata that no longer exists and delete them" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
                         <Button Style="{StaticResource CoabLinkButton}" Content="Refresh"
                                 Command="{Binding RefreshWorktreesCommand}" />
                     </StackPanel>
@@ -726,26 +730,59 @@
                                  ItemContainerStyle="{StaticResource CoabListBoxItem}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Background="Transparent" ToolTip="{Binding Path}">
+                                    <DockPanel Background="Transparent" ToolTip="{Binding Path}"
+                                               Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                        <DockPanel.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Pull"
+                                                          Command="{Binding PlacementTarget.Tag.PullWorktreeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Push"
+                                                          Command="{Binding PlacementTarget.Tag.PushWorktreeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"
+                                                          ToolTip="Push (sets upstream automatically when missing)" />
+                                                <MenuItem Header="Update from Base"
+                                                          Command="{Binding PlacementTarget.Tag.UpdateWorktreeFromBaseCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"
+                                                          ToolTip="Fetch and merge origin/&lt;default branch&gt; into this worktree" />
+                                                <MenuItem Header="Switch Branch…"
+                                                          Command="{Binding PlacementTarget.Tag.SwitchWorktreeBranchCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="Open Solution"
+                                                          Command="{Binding PlacementTarget.Tag.OpenWorktreeSolutionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Open in Explorer"
+                                                          Command="{Binding PlacementTarget.Tag.OpenWorktreeExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="Add as Working Folder"
+                                                          Command="{Binding PlacementTarget.Tag.AddWorktreeAsFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="Remove…"
+                                                          Command="{Binding PlacementTarget.Tag.RemoveWorktreeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}" />
+                                            </ContextMenu>
+                                        </DockPanel.ContextMenu>
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Pull"
+                                                    Command="{Binding DataContext.PullWorktreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                                            <Button Style="{StaticResource CoabLinkButton}" Content="Push"
+                                                    Command="{Binding DataContext.PushWorktreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Push (sets upstream automatically when missing)" />
+                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
                                             <Button Style="{StaticResource CoabLinkButton}" Content="Open Solution"
                                                     Command="{Binding DataContext.OpenWorktreeSolutionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     ToolTip="Open the first .sln of the worktree in a new Visual Studio instance" />
                                             <Separator Style="{StaticResource CoabVerticalSeparator}" />
-                                            <Button Style="{StaticResource CoabLinkButton}" Content="Explorer"
-                                                    Command="{Binding DataContext.OpenWorktreeExplorerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}" />
-                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
-                                            <Button Style="{StaticResource CoabLinkButton}" Content="Add as Folder"
-                                                    Command="{Binding DataContext.AddWorktreeAsFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"
-                                                    ToolTip="Add the worktree as a CheckoutAndBuild working folder" />
-                                            <Separator Style="{StaticResource CoabVerticalSeparator}" />
                                             <Button Style="{StaticResource CoabLinkButton}" Content="Remove…"
                                                     Command="{Binding DataContext.RemoveWorktreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip="Remove the worktree folder (the branch stays)" />
+                                                    ToolTip="Remove the worktree folder (optionally the branch too)" />
                                         </StackPanel>
                                         <TextBlock DockPanel.Dock="Left" Text="{Binding Name}"
                                                    FontWeight="SemiBold" Width="180" TextTrimming="CharacterEllipsis" />
@@ -754,6 +791,25 @@
                                                    Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
                                         <TextBlock DockPanel.Dock="Left" Text="{Binding ShortSha}"
                                                    FontFamily="Consolas" Width="70" Opacity="0.7" />
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding SyncBadge}" Width="90" FontSize="11" VerticalAlignment="Center"
+                                                   ToolTip="Ahead/behind against the upstream of the worktree branch">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SyncBadge}" Value="✓">
+                                                            <Setter Property="Foreground" Value="#2E8B57" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding SyncBadge}" Value="no upstream">
+                                                            <Setter Property="Foreground" Value="Gray" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding DirtyBadge}" Width="50" FontSize="11"
+                                                   Foreground="#C87800" VerticalAlignment="Center"
+                                                   ToolTip="Uncommitted changes in the worktree" />
                                         <TextBlock Text="{Binding Badges}" FontSize="11" Opacity="0.7" VerticalAlignment="Center" />
                                     </DockPanel>
                                 </DataTemplate>

@@ -174,6 +174,43 @@ namespace CheckoutAndBuild.Core.Git
             return RunGitAsync(repoDir, "worktree prune", ct: ct);
         }
 
+        /// <summary>Merges origin/&lt;default branch&gt; into the worktree's current branch (fetch first).</summary>
+        public async Task UpdateFromBaseAsync(string worktreePath, Action<string> onOutput = null, CancellationToken ct = default)
+        {
+            await FetchAsync(worktreePath, onOutput, ct).ConfigureAwait(false);
+            string baseBranch = await GetDefaultBranchAsync(worktreePath, ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(baseBranch))
+                throw new InvalidOperationException("No default branch found.");
+            await RunGitAsync(worktreePath, $"merge \"origin/{baseBranch}\" --no-edit", onOutput, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>Sibling folders whose .git file points to worktree metadata that no longer exists (broken leftovers).</summary>
+        public static IReadOnlyList<string> FindOrphanWorktreeDirectories(string repoDir)
+        {
+            var orphans = new List<string>();
+            string root = repoDir.TrimEnd(Path.DirectorySeparatorChar, '/');
+            string parent = Path.GetDirectoryName(root);
+            if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
+                return orphans;
+            foreach (string candidate in Directory.GetDirectories(parent))
+            {
+                if (string.Equals(candidate, root, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                string gitFile = Path.Combine(candidate, ".git");
+                if (!File.Exists(gitFile))
+                    continue;
+                string content;
+                try { content = File.ReadAllText(gitFile); }
+                catch { continue; }
+                if (!content.StartsWith("gitdir:", StringComparison.Ordinal))
+                    continue;
+                string gitDir = content.Substring(7).Trim().Replace('/', Path.DirectorySeparatorChar);
+                if (!Directory.Exists(gitDir))
+                    orphans.Add(candidate);
+            }
+            return orphans;
+        }
+
         /// <summary>Sibling-folder convention for new worktrees: &lt;parent&gt;/&lt;repoName&gt;-&lt;branch&gt; (slashes become dashes).</summary>
         public static string GetDefaultWorktreePath(string repoDir, string branch)
         {

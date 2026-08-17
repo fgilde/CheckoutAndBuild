@@ -68,8 +68,8 @@ object GitOps {
     fun checkout(root: File, branch: String): Pair<Int, String> =
         ProcessRunner.capture("git checkout \"$branch\"", root)
 
-    fun deleteBranch(root: File, branch: String): Pair<Int, String> =
-        ProcessRunner.capture("git branch -d \"$branch\"", root)
+    fun deleteBranch(root: File, branch: String, force: Boolean = false): Pair<Int, String> =
+        ProcessRunner.capture("git branch ${if (force) "-D" else "-d"} \"$branch\"", root)
 
     fun defaultBranch(root: File): String? {
         val head = capture(root, "git symbolic-ref refs/remotes/origin/HEAD --short")
@@ -216,6 +216,28 @@ object GitOps {
         ProcessRunner.capture("git worktree remove ${if (force) "--force " else ""}\"${path.absolutePath}\"", root)
 
     fun worktreePrune(root: File): Pair<Int, String> = ProcessRunner.capture("git worktree prune", root)
+
+    fun updateFromBase(worktree: File): Pair<Int, String> {
+        fetch(worktree)
+        val base = defaultBranch(worktree) ?: return 1 to "no default branch found"
+        return ProcessRunner.capture("git merge \"origin/$base\" --no-edit", worktree)
+    }
+
+    fun abortMerge(worktree: File): Pair<Int, String> =
+        ProcessRunner.capture("git merge --abort", worktree)
+
+    fun orphanWorktreeDirs(root: File): List<File> {
+        val parent = root.parentFile ?: return emptyList()
+        return parent.listFiles()?.filter { candidate ->
+            if (!candidate.isDirectory || candidate == root) return@filter false
+            val gitFile = File(candidate, ".git")
+            if (!gitFile.isFile) return@filter false
+            val content = runCatching { gitFile.readText() }.getOrNull() ?: return@filter false
+            if (!content.startsWith("gitdir:")) return@filter false
+            val gitDir = File(content.removePrefix("gitdir:").trim().replace('/', File.separatorChar))
+            !gitDir.exists()
+        } ?: emptyList()
+    }
 
     private fun capture(root: File, command: String): String? {
         val (exit, output) = ProcessRunner.capture(command, root)
