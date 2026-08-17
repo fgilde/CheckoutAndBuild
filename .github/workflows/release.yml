@@ -12,6 +12,7 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    environment: release
     steps:
       - uses: actions/checkout@v4
 
