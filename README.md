@@ -44,7 +44,7 @@ The engine (`CheckoutAndBuild.Core`, netstandard2.0) is IDE-free and runs every 
 
 ## Release
 
-Push a tag like `v3.1.0`: the release workflow builds the VSIX, runs the tests, attaches the VSIX to a GitHub release and publishes it to the Visual Studio Marketplace. Marketplace publishing needs either the `AZURE_CLIENT_ID` + `AZURE_TENANT_ID` secrets (Entra ID app with GitHub OIDC federation, added as a member of the marketplace publisher) or — until PATs retire in December 2026 — a `VS_MARKETPLACE_PAT` secret; without any of them the publish step is skipped.
+Push a tag like `v3.1.0`: the release workflow builds the VSIX, runs the tests and attaches the VSIX to a GitHub release. Marketplace publishing runs locally via `publish-marketplace.ps1 -Version 3.1.0` (uses a short-lived Entra ID token from the local `az` login — the marketplace publisher account needs no stored secrets). The workflow's marketplace step only activates when a `VS_MARKETPLACE_PAT` secret exists.
 
 ## License
 
