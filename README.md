@@ -2,6 +2,8 @@
 
 Local one-click CI for Visual Studio: keep any number of solutions up to date with a single click — clean, git checkout, NuGet restore, build and test, all out of process and in parallel. Plus a full git cockpit (changes, stashes, history, branches, worktrees, multi-repo sync) and Azure DevOps work item tools.
 
+**Website:** https://fgilde.github.io/CheckoutAndBuild/ · **Marketplace:** https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild
+
 ![CheckoutAndBuild main window](art/screenshot-main.png)
 
 ## Install
@@ -44,7 +46,12 @@ The engine (`CheckoutAndBuild.Core`, netstandard2.0) is IDE-free and runs every 
 
 ## Release
 
-Push a tag like `v3.1.0`: the release workflow builds the VSIX, runs the tests and attaches the VSIX to a GitHub release. Marketplace publishing runs locally via `publish-marketplace.ps1 -Version 3.1.0` (uses a short-lived Entra ID token from the local `az` login — the marketplace publisher account needs no stored secrets). The workflow's marketplace step only activates when a `VS_MARKETPLACE_PAT` secret exists.
+Publishing a new version is a two-step process:
+
+1. **GitHub release (automatic):** create a release with a tag like `v3.2.0` (or push the tag). The release workflow stamps the VSIX version from the tag, builds, runs all tests and attaches `CheckoutAndBuild-v3.2.0.vsix` to the GitHub release.
+2. **Marketplace (one local command):** `.\publish-marketplace.ps1 -Version 3.2.0` — builds the VSIX with the stamped version and uploads it to the Visual Studio Marketplace using a short-lived Entra ID token from the local `az login` (no stored secrets). It verifies the expected account before doing anything.
+
+The workflow's own marketplace step only activates when a `VS_MARKETPLACE_PAT` secret exists — kept as an option, not required.
 
 ## License
 
