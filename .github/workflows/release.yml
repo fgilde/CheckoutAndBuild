@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -47,13 +48,31 @@ jobs:
           files: CheckoutAndBuild-${{ github.ref_name }}.vsix
           generate_release_notes: true
 
+      - name: Azure login (Entra ID via OIDC)
+        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Publish to Visual Studio Marketplace
         shell: pwsh
         env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           VS_MARKETPLACE_PAT: ${{ secrets.VS_MARKETPLACE_PAT }}
         run: |
-          if (-not $env:VS_MARKETPLACE_PAT) {
-            Write-Host 'No VS_MARKETPLACE_PAT secret configured - skipping marketplace publish.'
+          $token = $null
+          if ($env:AZURE_CLIENT_ID) {
+            $token = az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv
+            Write-Host 'Using Entra ID access token for marketplace publish.'
+          }
+          elseif ($env:VS_MARKETPLACE_PAT) {
+            $token = $env:VS_MARKETPLACE_PAT
+            Write-Host 'Using personal access token for marketplace publish (PATs retire 2026-12-01 - switch to Entra ID).'
+          }
+          else {
+            Write-Host 'No AZURE_CLIENT_ID/AZURE_TENANT_ID or VS_MARKETPLACE_PAT secrets configured - skipping marketplace publish.'
             exit 0
           }
           $installation = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
@@ -61,5 +80,5 @@ jobs:
           & $publisher publish `
             -payload "CheckoutAndBuild-${{ github.ref_name }}.vsix" `
             -publishManifest publishManifest.json `
-            -personalAccessToken $env:VS_MARKETPLACE_PAT
+            -personalAccessToken $token
           if ($LASTEXITCODE -ne 0) { throw "VsixPublisher failed with $LASTEXITCODE" }
