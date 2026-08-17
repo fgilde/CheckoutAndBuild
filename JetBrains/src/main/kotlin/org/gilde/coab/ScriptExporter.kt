@@ -14,14 +14,13 @@ object ScriptExporter {
                 lines += if (powershell) "git -C \"${root.absolutePath}\" pull" else "git -C \"${root.absolutePath}\" pull"
         }
 
-        val state = CoabState.get().state
         for (step in listOf(StepKind.INSTALL, StepKind.BUILD, StepKind.TEST)) {
             if (step !in steps) continue
             val runnable = projects.filter { CommandResolver.resolve(it, step) != null }
             if (runnable.isEmpty()) continue
             lines += ""
             lines += if (powershell) "# ${step.name.lowercase()}" else "rem ${step.name.lowercase()}"
-            for (project in runnable.sortedBy { state.priorities[it.key] ?: 0 }) {
+            for (project in runnable.sortedBy { CoabState.get().priority(it.key) }) {
                 val command = CommandResolver.resolve(project, step) ?: continue
                 if (powershell) {
                     lines += "Push-Location \"${project.directory.absolutePath}\""

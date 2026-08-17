@@ -1,11 +1,17 @@
 package org.gilde.coab
 
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserFactory
+import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogBuilder
+import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.wm.WindowManager
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTabbedPane
@@ -14,11 +20,15 @@ import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.GridLayout
+import java.awt.Taskbar
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.io.File
+import java.time.LocalDate
+import java.time.LocalTime
 import javax.swing.JButton
 import javax.swing.JCheckBox
+import javax.swing.JComboBox
 import javax.swing.JLabel
 import javax.swing.JMenuItem
 import javax.swing.JPanel
@@ -27,12 +37,14 @@ import javax.swing.JSpinner
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.SpinnerNumberModel
+import javax.swing.Timer
 import javax.swing.table.AbstractTableModel
 
-/** The CheckoutAndBuild tool window: pipeline tab (working folders, project table, steps, export) and git tab, sharing one console. */
-class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
+/** The CheckoutAndBuild tool window: pipeline, git, worktrees and work items tabs sharing one console, with profiles, ETA status line, retry-failed, scheduled runs and finish notifications. */
+class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
 
-    private val state = CoabState.get().state
+    private val coabState = CoabState.get()
+    private val state = coabState.state
     private val projects = mutableListOf<CoabProject>()
     private val status = mutableMapOf<String, String>()
 
@@ -40,15 +52,26 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
     private val table = JBTable(tableModel)
     private val console = JTextArea()
     private val gitPanel = GitPanel(::appendLineAsync)
+    private val worktreePanel = WorktreePanel(::appendLineAsync) { path -> addFolderPath(path) }
+    private val workItemsPanel = WorkItemsPanel(::appendLineAsync)
 
-    private val pullBox = JCheckBox("Pull", state.pull)
-    private val installBox = JCheckBox("Install/Restore", state.install)
-    private val buildBox = JCheckBox("Build", state.build)
-    private val testBox = JCheckBox("Test", state.test)
+    private val profileCombo = JComboBox<String>()
+    private val pullBox = JCheckBox("Pull")
+    private val installBox = JCheckBox("Install/Restore")
+    private val buildBox = JCheckBox("Build")
+    private val testBox = JCheckBox("Test")
     private val runButton = JButton("▶ CheckoutAndBuild")
     private val cancelButton = JButton("Cancel")
+    private val retryButton = JButton("Retry failed")
+    private val statusLabel = JLabel("Ready")
 
     private var runner: PipelineRunner? = null
+    private var lastFailed: Set<String> = emptySet()
+    private var runStartMillis = 0L
+    private var runEstimateSeconds = 0L
+    private var currentStepText = ""
+    private val elapsedTimer = Timer(1000) { updateStatusLine() }
+    private val scheduleTimer = Timer(60000) { checkScheduledRun() }
 
     init {
         console.isEditable = false
@@ -63,12 +86,15 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         val addButton = JButton("Add Folder…")
         val removeButton = JButton("Remove Folder…")
         val refreshButton = JButton("Rescan")
-        val settingsButton = JButton("⚙")
-        val exportButton = JButton("Export…")
+        val toolsButton = JButton("Tools ▾")
         cancelButton.isEnabled = false
+        retryButton.isVisible = false
         runButton.font = runButton.font.deriveFont(Font.BOLD)
         toolbar.add(runButton)
         toolbar.add(cancelButton)
+        toolbar.add(retryButton)
+        toolbar.add(JLabel("Profile:"))
+        toolbar.add(profileCombo)
         toolbar.add(pullBox)
         toolbar.add(installBox)
         toolbar.add(buildBox)
@@ -76,16 +102,25 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         toolbar.add(addButton)
         toolbar.add(removeButton)
         toolbar.add(refreshButton)
-        toolbar.add(exportButton)
-        toolbar.add(settingsButton)
+        toolbar.add(toolsButton)
+
+        val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+        statusLabel.font = statusLabel.font.deriveFont(Font.ITALIC)
+        statusRow.add(statusLabel)
+
+        val north = JPanel(BorderLayout())
+        north.add(toolbar, BorderLayout.NORTH)
+        north.add(statusRow, BorderLayout.SOUTH)
 
         val pipelineTab = JPanel(BorderLayout())
-        pipelineTab.add(toolbar, BorderLayout.NORTH)
+        pipelineTab.add(north, BorderLayout.NORTH)
         pipelineTab.add(JBScrollPane(table), BorderLayout.CENTER)
 
         val tabs = JBTabbedPane()
         tabs.addTab("Pipeline", pipelineTab)
         tabs.addTab("Git", gitPanel)
+        tabs.addTab("Worktrees", worktreePanel)
+        tabs.addTab("Work Items", workItemsPanel)
 
         val splitter = OnePixelSplitter(true, 0.6f)
         splitter.firstComponent = tabs
@@ -95,14 +130,24 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         addButton.addActionListener { addFolder() }
         removeButton.addActionListener { removeFolder() }
         refreshButton.addActionListener { rescan() }
-        runButton.addActionListener { runPipeline() }
+        runButton.addActionListener { runPipeline(includedProjects()) }
+        retryButton.addActionListener { runPipeline(includedProjects().filter { it.key in lastFailed }) }
         cancelButton.addActionListener { runner?.cancelled = true }
-        settingsButton.addActionListener { showSettings() }
-        exportButton.addActionListener { exportScript() }
-        pullBox.addActionListener { state.pull = pullBox.isSelected }
-        installBox.addActionListener { state.install = installBox.isSelected }
-        buildBox.addActionListener { state.build = buildBox.isSelected }
-        testBox.addActionListener { state.test = testBox.isSelected }
+        toolsButton.addActionListener { toolsMenu().show(toolsButton, 0, toolsButton.height) }
+        pullBox.addActionListener { coabState.setStepEnabled(StepKind.PULL, pullBox.isSelected) }
+        installBox.addActionListener { coabState.setStepEnabled(StepKind.INSTALL, installBox.isSelected) }
+        buildBox.addActionListener { coabState.setStepEnabled(StepKind.BUILD, buildBox.isSelected) }
+        testBox.addActionListener { coabState.setStepEnabled(StepKind.TEST, testBox.isSelected) }
+
+        reloadProfiles()
+        profileCombo.addActionListener {
+            val selected = profileCombo.selectedItem as? String ?: return@addActionListener
+            if (selected != state.currentProfile) {
+                state.currentProfile = selected
+                reloadStepBoxes()
+                tableModel.fireTableDataChanged()
+            }
+        }
 
         if (state.folders.isEmpty()) {
             ideProject.basePath?.let { base ->
@@ -112,6 +157,116 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
             }
         }
         rescan()
+        scheduleTimer.start()
+    }
+
+    private fun reloadProfiles() {
+        profileCombo.removeAllItems()
+        state.profiles.forEach { profileCombo.addItem(it) }
+        profileCombo.selectedItem = state.currentProfile
+        reloadStepBoxes()
+    }
+
+    private fun reloadStepBoxes() {
+        pullBox.isSelected = coabState.stepEnabled(StepKind.PULL)
+        installBox.isSelected = coabState.stepEnabled(StepKind.INSTALL)
+        buildBox.isSelected = coabState.stepEnabled(StepKind.BUILD)
+        testBox.isSelected = coabState.stepEnabled(StepKind.TEST)
+    }
+
+    private fun toolsMenu(): JPopupMenu {
+        val menu = JPopupMenu()
+        fun item(text: String, action: () -> Unit) {
+            val entry = JMenuItem(text)
+            entry.addActionListener { action() }
+            menu.add(entry)
+        }
+        item("Suggest Build Priorities") { suggestPriorities() }
+        menu.addSeparator()
+        item("Export as .ps1…") { exportScript(powershell = true) }
+        item("Export as .bat…") { exportScript(powershell = false) }
+        menu.addSeparator()
+        item("New Profile…") { newProfile() }
+        item("Rename Profile…") { renameProfile() }
+        item("Delete Profile") { deleteProfile() }
+        menu.addSeparator()
+        item("Settings…") { showSettings() }
+        return menu
+    }
+
+    private fun suggestPriorities() {
+        val included = includedProjects()
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val suggested = DependencyAnalyzer.suggest(included)
+            ApplicationManager.getApplication().invokeLater {
+                if (suggested.isEmpty()) {
+                    appendLine("No cross-solution dependencies found (only .NET solutions are analyzed).")
+                    return@invokeLater
+                }
+                var changed = 0
+                for ((key, priority) in suggested) {
+                    if (coabState.priority(key) != priority) {
+                        coabState.setPriority(key, priority)
+                        changed++
+                    }
+                }
+                tableModel.fireTableDataChanged()
+                appendLine("Build priorities suggested: ${suggested.values.max() + 1} level(s), $changed project(s) changed.")
+            }
+        }
+    }
+
+    private fun newProfile() {
+        val name = Messages.showInputDialog("Profile name:", "New Profile", null)?.trim().orEmpty()
+        if (name.isEmpty() || name in state.profiles) return
+        state.profiles.add(name)
+        state.currentProfile = name
+        reloadProfiles()
+    }
+
+    private fun renameProfile() {
+        val old = state.currentProfile
+        if (old == "Default") {
+            appendLine("The Default profile cannot be renamed.")
+            return
+        }
+        val name = Messages.showInputDialog("New name for '$old':", "Rename Profile", null)?.trim().orEmpty()
+        if (name.isEmpty() || name in state.profiles) return
+        state.profiles[state.profiles.indexOf(old)] = name
+        state.currentProfile = name
+        renameProfileKeys(old, name)
+        reloadProfiles()
+    }
+
+    private fun renameProfileKeys(old: String, new: String) {
+        fun <V> migrate(map: MutableMap<String, V>) {
+            val moved = map.filterKeys { it.startsWith("$old|") }
+            moved.forEach { (key, value) ->
+                map.remove(key)
+                map["$new|${key.substringAfter('|')}"] = value
+            }
+        }
+        migrate(state.priorities)
+        migrate(state.installOverrides)
+        migrate(state.buildOverrides)
+        migrate(state.testOverrides)
+        val excluded = state.excluded.filter { it.startsWith("$old|") }
+        state.excluded.removeAll(excluded.toSet())
+        excluded.forEach { state.excluded.add("$new|${it.substringAfter('|')}") }
+        state.stepFlags.remove(old)?.let { state.stepFlags[new] = it }
+    }
+
+    private fun deleteProfile() {
+        val name = state.currentProfile
+        if (name == "Default") {
+            appendLine("The Default profile cannot be deleted.")
+            return
+        }
+        if (Messages.showYesNoDialog("Delete profile '$name'?", "Delete Profile", null) != Messages.YES) return
+        state.profiles.remove(name)
+        state.currentProfile = "Default"
+        reloadProfiles()
+        tableModel.fireTableDataChanged()
     }
 
     private fun installContextMenu() {
@@ -131,11 +286,10 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
 
     private fun buildContextMenu(project: CoabProject): JPopupMenu {
         val menu = JPopupMenu()
-        fun item(text: String, action: () -> Unit): JMenuItem {
+        fun item(text: String, action: () -> Unit) {
             val entry = JMenuItem(text)
             entry.addActionListener { action() }
             menu.add(entry)
-            return entry
         }
         item("Pull only") { runSingle(project, StepKind.PULL) }
         item("Install only") { runSingle(project, StepKind.INSTALL) }
@@ -163,26 +317,26 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
 
     private fun runSingle(project: CoabProject, step: StepKind) {
         if (runner != null) return
-        val pipeline = createRunner()
+        val pipeline = createRunner(estimate = 0)
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 pipeline.runSingle(project, step)
             } finally {
-                finishRun()
+                finishRun(pipeline)
             }
         }
     }
 
     private fun showProjectSettings(project: CoabProject) {
-        val install = JTextField(state.installOverrides[project.key] ?: "", 36)
-        val build = JTextField(state.buildOverrides[project.key] ?: "", 36)
-        val test = JTextField(state.testOverrides[project.key] ?: "", 36)
+        val install = JTextField(coabState.override(StepKind.INSTALL, project.key) ?: "", 36)
+        val build = JTextField(coabState.override(StepKind.BUILD, project.key) ?: "", 36)
+        val test = JTextField(coabState.override(StepKind.TEST, project.key) ?: "", 36)
         install.toolTipText = project.type.commandFor(StepKind.INSTALL, project) ?: "(no default)"
         build.toolTipText = project.type.commandFor(StepKind.BUILD, project) ?: "(no default)"
         test.toolTipText = project.type.commandFor(StepKind.TEST, project) ?: "(no default)"
 
         val form = JPanel(GridLayout(0, 1, 4, 2))
-        form.add(JLabel("Custom commands for ${project.name} — empty uses the ${project.type.name.lowercase()} default (shown as tooltip):"))
+        form.add(JLabel("Custom commands for ${project.name} (profile '${state.currentProfile}') — empty uses the ${project.type.name.lowercase()} default:"))
         form.add(JLabel("Install/Restore:"))
         form.add(install)
         form.add(JLabel("Build:"))
@@ -195,14 +349,10 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         builder.setCenterPanel(form)
         builder.addOkAction()
         builder.addCancelAction()
-        if (builder.show() == com.intellij.openapi.ui.DialogWrapper.OK_EXIT_CODE) {
-            fun apply(map: MutableMap<String, String>, field: JTextField) {
-                val value = field.text.trim()
-                if (value.isEmpty()) map.remove(project.key) else map[project.key] = value
-            }
-            apply(state.installOverrides, install)
-            apply(state.buildOverrides, build)
-            apply(state.testOverrides, test)
+        if (builder.show() == DialogWrapper.OK_EXIT_CODE) {
+            coabState.setOverride(StepKind.INSTALL, project.key, install.text)
+            coabState.setOverride(StepKind.BUILD, project.key, build.text)
+            coabState.setOverride(StepKind.TEST, project.key, test.text)
         }
     }
 
@@ -210,6 +360,8 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         val parallel = JSpinner(SpinnerNumberModel(state.maxParallel, 1, 16, 1))
         val depth = JSpinner(SpinnerNumberModel(state.scanDepth, 1, 8, 1))
         val failFast = JCheckBox("Stop remaining priority groups when a project fails", state.failFast)
+        val scheduled = JCheckBox("Scheduled run (daily)", state.scheduledEnabled)
+        val time = JTextField(state.scheduledTime, 6)
 
         val form = JPanel(GridLayout(0, 2, 8, 4))
         form.add(JLabel("Max parallel projects:"))
@@ -218,33 +370,43 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         form.add(depth)
         form.add(failFast)
         form.add(JLabel(""))
+        form.add(scheduled)
+        form.add(time)
 
         val builder = DialogBuilder(this)
         builder.setTitle("CheckoutAndBuild Settings")
         builder.setCenterPanel(form)
         builder.addOkAction()
         builder.addCancelAction()
-        if (builder.show() == com.intellij.openapi.ui.DialogWrapper.OK_EXIT_CODE) {
+        if (builder.show() == DialogWrapper.OK_EXIT_CODE) {
             state.maxParallel = parallel.value as Int
             state.scanDepth = depth.value as Int
             state.failFast = failFast.isSelected
+            state.scheduledEnabled = scheduled.isSelected
+            state.scheduledTime = time.text.trim()
         }
     }
 
-    private fun exportScript() {
+    private fun checkScheduledRun() {
+        if (!state.scheduledEnabled || runner != null) return
+        val scheduled = runCatching { LocalTime.parse(state.scheduledTime) }.getOrNull() ?: return
+        val now = LocalTime.now()
+        if (now.isBefore(scheduled) || now.isAfter(scheduled.plusMinutes(5))) return
+        val today = LocalDate.now().toString()
+        if (state.lastScheduledRun == today) return
+        state.lastScheduledRun = today
+        appendLine("Scheduled run started (${state.scheduledTime}).")
+        runPipeline(includedProjects())
+    }
+
+    private fun exportScript(powershell: Boolean) {
         val included = includedProjects()
         if (included.isEmpty()) {
             appendLine("Nothing to export.")
             return
         }
-        val choice = Messages.showChooseDialog(
-            "Export the configured pipeline as:", "Export Script",
-            arrayOf("PowerShell (.ps1)", "Batch (.bat)"), "PowerShell (.ps1)", null)
-        if (choice < 0) return
-        val powershell = choice == 0
-        val descriptor = com.intellij.openapi.fileChooser.FileSaverDescriptor(
-            "Export Pipeline Script", "", if (powershell) "ps1" else "bat")
-        val dialog = com.intellij.openapi.fileChooser.FileChooserFactory.getInstance().createSaveFileDialog(descriptor, this)
+        val descriptor = FileSaverDescriptor("Export Pipeline Script", "", if (powershell) "ps1" else "bat")
+        val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, this)
         val target = dialog.save(null as com.intellij.openapi.vfs.VirtualFile?, "CheckoutAndBuild") ?: return
         ApplicationManager.getApplication().executeOnPooledThread {
             val script = ScriptExporter.build(included, enabledSteps(), powershell)
@@ -256,7 +418,10 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
     private fun addFolder() {
         val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val chosen = FileChooser.chooseFile(descriptor, null, null) ?: return
-        val path = chosen.path.replace('/', File.separatorChar)
+        addFolderPath(chosen.path.replace('/', File.separatorChar))
+    }
+
+    private fun addFolderPath(path: String) {
         if (!state.folders.contains(path)) {
             state.folders.add(path)
             rescan()
@@ -286,43 +451,95 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
                 tableModel.fireTableDataChanged()
                 appendLine("Found ${found.size} project(s).")
                 gitPanel.setProjects(found)
+                worktreePanel.setProjects(found)
             }
         }
     }
 
-    private fun includedProjects() = projects.filter { it.key !in state.excluded }
+    private fun includedProjects() = projects.filter { !coabState.isExcluded(it.key) }
 
-    private fun enabledSteps() = buildSet {
-        if (state.pull) add(StepKind.PULL)
-        if (state.install) add(StepKind.INSTALL)
-        if (state.build) add(StepKind.BUILD)
-        if (state.test) add(StepKind.TEST)
-    }
+    private fun enabledSteps() = StepKind.entries.filter { coabState.stepEnabled(it) }.toSet()
 
-    private fun createRunner(): PipelineRunner {
+    private fun createRunner(estimate: Long): PipelineRunner {
         runButton.isEnabled = false
         cancelButton.isEnabled = true
-        val pipeline = PipelineRunner(::appendLineAsync) { project, text ->
+        retryButton.isVisible = false
+        runStartMillis = System.currentTimeMillis()
+        runEstimateSeconds = estimate
+        currentStepText = "Running"
+        elapsedTimer.start()
+        val pipeline = PipelineRunner(::appendLineAsync, { project, text ->
             ApplicationManager.getApplication().invokeLater {
                 status[project.key] = text
                 tableModel.fireTableRowsUpdated(0, maxOf(0, projects.size - 1))
             }
-        }
+        }, { progress ->
+            ApplicationManager.getApplication().invokeLater { currentStepText = progress; updateStatusLine() }
+        })
         runner = pipeline
         return pipeline
     }
 
-    private fun finishRun() {
+    private fun finishRun(pipeline: PipelineRunner) {
         ApplicationManager.getApplication().invokeLater {
             runner = null
             runButton.isEnabled = true
             cancelButton.isEnabled = false
+            elapsedTimer.stop()
+            lastFailed = pipeline.failedProjects.toSet()
+            retryButton.isVisible = lastFailed.isNotEmpty()
+            val elapsed = formatSeconds((System.currentTimeMillis() - runStartMillis) / 1000)
+            val failed = lastFailed.size
+            statusLabel.text = when {
+                pipeline.cancelled -> "✗ Cancelled after $elapsed"
+                failed > 0 -> "✗ Finished in $elapsed — $failed project(s) failed"
+                else -> "✓ Done in $elapsed"
+            }
+            setTaskbarProgress(-1)
+            notifyFinished(pipeline.cancelled, failed)
         }
     }
 
-    private fun runPipeline() {
+    private fun notifyFinished(cancelled: Boolean, failed: Int) {
+        val group = NotificationGroupManager.getInstance().getNotificationGroup("CheckoutAndBuild") ?: return
+        val type = if (failed > 0) NotificationType.ERROR else NotificationType.INFORMATION
+        val text = when {
+            cancelled -> "Run cancelled."
+            failed > 0 -> "Run finished — $failed project(s) failed."
+            else -> "Run finished successfully."
+        }
+        group.createNotification("CheckoutAndBuild", text, type).notify(ideProject)
+    }
+
+    private fun updateStatusLine() {
+        if (runner == null) return
+        val elapsedSeconds = (System.currentTimeMillis() - runStartMillis) / 1000
+        var text = "$currentStepText • ${formatSeconds(elapsedSeconds)}"
+        if (runEstimateSeconds > elapsedSeconds)
+            text += " • ~${formatSeconds(runEstimateSeconds - elapsedSeconds)} left"
+        statusLabel.text = text
+        if (runEstimateSeconds > 0)
+            setTaskbarProgress(((elapsedSeconds * 100) / runEstimateSeconds).toInt().coerceIn(1, 99))
+    }
+
+    private fun setTaskbarProgress(percent: Int) {
+        runCatching {
+            if (!Taskbar.isTaskbarSupported()) return
+            val taskbar = Taskbar.getTaskbar()
+            if (!taskbar.isSupported(Taskbar.Feature.PROGRESS_VALUE_WINDOW)) return
+            val frame = WindowManager.getInstance().getFrame(ideProject) ?: return
+            taskbar.setWindowProgressValue(frame, percent)
+        }
+    }
+
+    private fun formatSeconds(seconds: Long): String {
+        val m = seconds / 60
+        val s = seconds % 60
+        return "%02d:%02d".format(m, s)
+    }
+
+    private fun runPipeline(included: List<CoabProject>) {
         if (runner != null) return
-        val included = includedProjects()
         if (included.isEmpty()) {
             appendLine("Nothing to run — add a working folder first.")
             return
@@ -331,12 +548,13 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         if (steps.isEmpty()) return
 
         console.text = ""
-        val pipeline = createRunner()
+        val probe = PipelineRunner({}, { _, _ -> })
+        val pipeline = createRunner(probe.estimateSeconds(included, steps))
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 pipeline.run(included, steps)
             } finally {
-                finishRun()
+                finishRun(pipeline)
             }
         }
     }
@@ -368,10 +586,10 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
             val project = projects[rowIndex]
             return when (columnIndex) {
-                0 -> project.key !in state.excluded
+                0 -> !coabState.isExcluded(project.key)
                 1 -> project.name
                 2 -> project.type.name.lowercase()
-                3 -> state.priorities[project.key] ?: 0
+                3 -> coabState.priority(project.key)
                 else -> status[project.key] ?: ""
             }
         }
@@ -379,8 +597,8 @@ class CoabPanel(ideProject: Project) : JPanel(BorderLayout()) {
         override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
             val project = projects[rowIndex]
             when (columnIndex) {
-                0 -> if (aValue == true) state.excluded.remove(project.key) else state.excluded.add(project.key)
-                3 -> state.priorities[project.key] = (aValue as? Int) ?: 0
+                0 -> coabState.setExcluded(project.key, aValue != true)
+                3 -> coabState.setPriority(project.key, (aValue as? Int) ?: 0)
             }
         }
     }

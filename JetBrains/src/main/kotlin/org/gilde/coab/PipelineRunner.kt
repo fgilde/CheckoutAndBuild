@@ -1,28 +1,54 @@
 package org.gilde.coab
 
 import java.util.concurrent.Callable
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Runs the enabled steps over the included projects: pull once per repository, then install → build → test, priority groups sequential and each group in parallel. */
+/** Runs the enabled steps over the included projects: pull once per repository, then install → build → test, priority groups sequential and each group in parallel. Records per-step durations for the ETA. */
 class PipelineRunner(
     private val onLine: (String) -> Unit,
-    private val onStatus: (CoabProject, String) -> Unit
+    private val onStatus: (CoabProject, String) -> Unit,
+    private val onProgress: (String) -> Unit = {}
 ) {
     @Volatile
     var cancelled = false
 
+    val failedProjects: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    fun estimateSeconds(projects: List<CoabProject>, steps: Set<StepKind>): Long {
+        val state = CoabState.get()
+        var total = 0L
+        for (step in listOf(StepKind.INSTALL, StepKind.BUILD, StepKind.TEST)) {
+            if (step !in steps) continue
+            for (project in projects)
+                if (CommandResolver.resolve(project, step) != null)
+                    total += state.duration(project.key, step) ?: 0
+        }
+        return total
+    }
+
     fun run(projects: List<CoabProject>, steps: Set<StepKind>) {
         val state = CoabState.get().state
-        if (StepKind.PULL in steps) pullRepositories(projects)
+        val active = listOf(StepKind.INSTALL, StepKind.BUILD, StepKind.TEST).filter { it in steps }
+        var stepIndex = 0
+        val stepCount = active.size + (if (StepKind.PULL in steps) 1 else 0)
 
-        for (step in listOf(StepKind.INSTALL, StepKind.BUILD, StepKind.TEST)) {
-            if (cancelled || step !in steps) continue
+        if (StepKind.PULL in steps) {
+            onProgress("Pull (1/$stepCount)")
+            pullRepositories(projects)
+            stepIndex = 1
+        }
+
+        for (step in active) {
+            if (cancelled) break
+            stepIndex++
+            onProgress("${step.name.lowercase().replaceFirstChar { it.uppercase() }} ($stepIndex/$stepCount)")
             val runnable = projects.filter { CommandResolver.resolve(it, step) != null }
             if (runnable.isEmpty()) continue
             onLine("")
             onLine("=== ${step.name.lowercase().replaceFirstChar { it.uppercase() }} (${runnable.size} project(s)) ===")
-            val groups = runnable.groupBy { state.priorities[it.key] ?: 0 }.toSortedMap()
+            val groups = runnable.groupBy { CoabState.get().priority(it.key) }.toSortedMap()
             val executor = Executors.newFixedThreadPool(state.maxParallel.coerceIn(1, 16))
             val anyFailed = AtomicBoolean(false)
             try {
@@ -77,12 +103,16 @@ class PipelineRunner(
         val command = CommandResolver.resolve(project, step) ?: return true
         onStatus(project, "${step.name.lowercase()}…")
         onLine("[${project.name}] $command")
+        val started = System.currentTimeMillis()
         val exit = try {
             ProcessRunner.run(command, project.directory, { onLine("[${project.name}] $it") }, { cancelled })
         } catch (e: Exception) {
             onLine("[${project.name}] ${e.message}")
             -1
         }
+        if (exit == 0 && !cancelled)
+            CoabState.get().setDuration(project.key, step, (System.currentTimeMillis() - started) / 1000)
+        if (exit != 0) failedProjects.add(project.key)
         onStatus(project, if (exit == 0) "✓ ${step.name.lowercase()}" else "✗ ${step.name.lowercase()} ($exit)")
         return exit == 0
     }

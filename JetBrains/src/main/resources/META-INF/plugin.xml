@@ -20,5 +20,6 @@
         <toolWindow id="CheckoutAndBuild" anchor="bottom" secondary="false"
                     factoryClass="org.gilde.coab.CoabToolWindowFactory"
                     icon="/icons/coab.svg"/>
+        <notificationGroup id="CheckoutAndBuild" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

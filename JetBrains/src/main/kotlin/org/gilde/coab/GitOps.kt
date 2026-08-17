@@ -12,7 +12,21 @@ data class RepoInfo(
     val dirtyCount: Int
 )
 
-/** git.exe access: repository discovery, pull/fetch/push, branch handling, commit. */
+data class StashInfo(val index: Int, val description: String)
+
+data class CommitInfo(val sha: String, val author: String, val date: String, val message: String)
+
+data class WorktreeInfo(
+    val path: File,
+    val branch: String,
+    val sha: String,
+    val isMain: Boolean,
+    val isDetached: Boolean,
+    val isLocked: Boolean,
+    val isPrunable: Boolean
+)
+
+/** git.exe access: repository discovery, sync, branches, stashes, history, patches and worktrees. */
 object GitOps {
 
     fun repositoryRoot(directory: File): File? {
@@ -44,8 +58,35 @@ object GitOps {
         capture(root, "git branch --format=%(refname:short)")?.lines()?.map { it.trim() }?.filter { it.isNotEmpty() }
             ?: emptyList()
 
+    fun branchExists(root: File, branch: String): Boolean =
+        ProcessRunner.capture("git rev-parse --verify --quiet \"refs/heads/$branch\"", root).first == 0 ||
+            ProcessRunner.capture("git rev-parse --verify --quiet \"refs/remotes/origin/$branch\"", root).first == 0
+
+    fun createBranch(root: File, branch: String): Pair<Int, String> =
+        ProcessRunner.capture("git checkout -b \"$branch\"", root)
+
     fun checkout(root: File, branch: String): Pair<Int, String> =
         ProcessRunner.capture("git checkout \"$branch\"", root)
+
+    fun deleteBranch(root: File, branch: String): Pair<Int, String> =
+        ProcessRunner.capture("git branch -d \"$branch\"", root)
+
+    fun defaultBranch(root: File): String? {
+        val head = capture(root, "git symbolic-ref refs/remotes/origin/HEAD --short")
+        if (head != null) {
+            val name = head.lines().first().trim()
+            val slash = name.indexOf('/')
+            if (slash >= 0) return name.substring(slash + 1)
+        }
+        val local = branches(root)
+        return local.firstOrNull { it == "main" } ?: local.firstOrNull { it == "master" } ?: local.firstOrNull()
+    }
+
+    fun mergedBranches(root: File, target: String): List<String> {
+        val current = capture(root, "git rev-parse --abbrev-ref HEAD")?.trim()
+        return capture(root, "git branch --merged \"$target\" --format=%(refname:short)")?.lines()
+            ?.map { it.trim() }?.filter { it.isNotEmpty() && it != target && it != current } ?: emptyList()
+    }
 
     fun fetch(root: File): Pair<Int, String> = ProcessRunner.capture("git fetch", root)
 
@@ -63,6 +104,94 @@ object GitOps {
             file.delete()
         }
     }
+
+    fun stashes(root: File): List<StashInfo> =
+        capture(root, "git stash list")?.lines()?.filter { it.isNotBlank() }?.mapIndexed { index, line ->
+            StashInfo(index, line.substringAfter(": ", line))
+        } ?: emptyList()
+
+    fun stashPush(root: File, message: String?): Pair<Int, String> =
+        ProcessRunner.capture(
+            if (message.isNullOrBlank()) "git stash push" else "git stash push -m \"$message\"", root)
+
+    fun stashAction(root: File, action: String, index: Int): Pair<Int, String> =
+        ProcessRunner.capture("git stash $action stash@{$index}", root)
+
+    fun history(root: File, maxCount: Int, mineOnly: Boolean, grep: String?): List<CommitInfo> {
+        var args = "git log --max-count=$maxCount --date=short --format=%h%x09%an%x09%ad%x09%s"
+        if (mineOnly) {
+            val user = capture(root, "git config user.name")?.trim()
+            if (!user.isNullOrEmpty()) args += " -i --author=\"$user\""
+        }
+        if (!grep.isNullOrBlank()) args += " -i --grep=\"$grep\""
+        return capture(root, args)?.lines()?.filter { it.isNotBlank() }?.mapNotNull { line ->
+            val parts = line.split('\t', limit = 4)
+            if (parts.size == 4) CommitInfo(parts[0], parts[1], parts[2], parts[3]) else null
+        } ?: emptyList()
+    }
+
+    fun exportPatch(root: File, target: File): Pair<Int, String> {
+        val (exit, output) = ProcessRunner.capture("git diff HEAD", root)
+        if (exit != 0) return exit to output
+        target.writeText(output + System.lineSeparator())
+        return 0 to "written: ${target.absolutePath}"
+    }
+
+    fun applyPatch(root: File, patch: File): Pair<Int, String> =
+        ProcessRunner.capture("git apply --3way \"${patch.absolutePath}\"", root)
+
+    fun remoteUrl(root: File): String? = capture(root, "git config --get remote.origin.url")?.trim()
+
+    fun pullRequestUrl(remoteUrl: String, branch: String): String? {
+        var url = remoteUrl.trim()
+        if (url.endsWith(".git", true)) url = url.dropLast(4)
+        if (url.startsWith("git@", true)) url = "https://" + url.substring(4).replace(":", "/")
+        val encoded = java.net.URLEncoder.encode(branch, Charsets.UTF_8)
+        return when {
+            url.contains("github.com", true) -> "$url/compare/$encoded?expand=1"
+            url.contains("dev.azure.com", true) || url.contains("visualstudio.com", true) || url.contains("/_git/", true) ->
+                "$url/pullrequestcreate?sourceRef=$encoded"
+            else -> null
+        }
+    }
+
+    fun worktrees(root: File): List<WorktreeInfo> {
+        val output = capture(root, "git worktree list --porcelain") ?: return emptyList()
+        val result = mutableListOf<WorktreeInfo>()
+        var path: File? = null; var branch = ""; var sha = ""; var detached = false; var locked = false; var prunable = false
+        fun flush() {
+            path?.let { result.add(WorktreeInfo(it, branch, sha, result.isEmpty(), detached, locked, prunable)) }
+            path = null; branch = ""; sha = ""; detached = false; locked = false; prunable = false
+        }
+        for (raw in output.lines()) {
+            val line = raw.trim()
+            when {
+                line.startsWith("worktree ") -> { flush(); path = File(line.removePrefix("worktree ").replace('/', File.separatorChar)) }
+                line.startsWith("HEAD ") -> sha = line.removePrefix("HEAD ").take(8)
+                line.startsWith("branch ") -> branch = line.removePrefix("branch ").removePrefix("refs/heads/")
+                line == "detached" -> detached = true
+                line.startsWith("locked") -> locked = true
+                line.startsWith("prunable") -> prunable = true
+            }
+        }
+        flush()
+        return result
+    }
+
+    fun worktreeDefaultPath(root: File, branch: String): File {
+        val sanitized = branch.replace('/', '-').replace('\\', '-')
+        return File(root.parentFile ?: root, "${root.name}-$sanitized")
+    }
+
+    fun worktreeAdd(root: File, path: File, branch: String, create: Boolean): Pair<Int, String> =
+        ProcessRunner.capture(
+            if (create) "git worktree add -b \"$branch\" \"${path.absolutePath}\""
+            else "git worktree add \"${path.absolutePath}\" \"$branch\"", root)
+
+    fun worktreeRemove(root: File, path: File, force: Boolean): Pair<Int, String> =
+        ProcessRunner.capture("git worktree remove ${if (force) "--force " else ""}\"${path.absolutePath}\"", root)
+
+    fun worktreePrune(root: File): Pair<Int, String> = ProcessRunner.capture("git worktree prune", root)
 
     private fun capture(root: File, command: String): String? {
         val (exit, output) = ProcessRunner.capture(command, root)
