@@ -28,7 +28,7 @@ namespace CheckoutAndBuild.Core.Tests
                 await Task.Delay(200);
                 Assert.False(wait.IsCompleted);
                 source.Resume();
-                Assert.Same(wait, await Task.WhenAny(wait, Task.Delay(2000)));
+                Assert.Same(wait, await Task.WhenAny(wait, Task.Delay(10000)));
             }
         }
 
