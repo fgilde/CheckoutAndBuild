@@ -27,36 +27,29 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
 
     init {
         table.setShowGrid(false)
+        table.setDefaultRenderer(Object::class.java, RepoCellRenderer())
 
-        val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2))
+        val toolbar = JPanel(WrapLayout(FlowLayout.LEFT, 6, 2))
         val refresh = JButton("Refresh")
         val fetch = JButton("Fetch")
         val pull = JButton("Pull")
         val push = JButton("Push")
+        val forcePush = JButton("Force Push")
         val checkout = JButton("Checkout…")
-        toolbar.add(refresh)
-        toolbar.add(fetch)
-        toolbar.add(pull)
-        toolbar.add(push)
-        toolbar.add(checkout)
-
-        val toolbar2 = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2))
+        val changes = JButton("Changes…")
         val stash = JButton("Stash")
         val stashes = JButton("Stashes…")
         val history = JButton("History…")
         val exportPatch = JButton("Export Patch…")
         val applyPatch = JButton("Apply Patch…")
+        val exportZip = JButton("Export Zip…")
         val createPr = JButton("Create PR")
         val cleanup = JButton("Cleanup Merged…")
         val checkoutAll = JButton("Checkout in All…")
-        toolbar2.add(stash)
-        toolbar2.add(stashes)
-        toolbar2.add(history)
-        toolbar2.add(exportPatch)
-        toolbar2.add(applyPatch)
-        toolbar2.add(createPr)
-        toolbar2.add(cleanup)
-        toolbar2.add(checkoutAll)
+        val suggestBranch = JButton("Suggest Branch…")
+        listOf(refresh, fetch, pull, push, forcePush, checkout, changes, stash, stashes, history,
+            exportPatch, applyPatch, exportZip, createPr, cleanup, checkoutAll, suggestBranch)
+            .forEach { toolbar.add(it) }
 
         val commitRow = JPanel(BorderLayout(6, 0))
         val commitButton = JButton("Commit All && Push")
@@ -65,10 +58,7 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         commitMessage.toolTipText = "Commit message"
 
         val north = JPanel(BorderLayout())
-        val toolbars = JPanel(BorderLayout())
-        toolbars.add(toolbar, BorderLayout.NORTH)
-        toolbars.add(toolbar2, BorderLayout.SOUTH)
-        north.add(toolbars, BorderLayout.NORTH)
+        north.add(toolbar, BorderLayout.NORTH)
         north.add(commitRow, BorderLayout.SOUTH)
 
         add(north, BorderLayout.NORTH)
@@ -91,6 +81,45 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
                 refreshInfos()
             }
         }
+        forcePush.addActionListener {
+            val row = table.selectedRow
+            if (row < 0 || row >= infos.size) {
+                onLine("Select a repository first.")
+                return@addActionListener
+            }
+            val info = infos[row]
+            if (Messages.showYesNoDialog(
+                    "Force push '${info.branch}' of ${info.root.name}?\n\nUses --force-with-lease, but still overwrites the remote branch.",
+                    "Force Push", null) != Messages.YES) return@addActionListener
+            ApplicationManager.getApplication().executeOnPooledThread {
+                report("force push", info.root, GitOps.forcePush(info.root))
+                refreshInfos()
+            }
+        }
+        changes.addActionListener {
+            onSelected { root ->
+                val list = GitOps.changes(root)
+                ApplicationManager.getApplication().invokeLater {
+                    if (list.isEmpty()) onLine("No changes in ${root.name}.")
+                    else Messages.showInfoMessage(list.joinToString("\n"), "Changes — ${root.name} (${list.size})")
+                }
+            }
+        }
+        exportZip.addActionListener {
+            val row = table.selectedRow
+            if (row < 0 || row >= infos.size) {
+                onLine("Select a repository first.")
+                return@addActionListener
+            }
+            val root = infos[row].root
+            val descriptor = FileSaverDescriptor("Export Changes as Zip", "", "zip")
+            val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, this)
+            val target = dialog.save(null as com.intellij.openapi.vfs.VirtualFile?, "${root.name}-changes") ?: return@addActionListener
+            ApplicationManager.getApplication().executeOnPooledThread {
+                report("export zip", root, GitOps.exportChangesAsZip(root, target.file))
+            }
+        }
+        suggestBranch.addActionListener { suggestBranchFromWorkItem() }
         checkout.addActionListener { checkoutBranch() }
         commitButton.addActionListener { commitAndPush() }
         stash.addActionListener {
@@ -193,14 +222,70 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
 
     private fun showHistory() {
         onSelected { root ->
-            val commits = GitOps.history(root, 60, mineOnly = false, grep = null)
+            val commits = GitOps.history(root, 100, mineOnly = false, grep = null)
             ApplicationManager.getApplication().invokeLater {
                 if (commits.isEmpty()) {
                     onLine("No history in ${root.name}.")
                     return@invokeLater
                 }
-                onLine("=== History: ${root.name} (${commits.size}) ===")
-                commits.forEach { onLine("${it.sha}  ${it.date}  ${it.author.padEnd(18).take(18)}  ${it.message}") }
+                val historyModel = object : AbstractTableModel() {
+                    private val columns = arrayOf("Commit", "Date", "Author", "Message")
+                    override fun getRowCount() = commits.size
+                    override fun getColumnCount() = columns.size
+                    override fun getColumnName(column: Int) = columns[column]
+                    override fun getValueAt(row: Int, column: Int): Any = when (column) {
+                        0 -> commits[row].sha
+                        1 -> commits[row].date
+                        2 -> commits[row].author
+                        else -> commits[row].message
+                    }
+                }
+                val historyTable = JBTable(historyModel)
+                historyTable.setShowGrid(false)
+                historyTable.columnModel.getColumn(0).maxWidth = 90
+                historyTable.columnModel.getColumn(1).maxWidth = 100
+                historyTable.columnModel.getColumn(2).preferredWidth = 140
+                val scroll = JBScrollPane(historyTable)
+                scroll.preferredSize = java.awt.Dimension(760, 420)
+                val builder = com.intellij.openapi.ui.DialogBuilder(this)
+                builder.setTitle("History — ${root.name} (${commits.size})")
+                builder.setCenterPanel(scroll)
+                builder.addOkAction()
+                builder.show()
+            }
+        }
+    }
+
+    private fun suggestBranchFromWorkItem() {
+        val row = table.selectedRow
+        if (row < 0 || row >= infos.size) {
+            onLine("Select a repository first.")
+            return
+        }
+        val root = infos[row].root
+        val input = Messages.showInputDialog(
+            "Work item id (uses the Work Items connection) — the branch name becomes prefix/id-title:",
+            "Suggest Branch", null)?.trim().orEmpty()
+        val id = input.toIntOrNull() ?: return
+        val prefixIndex = Messages.showChooseDialog(
+            "Branch prefix:", "Suggest Branch", arrayOf("wip", "feature", "bugfix", "hotfix"), "wip", null)
+        if (prefixIndex < 0) return
+        val prefix = arrayOf("wip", "feature", "bugfix", "hotfix")[prefixIndex]
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val state = CoabState.get().state
+            val title = runCatching {
+                AzdoClient.workItems(state.azdoOrganization, listOf(id)).firstOrNull()?.title
+            }.getOrNull()
+            val slug = title?.lowercase()?.map { if (it.isLetterOrDigit()) it else '-' }?.joinToString("")
+                ?.replace(Regex("-+"), "-")?.trim('-')?.take(40)
+            val branch = if (slug.isNullOrEmpty()) "$prefix/$id" else "$prefix/$id-$slug"
+            ApplicationManager.getApplication().invokeLater {
+                if (Messages.showYesNoDialog("Create and checkout branch '$branch' in ${root.name}?",
+                        "Suggest Branch", null) != Messages.YES) return@invokeLater
+                ApplicationManager.getApplication().executeOnPooledThread {
+                    report("checkout -b", root, GitOps.createBranch(root, branch))
+                    refreshInfos()
+                }
             }
         }
     }
@@ -314,7 +399,7 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
     }
 
     private inner class RepoTableModel : AbstractTableModel() {
-        private val columns = arrayOf("Repository", "Branch", "Ahead", "Behind", "Dirty")
+        private val columns = arrayOf("Repository", "Branch", "Sync", "Dirty")
 
         override fun getRowCount() = infos.size
         override fun getColumnCount() = columns.size
@@ -325,10 +410,34 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
             return when (columnIndex) {
                 0 -> info.root.name
                 1 -> info.branch
-                2 -> if (info.hasUpstream) info.ahead else "-"
-                3 -> if (info.hasUpstream) info.behind else "-"
-                else -> info.dirtyCount
+                2 -> when {
+                    !info.hasUpstream -> "no upstream"
+                    info.ahead == 0 && info.behind == 0 -> "✓"
+                    else -> "↑${info.ahead} ↓${info.behind}"
+                }
+                else -> if (info.dirtyCount == 0) "" else "● ${info.dirtyCount}"
             }
+        }
+    }
+
+    private inner class RepoCellRenderer : javax.swing.table.DefaultTableCellRenderer() {
+        override fun getTableCellRendererComponent(
+            table: javax.swing.JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int
+        ): java.awt.Component {
+            val component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+            if (!isSelected && row < infos.size) {
+                val info = infos[row]
+                foreground = when (column) {
+                    2 -> when {
+                        !info.hasUpstream -> java.awt.Color.GRAY
+                        info.ahead == 0 && info.behind == 0 -> java.awt.Color(0x3F, 0xB9, 0x50)
+                        else -> java.awt.Color(0x2E, 0xA7, 0xFF)
+                    }
+                    3 -> if (info.dirtyCount > 0) java.awt.Color(0xE8, 0x8C, 0x00) else table.foreground
+                    else -> table.foreground
+                }
+            }
+            return component
         }
     }
 }

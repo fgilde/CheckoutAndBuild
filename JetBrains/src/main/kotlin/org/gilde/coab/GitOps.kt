@@ -93,6 +93,30 @@ object GitOps {
     fun push(root: File, setUpstream: Boolean, branch: String): Pair<Int, String> =
         ProcessRunner.capture(if (setUpstream) "git push -u origin \"$branch\"" else "git push", root)
 
+    fun forcePush(root: File): Pair<Int, String> =
+        ProcessRunner.capture("git push --force-with-lease", root)
+
+    fun changes(root: File): List<String> =
+        capture(root, "git status --porcelain")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
+
+    fun exportChangesAsZip(root: File, target: File): Pair<Int, String> {
+        val entries = changes(root).mapNotNull { line ->
+            if (line.length < 4 || line.startsWith(" D") || line.startsWith("D ")) null
+            else line.substring(3).trim().removeSurrounding("\"")
+        }
+        if (entries.isEmpty()) return 1 to "no changes to export"
+        java.util.zip.ZipOutputStream(target.outputStream()).use { zip ->
+            for (relative in entries) {
+                val file = File(root, relative.replace('/', File.separatorChar))
+                if (!file.isFile) continue
+                zip.putNextEntry(java.util.zip.ZipEntry(relative))
+                file.inputStream().use { it.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
+        return 0 to "written: ${target.absolutePath}"
+    }
+
     fun commitAll(root: File, message: String): Pair<Int, String> {
         val add = ProcessRunner.capture("git add -A", root)
         if (add.first != 0) return add

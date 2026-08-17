@@ -95,6 +95,15 @@ object ProjectScanner {
         }
     }
 
+    fun detectSingle(path: File): CoabProject? {
+        if (path.isFile) {
+            if (path.extension.equals("sln", true) || path.extension.equals("slnx", true))
+                return CoabProject(path, ProjectType.DOTNET)
+            return detect(path.parentFile ?: return null).firstOrNull()
+        }
+        return detect(path).firstOrNull()
+    }
+
     private fun detect(dir: File): List<CoabProject> {
         val files = dir.listFiles()?.filter { it.isFile } ?: return emptyList()
         val solutions = files.filter { it.extension.equals("sln", true) || it.extension.equals("slnx", true) }

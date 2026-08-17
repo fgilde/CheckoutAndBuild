@@ -70,7 +70,10 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private var runStartMillis = 0L
     private var runEstimateSeconds = 0L
     private var currentStepText = ""
-    private val elapsedTimer = Timer(1000) { updateStatusLine() }
+    private val progressBar = javax.swing.JProgressBar(0, 100)
+    private val filterField = JTextField()
+    private val sorter = javax.swing.table.TableRowSorter<ProjectTableModel>()
+    private val elapsedTimer = Timer(250) { updateStatusLine(); table.repaint() }
     private val scheduleTimer = Timer(60000) { checkScheduledRun() }
 
     init {
@@ -80,9 +83,23 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         table.columnModel.getColumn(0).maxWidth = 60
         table.columnModel.getColumn(2).maxWidth = 90
         table.columnModel.getColumn(3).maxWidth = 70
+        sorter.model = tableModel
+        table.rowSorter = sorter
+        table.columnModel.getColumn(1).cellRenderer = ProjectCellRenderer()
+        table.columnModel.getColumn(4).cellRenderer = ProjectCellRenderer()
+        filterField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            private fun update() {
+                val text = filterField.text.trim()
+                sorter.rowFilter = if (text.isEmpty()) null
+                else javax.swing.RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(text), 1)
+            }
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent) = update()
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent) = update()
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent) = update()
+        })
         installContextMenu()
 
-        val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4))
+        val toolbar = JPanel(WrapLayout(FlowLayout.LEFT, 6, 4))
         val addButton = JButton("Add Folder…")
         val removeButton = JButton("Remove Folder…")
         val refreshButton = JButton("Rescan")
@@ -104,9 +121,20 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         toolbar.add(refreshButton)
         toolbar.add(toolsButton)
 
-        val statusRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+        val statusRow = JPanel(BorderLayout(8, 0))
         statusLabel.font = statusLabel.font.deriveFont(Font.ITALIC)
-        statusRow.add(statusLabel)
+        progressBar.isVisible = false
+        progressBar.preferredSize = java.awt.Dimension(180, 8)
+        val statusLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
+        statusLeft.add(progressBar)
+        statusLeft.add(statusLabel)
+        statusRow.add(statusLeft, BorderLayout.WEST)
+        filterField.columns = 14
+        filterField.toolTipText = "Filter projects by name"
+        val filterRight = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 2))
+        filterRight.add(JLabel("Filter:"))
+        filterRight.add(filterField)
+        statusRow.add(filterRight, BorderLayout.EAST)
 
         val north = JPanel(BorderLayout())
         north.add(toolbar, BorderLayout.NORTH)
@@ -181,6 +209,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
             entry.addActionListener { action() }
             menu.add(entry)
         }
+        item("Add Project…") { addCustomProject() }
         item("Suggest Build Priorities") { suggestPriorities() }
         menu.addSeparator()
         item("Export as .ps1…") { exportScript(powershell = true) }
@@ -276,9 +305,11 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
 
             private fun maybeShow(e: MouseEvent) {
                 if (!e.isPopupTrigger) return
-                val row = table.rowAtPoint(e.point)
+                val viewRow = table.rowAtPoint(e.point)
+                if (viewRow < 0) return
+                val row = table.convertRowIndexToModel(viewRow)
                 if (row < 0 || row >= projects.size) return
-                table.setRowSelectionInterval(row, row)
+                table.setRowSelectionInterval(viewRow, viewRow)
                 buildContextMenu(projects[row]).show(table, e.x, e.y)
             }
         })
@@ -303,6 +334,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
             ApplicationManager.getApplication().executeOnPooledThread { appendLineAsync(AppLauncher.stop(project)) }
         }
         menu.addSeparator()
+        item("Open Project in IDE") {
+            com.intellij.ide.impl.ProjectUtil.openOrImport(project.directory.absolutePath, null, true)
+        }
         item("Open in File Manager") {
             com.intellij.ide.actions.RevealFileAction.openDirectory(project.directory)
         }
@@ -311,8 +345,29 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
                 java.awt.datatransfer.StringSelection(project.file.absolutePath), null)
         }
         menu.addSeparator()
+        if (project.file.absolutePath in state.customProjects) {
+            item("Remove from List") {
+                state.customProjects.remove(project.file.absolutePath)
+                rescan()
+            }
+        }
         item("Project Settings…") { showProjectSettings(project) }
         return menu
+    }
+
+    private fun addCustomProject() {
+        val descriptor = FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor()
+        val chosen = FileChooser.chooseFile(descriptor, null, null) ?: return
+        val file = File(chosen.path.replace('/', File.separatorChar))
+        val detected = ProjectScanner.detectSingle(file)
+        if (detected == null) {
+            appendLine("No supported project found at ${file.path}.")
+            return
+        }
+        if (detected.file.absolutePath !in state.customProjects) {
+            state.customProjects.add(detected.file.absolutePath)
+            rescan()
+        }
     }
 
     private fun runSingle(project: CoabProject, step: StepKind) {
@@ -443,7 +498,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private fun rescan() {
         appendLine("Scanning ${state.folders.size} folder(s)…")
         ApplicationManager.getApplication().executeOnPooledThread {
-            val found = state.folders.map(::File).filter { it.isDirectory }.flatMap { ProjectScanner.scan(it) }
+            val scanned = state.folders.map(::File).filter { it.isDirectory }.flatMap { ProjectScanner.scan(it) }
+            val custom = state.customProjects.map(::File).mapNotNull { ProjectScanner.detectSingle(it) }
+            val found = (scanned + custom).distinctBy { it.key.lowercase() }
             ApplicationManager.getApplication().invokeLater {
                 projects.clear()
                 projects.addAll(found)
@@ -467,6 +524,10 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         runStartMillis = System.currentTimeMillis()
         runEstimateSeconds = estimate
         currentStepText = "Running"
+        progressBar.isVisible = true
+        progressBar.isIndeterminate = estimate <= 0
+        progressBar.value = 0
+        progressBar.foreground = java.awt.Color(0x2E, 0xA7, 0xFF)
         elapsedTimer.start()
         val pipeline = PipelineRunner(::appendLineAsync, { project, text ->
             ApplicationManager.getApplication().invokeLater {
@@ -495,6 +556,12 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
                 failed > 0 -> "✗ Finished in $elapsed — $failed project(s) failed"
                 else -> "✓ Done in $elapsed"
             }
+            progressBar.isIndeterminate = false
+            progressBar.value = 100
+            progressBar.foreground =
+                if (pipeline.cancelled || failed > 0) java.awt.Color(0xB2, 0x22, 0x22)
+                else java.awt.Color(0x3F, 0xB9, 0x50)
+            table.repaint()
             setTaskbarProgress(-1)
             notifyFinished(pipeline.cancelled, failed)
         }
@@ -518,8 +585,11 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         if (runEstimateSeconds > elapsedSeconds)
             text += " • ~${formatSeconds(runEstimateSeconds - elapsedSeconds)} left"
         statusLabel.text = text
-        if (runEstimateSeconds > 0)
-            setTaskbarProgress(((elapsedSeconds * 100) / runEstimateSeconds).toInt().coerceIn(1, 99))
+        if (runEstimateSeconds > 0) {
+            val percent = ((elapsedSeconds * 100) / runEstimateSeconds).toInt().coerceIn(1, 99)
+            progressBar.value = percent
+            setTaskbarProgress(percent)
+        }
     }
 
     private fun setTaskbarProgress(percent: Int) {
@@ -566,6 +636,35 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private fun appendLine(line: String) {
         console.append(line + "\n")
         console.caretPosition = console.document.length
+    }
+
+    private inner class ProjectCellRenderer : javax.swing.table.DefaultTableCellRenderer() {
+        private val spinnerFrames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+        override fun getTableCellRendererComponent(
+            table: javax.swing.JTable, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int
+        ): java.awt.Component {
+            val modelRow = table.convertRowIndexToModel(row)
+            val projectStatus = if (modelRow < projects.size) status[projects[modelRow].key] ?: "" else ""
+            val busy = projectStatus.endsWith("…")
+            var text = value?.toString() ?: ""
+            if (column == 4 && busy) {
+                val frame = spinnerFrames[((System.currentTimeMillis() / 100) % spinnerFrames.length).toInt()]
+                text = "$frame $text"
+            }
+            val component = super.getTableCellRendererComponent(table, text, isSelected, hasFocus, row, column)
+            font = if (column == 1 && busy) font.deriveFont(Font.BOLD) else font.deriveFont(Font.PLAIN)
+            if (!isSelected) {
+                foreground = when {
+                    column != 4 -> table.foreground
+                    busy -> java.awt.Color(0x2E, 0xA7, 0xFF)
+                    projectStatus.startsWith("✓") -> java.awt.Color(0x3F, 0xB9, 0x50)
+                    projectStatus.startsWith("✗") -> java.awt.Color(0xB2, 0x22, 0x22)
+                    else -> table.foreground
+                }
+            }
+            return component
+        }
     }
 
     private inner class ProjectTableModel : AbstractTableModel() {

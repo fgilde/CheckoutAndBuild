@@ -13,6 +13,7 @@ class CoabState : PersistentStateComponent<CoabState.Model> {
 
     class Model {
         var folders: MutableList<String> = mutableListOf()
+        var customProjects: MutableList<String> = mutableListOf()
         var profiles: MutableList<String> = mutableListOf("Default")
         var currentProfile: String = "Default"
         var excluded: MutableSet<String> = mutableSetOf()
