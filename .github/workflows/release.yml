@@ -66,3 +66,38 @@ jobs:
             -publishManifest publishManifest.json `
             -personalAccessToken $token
           if ($LASTEXITCODE -ne 0) { throw "VsixPublisher failed with $LASTEXITCODE" }
+
+  jetbrains:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build plugin
+        working-directory: JetBrains
+        run: |
+          chmod +x gradlew
+          version="${GITHUB_REF_NAME#v}"
+          ./gradlew buildPlugin -PpluginVersion="$version" --no-daemon
+
+      - name: Attach plugin to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: JetBrains/build/distributions/*.zip
+
+      - name: Publish to JetBrains Marketplace
+        working-directory: JetBrains
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: |
+          if [ -z "$JETBRAINS_MARKETPLACE_TOKEN" ]; then
+            echo 'No JETBRAINS_MARKETPLACE_TOKEN secret configured - skipping JetBrains marketplace publish.'
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          ./gradlew publishPlugin -PpluginVersion="$version" --no-daemon

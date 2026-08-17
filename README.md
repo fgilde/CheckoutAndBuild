@@ -34,6 +34,17 @@ Requires Visual Studio 2022 or 2026 (amd64) and git on PATH.
 ### Azure DevOps
 - Work item query view and search & replace across work item text fields (REST, PAT auth)
 
+## JetBrains IDEs (Rider, IntelliJ, PhpStorm, …)
+
+`JetBrains/` contains a platform plugin that works in **every** JetBrains IDE (it only depends on the core platform). It brings the one-click pipeline to polyglot codebases: working folders are scanned for .NET solutions, Gradle, Maven, npm, Composer, Cargo and Go projects; the pipeline runs git pull → install/restore → build → test per project, same-priority projects in parallel.
+
+```
+cd JetBrains
+./gradlew buildPlugin        # zip lands in build/distributions/
+```
+
+Install via Settings → Plugins → ⚙ → Install Plugin from Disk. Each GitHub release also carries the plugin zip as an asset.
+
 ## Build from source
 
 ```

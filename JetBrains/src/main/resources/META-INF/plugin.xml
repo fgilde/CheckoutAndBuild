@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>org.gilde.checkoutandbuild</id>
+    <name>CheckoutAndBuild</name>
+    <vendor url="https://fgilde.github.io/CheckoutAndBuild/">Florian Gilde</vendor>
+
+    <description><![CDATA[
+        Local one-click CI inside your IDE: keep any number of projects up to date with a single click —
+        git pull, install/restore, build and test, all out of process and in parallel.
+        <br/><br/>
+        Detects .NET solutions, Gradle, Maven, npm, Composer, Cargo and Go projects beneath your working
+        folders. Same-priority projects run in parallel; priority groups run in order.
+        <br/><br/>
+        Works in every JetBrains IDE. The big brother for Visual Studio is on the
+        <a href="https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild">Visual Studio Marketplace</a>.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="CheckoutAndBuild" anchor="bottom" secondary="false"
+                    factoryClass="org.gilde.coab.CoabToolWindowFactory"
+                    icon="/icons/coab.svg"/>
+    </extensions>
+</idea-plugin>
