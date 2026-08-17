@@ -13,8 +13,9 @@ public class SolutionMergerTests : IDisposable
     private static readonly string SlnA = Path.Combine(FixtureDir, "SolutionA", "A.sln");
     private static readonly string SlnB = Path.Combine(FixtureDir, "SolutionB", "B.sln");
 
+    // must live on the same drive as the fixtures: relative project paths cannot cross drives (CI keeps the repo on D:)
     private readonly string outputDir =
-        Path.Combine(Path.GetTempPath(), "coab-merge-" + Guid.NewGuid().ToString("N"));
+        Path.Combine(AppContext.BaseDirectory, "coab-merge-" + Guid.NewGuid().ToString("N"));
 
     public void Dispose()
     {
