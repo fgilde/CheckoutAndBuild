@@ -2,6 +2,7 @@ package org.gilde.coab
 
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Runs the enabled steps over the included projects: pull once per repository, then install → build → test, priority groups sequential and each group in parallel. */
 class PipelineRunner(
@@ -11,21 +12,29 @@ class PipelineRunner(
     @Volatile
     var cancelled = false
 
-    fun run(projects: List<CoabProject>, priorityOf: (CoabProject) -> Int, steps: Set<StepKind>) {
+    fun run(projects: List<CoabProject>, steps: Set<StepKind>) {
+        val state = CoabState.get().state
         if (StepKind.PULL in steps) pullRepositories(projects)
 
         for (step in listOf(StepKind.INSTALL, StepKind.BUILD, StepKind.TEST)) {
             if (cancelled || step !in steps) continue
-            val runnable = projects.filter { it.type.commandFor(step, it) != null }
+            val runnable = projects.filter { CommandResolver.resolve(it, step) != null }
             if (runnable.isEmpty()) continue
             onLine("")
             onLine("=== ${step.name.lowercase().replaceFirstChar { it.uppercase() }} (${runnable.size} project(s)) ===")
-            val groups = runnable.groupBy(priorityOf).toSortedMap()
-            val executor = Executors.newFixedThreadPool(minOf(Runtime.getRuntime().availableProcessors(), 6))
+            val groups = runnable.groupBy { state.priorities[it.key] ?: 0 }.toSortedMap()
+            val executor = Executors.newFixedThreadPool(state.maxParallel.coerceIn(1, 16))
+            val anyFailed = AtomicBoolean(false)
             try {
                 for ((_, group) in groups) {
                     if (cancelled) break
-                    executor.invokeAll(group.map { project -> Callable { runStep(project, step) } })
+                    executor.invokeAll(group.map { project ->
+                        Callable { if (!runStep(project, step)) anyFailed.set(true) }
+                    })
+                    if (state.failFast && anyFailed.get()) {
+                        onLine("=== Stopping remaining groups (fail fast) ===")
+                        break
+                    }
                 }
             } finally {
                 executor.shutdown()
@@ -33,6 +42,21 @@ class PipelineRunner(
         }
         onLine("")
         onLine(if (cancelled) "=== Cancelled ===" else "=== Done ===")
+    }
+
+    fun runSingle(project: CoabProject, step: StepKind) {
+        if (step == StepKind.PULL) {
+            val root = GitOps.repositoryRoot(project.directory)
+            if (root == null) {
+                onLine("[${project.name}] not inside a git repository")
+                return
+            }
+            onStatus(project, "pull…")
+            val exit = GitOps.pull(root, { onLine("[${project.name}] $it") }, { cancelled })
+            onStatus(project, if (exit == 0) "✓ pull" else "✗ pull ($exit)")
+            return
+        }
+        runStep(project, step)
     }
 
     private fun pullRepositories(projects: List<CoabProject>) {
@@ -48,9 +72,9 @@ class PipelineRunner(
         }
     }
 
-    private fun runStep(project: CoabProject, step: StepKind) {
-        if (cancelled) return
-        val command = project.type.commandFor(step, project) ?: return
+    private fun runStep(project: CoabProject, step: StepKind): Boolean {
+        if (cancelled) return true
+        val command = CommandResolver.resolve(project, step) ?: return true
         onStatus(project, "${step.name.lowercase()}…")
         onLine("[${project.name}] $command")
         val exit = try {
@@ -60,5 +84,6 @@ class PipelineRunner(
             -1
         }
         onStatus(project, if (exit == 0) "✓ ${step.name.lowercase()}" else "✗ ${step.name.lowercase()} ($exit)")
+        return exit == 0
     }
 }

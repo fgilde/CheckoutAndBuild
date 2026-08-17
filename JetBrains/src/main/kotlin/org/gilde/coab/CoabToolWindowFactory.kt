@@ -10,7 +10,7 @@ import com.intellij.ui.content.ContentFactory
 class CoabToolWindowFactory : ToolWindowFactory, DumbAware {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val content = ContentFactory.getInstance().createContent(CoabPanel(), "", false)
+        val content = ContentFactory.getInstance().createContent(CoabPanel(project), "", false)
         toolWindow.contentManager.addContent(content)
     }
 }

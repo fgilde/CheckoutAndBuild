@@ -74,7 +74,6 @@ enum class ProjectType {
 
 /** Scans working folders for projects; a matched directory is a project root and is not descended further. */
 object ProjectScanner {
-    private const val maxDepth = 3
     private val skipped = setOf(".git", ".idea", ".vs", "node_modules", "bin", "obj", "target", "build", "dist", "out", "packages")
 
     fun scan(root: File): List<CoabProject> {
@@ -90,7 +89,7 @@ object ProjectScanner {
             result.addAll(found)
             return
         }
-        if (depth >= maxDepth) return
+        if (depth >= CoabState.get().state.scanDepth.coerceIn(1, 8)) return
         dir.listFiles()?.filter { it.isDirectory && it.name !in skipped }?.forEach {
             scanDirectory(it, depth + 1, result)
         }
