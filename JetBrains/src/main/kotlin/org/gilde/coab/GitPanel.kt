@@ -28,6 +28,17 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
     init {
         table.setShowGrid(false)
         table.setDefaultRenderer(Object::class.java, RepoCellRenderer())
+        val branchCombo = javax.swing.JComboBox<String>()
+        table.columnModel.getColumn(1).cellEditor = object : javax.swing.DefaultCellEditor(branchCombo) {
+            override fun getTableCellEditorComponent(
+                table: javax.swing.JTable, value: Any?, isSelected: Boolean, row: Int, column: Int
+            ): java.awt.Component {
+                if (row < infos.size)
+                    branchCombo.model = javax.swing.DefaultComboBoxModel(GitOps.branches(infos[row].root).toTypedArray())
+                return super.getTableCellEditorComponent(table, value, isSelected, row, column)
+            }
+        }
+        table.columnModel.getColumn(1).headerValue = "Branch ▾"
 
         val toolbar = JPanel(WrapLayout(FlowLayout.LEFT, 6, 2))
         val refresh = JButton("Refresh")
@@ -453,12 +464,34 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         if (result.first != 0) onLine("$action failed with exit code ${result.first}")
     }
 
+    private fun folderNameOf(root: File): String {
+        val path = root.absolutePath.lowercase()
+        val folder = CoabState.get().state.folders.firstOrNull { path.startsWith(it.lowercase()) }
+        return if (folder == null) "" else File(folder).name
+    }
+
     private inner class RepoTableModel : AbstractTableModel() {
-        private val columns = arrayOf("Repository", "Branch", "Sync", "Dirty")
+        private val columns = arrayOf("Repository", "Branch", "Sync", "Dirty", "Folder")
 
         override fun getRowCount() = infos.size
         override fun getColumnCount() = columns.size
         override fun getColumnName(column: Int) = columns[column]
+
+        override fun isCellEditable(rowIndex: Int, columnIndex: Int) = columnIndex == 1
+
+        override fun setValueAt(aValue: Any?, rowIndex: Int, columnIndex: Int) {
+            if (columnIndex != 1 || rowIndex >= infos.size) return
+            val branch = (aValue as? String)?.trim().orEmpty()
+            val info = infos[rowIndex]
+            if (branch.isEmpty() || branch == info.branch) return
+            ApplicationManager.getApplication().executeOnPooledThread {
+                val result = GitOps.withAutoStash(info.root, CoabState.get().state.autoStash, onLine) {
+                    GitOps.checkout(info.root, branch)
+                }
+                report("checkout", info.root, result)
+                refreshInfos()
+            }
+        }
 
         override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
             val info = infos[rowIndex]
@@ -470,7 +503,8 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
                     info.ahead == 0 && info.behind == 0 -> "✓"
                     else -> "↑${info.ahead} ↓${info.behind}"
                 }
-                else -> if (info.dirtyCount == 0) "" else "● ${info.dirtyCount}"
+                3 -> if (info.dirtyCount == 0) "" else "● ${info.dirtyCount}"
+                else -> folderNameOf(info.root)
             }
         }
     }

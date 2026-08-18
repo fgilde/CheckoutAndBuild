@@ -29,11 +29,20 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public string Path { get; }
 		public string Name { get; }
 
+		/// <summary>Working folder the repository was discovered beneath (group header in the repository selector).</summary>
+		public string Folder { get; set; } = "";
+
 		public string Branch
 		{
 			get { return branch; }
-			set { SetProperty(ref branch, value); }
+			set
+			{
+				if (SetProperty(ref branch, value))
+					RaisePropertyChanged(nameof(DisplayText));
+			}
 		}
+
+		public string DisplayText => string.IsNullOrEmpty(Branch) ? Name : $"{Name}  ({Branch})";
 	}
 
 	/// <summary>One row of the Changes tab (wraps a Core GitChange).</summary>
@@ -153,19 +162,47 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 	/// <summary>One row of the Sync tab (one repository).</summary>
 	public class RepoSyncViewModel : NotificationObject
 	{
+		private readonly Action<RepoSyncViewModel, string> checkoutRequested;
+		private bool suppressCheckout;
 		private string branch;
+		private string selectedBranch;
 		private string syncBadge;
 		private string status;
 
-		public RepoSyncViewModel(GitRepositoryViewModel repository)
+		public RepoSyncViewModel(GitRepositoryViewModel repository, Action<RepoSyncViewModel, string> checkoutRequested = null)
 		{
 			Repository = repository;
+			this.checkoutRequested = checkoutRequested;
 		}
 
 		public GitRepositoryViewModel Repository { get; }
 		public string Name => Repository.Name;
 		public string Path => Repository.Path;
+		public string FolderName => Repository.Folder;
 		public bool HasUpstream { get; set; }
+
+		public ObservableCollection<string> Branches { get; } = new ObservableCollection<string>();
+
+		/// <summary>Fills the branch dropdown without triggering a checkout.</summary>
+		public void SetBranches(IEnumerable<string> branches, string current)
+		{
+			suppressCheckout = true;
+			Branches.Clear();
+			foreach (string name in branches)
+				Branches.Add(name);
+			SelectedBranch = current;
+			suppressCheckout = false;
+		}
+
+		public string SelectedBranch
+		{
+			get { return selectedBranch; }
+			set
+			{
+				if (SetProperty(ref selectedBranch, value) && !suppressCheckout && value != null && value != Branch)
+					checkoutRequested?.Invoke(this, value);
+			}
+		}
 
 		public string Branch
 		{
@@ -1249,8 +1286,22 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			var roots = await Task.Run(() => FindRepositoryRoots(folders));
 
 			Repositories.Clear();
-			foreach (string root in roots)
-				Repositories.Add(new GitRepositoryViewModel(root));
+			foreach (var entry in roots)
+			{
+				var repo = new GitRepositoryViewModel(entry.Key)
+				{
+					Folder = System.IO.Path.GetFileName(entry.Value.TrimEnd(System.IO.Path.DirectorySeparatorChar))
+				};
+				try
+				{
+					repo.Branch = await git.GetCurrentBranchAsync(entry.Key);
+				}
+				catch (Exception e)
+				{
+					System.Diagnostics.Trace.WriteLine("CheckoutAndBuild branch load failed: " + e.Message);
+				}
+				Repositories.Add(repo);
+			}
 
 			SelectedRepository = Repositories.FirstOrDefault(r => string.Equals(r.Path, previous, StringComparison.OrdinalIgnoreCase))
 								 ?? Repositories.FirstOrDefault();
@@ -1265,6 +1316,43 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				await RefreshFeedAsync();
 		}
 
+		public ObservableCollection<string> HeaderBranches { get; } = new ObservableCollection<string>();
+
+		private bool suppressHeaderCheckout;
+		private string selectedHeaderBranch;
+
+		/// <summary>Branch dropdown in the window header — picking a different branch checks it out (auto-stash honored).</summary>
+		public string SelectedHeaderBranch
+		{
+			get { return selectedHeaderBranch; }
+			set
+			{
+				if (SetProperty(ref selectedHeaderBranch, value) && !suppressHeaderCheckout
+					&& value != null && SelectedRepository != null && value != SelectedRepository.Branch)
+					RunSafe(() => CheckoutHeaderBranchAsync(value));
+			}
+		}
+
+		private async Task CheckoutHeaderBranchAsync(string branch)
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			bool autoStash = JsonSettingsService.CreateDefault().Get("AutoStash", globalContext, true);
+			bool stashed = await git.AutoStashAsync(repo.Path, autoStash);
+			try
+			{
+				await git.CheckoutBranchAsync(repo.Path, branch);
+			}
+			finally
+			{
+				if (stashed && !await git.TryAutoStashPopAsync(repo.Path))
+					LastError = $"Auto-stash restore conflicted in {repo.Name} — your changes remain in stash@{{0}}.";
+			}
+			StatusMessage = $"{repo.Name} → {branch}";
+			await RefreshRepositoryAsync();
+		}
+
 		private async Task RefreshRepositoryAsync()
 		{
 			var repo = SelectedRepository;
@@ -1272,6 +1360,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 
 			repo.Branch = await git.GetCurrentBranchAsync(repo.Path);
+			suppressHeaderCheckout = true;
+			HeaderBranches.Clear();
+			foreach (string name in await git.GetBranchesAsync(repo.Path))
+				HeaderBranches.Add(name);
+			SelectedHeaderBranch = repo.Branch;
+			suppressHeaderCheckout = false;
 
 			var status = await git.GetStatusAsync(repo.Path);
 			Changes.Clear();
@@ -1410,7 +1504,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			SyncRows.Clear();
 			foreach (var repo in Repositories)
-				SyncRows.Add(new RepoSyncViewModel(repo));
+				SyncRows.Add(new RepoSyncViewModel(repo, (row, branch) => RunSafe(() => CheckoutSyncRowAsync(row, branch))));
 			foreach (var row in SyncRows.ToList())
 				await UpdateSyncRowAsync(row);
 		}
@@ -1423,12 +1517,40 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				var sync = await git.GetAheadBehindAsync(row.Path, row.Branch);
 				row.HasUpstream = sync.HasUpstream;
 				row.SyncBadge = sync.HasUpstream ? FormatBadge(sync) : "no upstream";
+				row.SetBranches(await git.GetBranchesAsync(row.Path), row.Branch);
 				row.Status = null;
 			}
 			catch (Exception e)
 			{
 				row.Status = e.Message;
 			}
+		}
+
+		/// <summary>Checkout picked in a Sync row's branch dropdown (auto-stash honored).</summary>
+		private async Task CheckoutSyncRowAsync(RepoSyncViewModel row, string branch)
+		{
+			StatusMessage = $"checkout {branch}: {row.Name}…";
+			try
+			{
+				bool autoStash = JsonSettingsService.CreateDefault().Get("AutoStash", globalContext, true);
+				bool stashed = await git.AutoStashAsync(row.Path, autoStash);
+				try
+				{
+					await git.CheckoutBranchAsync(row.Path, branch);
+				}
+				finally
+				{
+					if (stashed && !await git.TryAutoStashPopAsync(row.Path))
+						row.Status = "Auto-stash restore conflicted — your changes remain in stash@{0}.";
+				}
+				StatusMessage = $"{row.Name} → {branch}";
+				row.Repository.Branch = branch;
+			}
+			catch (Exception e)
+			{
+				row.Status = e.Message;
+			}
+			await UpdateSyncRowAsync(row);
 		}
 
 		private async Task SyncRowActionAsync(RepoSyncViewModel row, string action)
@@ -1869,40 +1991,43 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			StatusMessage = "Exported: " + dialog.FileName;
 		}
 
-		private static List<string> FindRepositoryRoots(IEnumerable<string> workingFolders)
+		private static List<KeyValuePair<string, string>> FindRepositoryRoots(IEnumerable<string> workingFolders)
 		{
-			var roots = new List<string>();
+			var roots = new List<KeyValuePair<string, string>>();
 			foreach (string folder in workingFolders.Where(Directory.Exists))
-				Scan(folder, 0);
-			return roots;
-
-			void Scan(string directory, int depth)
 			{
-				try
+				string currentFolder = folder;
+				Scan(currentFolder, 0);
+
+				void Scan(string directory, int depth)
 				{
-					string dotGit = Path.Combine(directory, ".git");
-					if (Directory.Exists(dotGit) || File.Exists(dotGit))
+					try
 					{
-						if (!roots.Contains(directory, StringComparer.OrdinalIgnoreCase))
-							roots.Add(directory);
-						return;
+						string dotGit = Path.Combine(directory, ".git");
+						if (Directory.Exists(dotGit) || File.Exists(dotGit))
+						{
+							if (!roots.Any(r => string.Equals(r.Key, directory, StringComparison.OrdinalIgnoreCase)))
+								roots.Add(new KeyValuePair<string, string>(directory, currentFolder));
+							return;
+						}
+						if (depth >= maxScanDepth)
+							return;
+						foreach (string sub in Directory.EnumerateDirectories(directory))
+						{
+							if (skippedDirectories.Contains(Path.GetFileName(sub), StringComparer.OrdinalIgnoreCase))
+								continue;
+							Scan(sub, depth + 1);
+						}
 					}
-					if (depth >= maxScanDepth)
-						return;
-					foreach (string sub in Directory.EnumerateDirectories(directory))
+					catch (UnauthorizedAccessException)
 					{
-						if (skippedDirectories.Contains(Path.GetFileName(sub), StringComparer.OrdinalIgnoreCase))
-							continue;
-						Scan(sub, depth + 1);
 					}
-				}
-				catch (UnauthorizedAccessException)
-				{
-				}
-				catch (IOException)
-				{
+					catch (IOException)
+					{
+					}
 				}
 			}
+			return roots;
 		}
 	}
 }

@@ -80,6 +80,32 @@
                     <PropertyGroupDescription PropertyName="Group" />
                 </CollectionViewSource.GroupDescriptions>
             </CollectionViewSource>
+
+            <CollectionViewSource x:Key="GroupedRepositories" Source="{Binding Repositories}">
+                <CollectionViewSource.GroupDescriptions>
+                    <PropertyGroupDescription PropertyName="Folder" />
+                </CollectionViewSource.GroupDescriptions>
+            </CollectionViewSource>
+
+            <CollectionViewSource x:Key="GroupedSyncRows" Source="{Binding SyncRows}">
+                <CollectionViewSource.GroupDescriptions>
+                    <PropertyGroupDescription PropertyName="FolderName" />
+                </CollectionViewSource.GroupDescriptions>
+            </CollectionViewSource>
+
+            <GroupStyle x:Key="CoabFolderGroupStyle">
+                <GroupStyle.HeaderTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B7;" FontSize="11"
+                                       VerticalAlignment="Center" Margin="0,0,5,0" Opacity="0.6"
+                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11" Opacity="0.8"
+                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </GroupStyle.HeaderTemplate>
+            </GroupStyle>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -91,17 +117,44 @@
                     ToolTip="Rescan repositories and refresh changes and stashes">
                 <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabRefreshGeometry}" Width="12" Height="12" />
             </Button>
-            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0"
-                       FontStyle="Italic"
+            <ComboBox DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0"
+                      MinWidth="130" FontSize="11"
+                      ItemsSource="{Binding HeaderBranches}"
+                      SelectedItem="{Binding SelectedHeaderBranch}"
+                      ToolTip="Current branch — pick another one to check it out (auto-stash applies)" />
+            <TextBlock DockPanel.Dock="Right" FontFamily="Segoe MDL2 Assets" Text="&#xE95F;" FontSize="11"
+                       VerticalAlignment="Center" Margin="10,0,0,0" Opacity="0.6"
                        Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
-                       Text="{Binding SelectedRepository.Branch}"
-                       ToolTip="Current branch" />
+                       ToolTip="Branch" />
             <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
-            <ComboBox ItemsSource="{Binding Repositories}"
+            <ComboBox ItemsSource="{Binding Source={StaticResource GroupedRepositories}}"
                       SelectedItem="{Binding SelectedRepository}"
-                      DisplayMemberPath="Name"
-                      VerticalAlignment="Center"
-                      ToolTip="{Binding SelectedRepository.Path}" />
+                      VerticalAlignment="Center" MinWidth="180"
+                      ToolTip="{Binding SelectedRepository.Path}">
+                <ComboBox.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="4,3,4,1">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B7;" FontSize="10"
+                                               VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.6" />
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="10" Opacity="0.7" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ComboBox.GroupStyle>
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="8,0,0,0">
+                            <TextBlock Text="{Binding Name}" />
+                            <TextBlock Text="{Binding Branch}" Margin="6,0,0,0" FontSize="10" Opacity="0.7"
+                                       FontStyle="Italic" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
         </DockPanel>
 
         <ProgressBar DockPanel.Dock="Top" Height="4" Margin="0,0,0,4"
@@ -567,19 +620,23 @@
                                  ToolTip="Branch to check out in all repositories" />
                     </DockPanel>
 
-                    <ListBox ItemsSource="{Binding SyncRows}"
+                    <ListBox ItemsSource="{Binding Source={StaticResource GroupedSyncRows}}"
                              Background="Transparent" BorderThickness="0"
                              HorizontalContentAlignment="Stretch"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ItemContainerStyle="{StaticResource CoabListBoxItem}">
+                        <ListBox.GroupStyle>
+                            <StaticResource ResourceKey="CoabFolderGroupStyle" />
+                        </ListBox.GroupStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <DockPanel Background="Transparent" ToolTip="{Binding Path}">
                                     <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" FontWeight="SemiBold"
-                                               Width="140" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Branch}" FontStyle="Italic"
-                                               Width="120" TextTrimming="CharacterEllipsis"
-                                               Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
+                                               Width="140" TextTrimming="CharacterEllipsis" Margin="12,0,0,0" />
+                                    <ComboBox DockPanel.Dock="Left" Width="130" FontSize="11" Margin="0,0,8,0"
+                                              ItemsSource="{Binding Branches}"
+                                              SelectedItem="{Binding SelectedBranch}"
+                                              ToolTip="Current branch — pick another one to check it out (auto-stash applies)" />
                                     <TextBlock DockPanel.Dock="Left" Text="{Binding SyncBadge}" Width="80"
                                                FontSize="11" Opacity="0.7" VerticalAlignment="Center"
                                                ToolTip="Commits ahead/behind the upstream branch" />
