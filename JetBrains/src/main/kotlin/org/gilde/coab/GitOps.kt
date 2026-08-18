@@ -96,13 +96,34 @@ object GitOps {
     fun forcePush(root: File): Pair<Int, String> =
         ProcessRunner.capture("git push --force-with-lease", root)
 
-    fun sync(root: File): String {
+    fun revision(root: File): String? = capture(root, "git rev-parse HEAD")?.trim()
+
+    /**
+     * Stashes uncommitted changes before the action and restores them afterwards (when enabled and dirty).
+     * A failing pop leaves the changes safely in stash@{0} and reports it.
+     */
+    fun <T> withAutoStash(root: File, enabled: Boolean, onLine: (String) -> Unit, action: () -> T): T {
+        val stashed = enabled && changes(root).isNotEmpty() && stashPush(root, "coab-auto").first == 0
+        if (stashed) onLine("auto-stashed local changes in ${root.name}")
+        try {
+            return action()
+        } finally {
+            if (stashed) {
+                val pop = stashAction(root, "pop", 0)
+                onLine(
+                    if (pop.first == 0) "auto-stash restored in ${root.name}"
+                    else "stash pop failed in ${root.name} — your changes remain in stash@{0}")
+            }
+        }
+    }
+
+    fun sync(root: File, autoStash: Boolean = false, onLine: (String) -> Unit = {}): String {
         val fetch = fetch(root)
         if (fetch.first != 0) return "fetch failed: ${fetch.second.lines().firstOrNull().orEmpty()}"
         var info = info(root)
         val messages = mutableListOf<String>()
         if (info.hasUpstream && info.behind > 0) {
-            val pull = ProcessRunner.capture("git pull", root)
+            val pull = withAutoStash(root, autoStash, onLine) { ProcessRunner.capture("git pull", root) }
             if (pull.first != 0) return "pull failed: ${pull.second.lines().lastOrNull { it.isNotBlank() }.orEmpty()}"
             messages.add("pulled ${info.behind}")
             info = info(root)

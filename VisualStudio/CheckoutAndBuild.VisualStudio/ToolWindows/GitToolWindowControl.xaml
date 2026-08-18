@@ -149,6 +149,10 @@
                                 Command="{Binding CommitAllCommand}"
                                 Content="Commit All"
                                 ToolTip="Stage everything and commit (git add -A + git commit)" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CoabLinkButton}" Margin="6,0,0,0"
+                                Command="{Binding CommitFromWorkItemCommand}"
+                                Content="From WI…"
+                                ToolTip="Prefill the commit message from an Azure DevOps work item (AB#id: title)" />
                         <TextBox Text="{Binding CommitMessage, UpdateSourceTrigger=PropertyChanged}"
                                  VerticalContentAlignment="Center"
                                  ToolTip="Commit message" />

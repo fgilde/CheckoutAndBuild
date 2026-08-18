@@ -332,6 +332,39 @@ namespace CheckoutAndBuild.Core.Git
             };
         }
 
+        /// <summary>HEAD commit sha, or null when unavailable (e.g. empty repository).</summary>
+        public async Task<string> GetRevisionAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, "rev-parse HEAD"), cancellationToken: ct).ConfigureAwait(false);
+            return result.Success ? result.StdOut.Trim() : null;
+        }
+
+        /// <summary>Stashes uncommitted changes when <paramref name="enabled"/> and the tree is dirty. True when a stash was created.</summary>
+        public async Task<bool> AutoStashAsync(string repoDir, bool enabled, CancellationToken ct = default)
+        {
+            if (!enabled)
+                return false;
+            var status = await GetStatusAsync(repoDir, ct).ConfigureAwait(false);
+            if (status.Count == 0)
+                return false;
+            await StashPushAsync(repoDir, "coab-auto", ct).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>Restores an auto-stash. False when the pop conflicts — the changes then stay safely in stash@{0}.</summary>
+        public async Task<bool> TryAutoStashPopAsync(string repoDir, CancellationToken ct = default)
+        {
+            try
+            {
+                await StashPopAsync(repoDir, 0, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         /// <summary>Configured "git config user.name" or null when unset.</summary>
         public async Task<string> GetConfiguredUserAsync(string repoDir, CancellationToken ct = default)
         {

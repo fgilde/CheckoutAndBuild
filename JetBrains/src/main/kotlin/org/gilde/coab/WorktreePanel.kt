@@ -25,7 +25,8 @@ import javax.swing.table.DefaultTableCellRenderer
 /** Worktree manager tab: list, add, remove, prune, sync and repair git worktrees per repository. */
 class WorktreePanel(
     private val onLine: (String) -> Unit,
-    private val onAddFolder: (String) -> Unit
+    private val onAddFolder: (String) -> Unit,
+    private val onBuildFolder: (String) -> Unit = {}
 ) : JPanel(BorderLayout()) {
 
     private val repoCombo = JComboBox<String>()
@@ -165,11 +166,13 @@ class WorktreePanel(
                 branchBox.addActionListener { updatePreview() }
                 updatePreview()
 
+                val buildAfter = JCheckBox("Run install && build after create")
                 val form = JPanel(GridLayout(0, 1, 4, 2))
                 form.add(JLabel("Branch (existing = checkout, new name = created with -b):"))
                 form.add(branchBox)
                 form.add(JLabel("Worktree folder:"))
                 form.add(pathField)
+                form.add(buildAfter)
 
                 val builder = DialogBuilder(this)
                 builder.setTitle("Add Worktree — ${root.name}")
@@ -182,8 +185,11 @@ class WorktreePanel(
                 if (branch.isEmpty() || target.isEmpty()) return@invokeLater
                 background {
                     val create = branch !in branches
-                    report("worktree add", GitOps.worktreeAdd(root, File(target), branch, create))
+                    val result = GitOps.worktreeAdd(root, File(target), branch, create)
+                    report("worktree add", result)
                     refreshWorktrees()
+                    if (result.first == 0 && buildAfter.isSelected)
+                        ApplicationManager.getApplication().invokeLater { onBuildFolder(target) }
                 }
             }
         }

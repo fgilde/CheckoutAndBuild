@@ -34,17 +34,32 @@ class PipelineRunner(
         var stepIndex = 0
         val stepCount = active.size + (if (StepKind.PULL in steps) 1 else 0)
 
+        var targets = projects
         if (StepKind.PULL in steps) {
             onProgress("Pull (1/$stepCount)")
-            pullRepositories(projects)
+            val changedRoots = pullRepositories(projects)
             stepIndex = 1
+            if (state.skipUnchanged && !cancelled) {
+                val rootOf = projects.associate {
+                    it.key to GitOps.repositoryRoot(it.directory)?.absolutePath?.lowercase()
+                }
+                val (unchanged, changed) = projects.partition {
+                    val root = rootOf[it.key]
+                    root != null && root !in changedRoots
+                }
+                if (unchanged.isNotEmpty()) {
+                    onLine("=== Skipping ${unchanged.size} project(s) — repository unchanged ===")
+                    unchanged.forEach { onStatus(it, "skipped (unchanged)") }
+                }
+                targets = changed
+            }
         }
 
         for (step in active) {
             if (cancelled) break
             stepIndex++
             onProgress("${step.name.lowercase().replaceFirstChar { it.uppercase() }} ($stepIndex/$stepCount)")
-            val runnable = projects.filter { CommandResolver.resolve(it, step) != null }
+            val runnable = targets.filter { CommandResolver.resolve(it, step) != null }
             if (runnable.isEmpty()) continue
             onLine("")
             onLine("=== ${step.name.lowercase().replaceFirstChar { it.uppercase() }} (${runnable.size} project(s)) ===")
@@ -85,17 +100,24 @@ class PipelineRunner(
         runStep(project, step)
     }
 
-    private fun pullRepositories(projects: List<CoabProject>) {
+    private fun pullRepositories(projects: List<CoabProject>): Set<String> {
+        val autoStash = CoabState.get().state.autoStash
+        val changed = mutableSetOf<String>()
         val roots = projects.mapNotNull { GitOps.repositoryRoot(it.directory) }
             .distinctBy { it.absolutePath.lowercase() }
-        if (roots.isEmpty()) return
+        if (roots.isEmpty()) return changed
         onLine("=== Pull (${roots.size} repositories) ===")
         for (root in roots) {
-            if (cancelled) return
+            if (cancelled) return changed
             onLine("git pull: ${root.name}")
-            val exit = GitOps.pull(root, { onLine("  $it") }, { cancelled })
+            val before = GitOps.revision(root)
+            val exit = GitOps.withAutoStash(root, autoStash, { onLine("  $it") }) {
+                GitOps.pull(root, { onLine("  $it") }, { cancelled })
+            }
             if (exit != 0) onLine("  pull failed with exit code $exit")
+            if (GitOps.revision(root) != before) changed.add(root.absolutePath.lowercase())
         }
+        return changed
     }
 
     private fun runStep(project: CoabProject, step: StepKind): Boolean {

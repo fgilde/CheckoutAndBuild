@@ -128,14 +128,25 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IsSyncing = true;
 			try
 			{
+				owner.LastError = null;
 				await git.FetchAsync(RepositoryPath);
 				var status = await git.GetAheadBehindAsync(RepositoryPath);
 				if (status.HasUpstream && status.Behind > 0)
-					await git.PullAsync(RepositoryPath);
+				{
+					bool stashed = await git.AutoStashAsync(RepositoryPath, owner.AutoStashEnabled);
+					try
+					{
+						await git.PullAsync(RepositoryPath);
+					}
+					finally
+					{
+						if (stashed && !await git.TryAutoStashPopAsync(RepositoryPath))
+							owner.LastError = $"Auto-stash restore conflicted in {RepositoryName} — your changes remain in stash@{{0}}.";
+					}
+				}
 				status = await git.GetAheadBehindAsync(RepositoryPath);
 				if (!status.HasUpstream || status.Ahead > 0)
 					await git.PushAsync(RepositoryPath, setUpstream: !status.HasUpstream);
-				owner.LastError = null;
 				await LoadCurrentBranchAsync();
 			}
 			catch (Exception e)
@@ -223,8 +234,17 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 			try
 			{
-				await git.CheckoutBranchAsync(RepositoryPath, branch);
 				owner.LastError = null;
+				bool stashed = await git.AutoStashAsync(RepositoryPath, owner.AutoStashEnabled);
+				try
+				{
+					await git.CheckoutBranchAsync(RepositoryPath, branch);
+				}
+				finally
+				{
+					if (stashed && !await git.TryAutoStashPopAsync(RepositoryPath))
+						owner.LastError = $"Auto-stash restore conflicted in {RepositoryName} — your changes remain in stash@{{0}}.";
+				}
 				CurrentBranch = branch;
 				var status = await git.GetAheadBehindAsync(RepositoryPath);
 				SyncBadge = FormatSyncBadge(status);
@@ -336,7 +356,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			elapsedTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(1) };
 			elapsedTimer.Tick += (s, e) => RaisePropertyChanged(nameof(StatusLineText));
 			scheduleTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromSeconds(60) };
-			scheduleTimer.Tick += (s, e) => CheckScheduledRun();
+			scheduleTimer.Tick += (s, e) => { CheckScheduledRun(); CheckWatchRun(); };
 			scheduleTimer.Start();
 
 			AddSolutionCommand = new DelegateCommand(async p => await AddSolutionAsync(p as WorkingFolderViewModel),
@@ -566,6 +586,77 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			catch (Exception e)
 			{
 				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild scheduled run failed: " + e.Message);
+			}
+		}
+
+		#endregion
+
+		#region watch mode
+
+		internal bool AutoStashEnabled => settings.Get("AutoStash", profileContext, true);
+
+		private DateTime lastWatchCheck;
+		private bool watchBusy;
+
+		/// <summary>Watch mode: fetches all repositories on the configured interval and starts the pipeline when one is behind.</summary>
+		private void CheckWatchRun()
+		{
+			try
+			{
+				if (IsRunning || watchBusy || !settings.Get("WatchModeEnabled", profileContext, false))
+					return;
+				int interval = Math.Max(1, settings.Get("WatchIntervalMinutes", profileContext, 10));
+				if ((DateTime.Now - lastWatchCheck).TotalMinutes < interval)
+					return;
+				lastWatchCheck = DateTime.Now;
+				var roots = WorkingFolders.SelectMany(f => f.Repositories)
+					.Select(r => r.RepositoryPath)
+					.Distinct(StringComparer.OrdinalIgnoreCase)
+					.ToList();
+				if (roots.Count == 0)
+					return;
+				watchBusy = true;
+				_ = Task.Run(async () =>
+				{
+					try
+					{
+						var git = new CheckoutAndBuild.Core.Git.GitService();
+						bool anyBehind = false;
+						foreach (string root in roots)
+						{
+							try
+							{
+								await git.FetchAsync(root);
+								var status = await git.GetAheadBehindAsync(root);
+								if (status.HasUpstream && status.Behind > 0)
+									anyBehind = true;
+							}
+							catch (Exception e)
+							{
+								System.Diagnostics.Trace.WriteLine("CheckoutAndBuild watch fetch failed: " + e.Message);
+							}
+						}
+						if (!anyBehind)
+							return;
+						await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+						if (IsRunning)
+							return;
+						StatusMessage = "Watch mode: repository behind — starting pipeline.";
+						await RunPipelineAsync();
+					}
+					catch (Exception e)
+					{
+						System.Diagnostics.Trace.WriteLine("CheckoutAndBuild watch run failed: " + e.Message);
+					}
+					finally
+					{
+						watchBusy = false;
+					}
+				});
+			}
+			catch (Exception e)
+			{
+				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild watch check failed: " + e.Message);
 			}
 		}
 
@@ -1513,6 +1604,31 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			cancellation.PausedChanged += OnPausedChanged;
 			BeginRunStatus();
 			runEstimate = EstimateRun(solutions.Where(s => s.IsIncluded).ToList());
+
+			var gitForSkip = new CheckoutAndBuild.Core.Git.GitService();
+			Dictionary<string, string> revisionsBeforePull = null;
+			var unchangedRepos = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+			string RepoRootOf(ISolutionProjectModel m) => (m as CheckoutAndBuild.Core.Model.SolutionProjectModel)?.GitRepositoryRoot;
+			if (settings.Get("SkipUnchanged", profileContext, false) && enabledModels[checkoutService].Count > 0)
+			{
+				var repoRoots = models.Select(RepoRootOf)
+					.Where(r => !string.IsNullOrEmpty(r))
+					.Distinct(StringComparer.OrdinalIgnoreCase)
+					.ToList();
+				revisionsBeforePull = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+				foreach (string root in repoRoots)
+					revisionsBeforePull[root] = await gitForSkip.GetRevisionAsync(root);
+			}
+
+			bool IsUnchangedRepository(ISolutionProjectModel model)
+			{
+				string root = RepoRootOf(model);
+				if (root == null || revisionsBeforePull == null || !revisionsBeforePull.TryGetValue(root, out string before) || before == null)
+					return false;
+				return unchangedRepos.GetOrAdd(root,
+					r => gitForSkip.GetRevisionAsync(r).GetAwaiter().GetResult() == before);
+			}
+
 			var context = new PipelineContext
 			{
 				Settings = serviceSettings,
@@ -1521,13 +1637,29 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Progress = new DelegateProgress(OnPipelineProgress),
 				CustomActions = pluginHost.GetExportedValues<ICustomAction>().ToList(),
 				ServiceProjectFilter = (service, model) =>
-					!enabledModels.TryGetValue(service, out var enabled) || enabled.Contains(model)
+				{
+					if (enabledModels.TryGetValue(service, out var enabled) && !enabled.Contains(model))
+						return false;
+					if (revisionsBeforePull != null
+						&& !ReferenceEquals(service, cleanService)
+						&& !ReferenceEquals(service, checkoutService)
+						&& IsUnchangedRepository(model))
+						return false;
+					return true;
+				}
 			};
 
 			try
 			{
 				await Task.Run(() => pipelineRunner.RunAsync(models, services, context, cancellation));
 				EndRunStatus(cancelled: cancellation.IsCancellationRequested, crashed: false);
+				if (revisionsBeforePull != null)
+				{
+					int skipped = models.Count(m => RepoRootOf(m) != null
+						&& unchangedRepos.TryGetValue(RepoRootOf(m), out bool unchanged) && unchanged);
+					if (skipped > 0)
+						StatusMessage = $"{skipped} solution(s) skipped — repository unchanged.";
+				}
 			}
 			catch (OperationCanceledException)
 			{

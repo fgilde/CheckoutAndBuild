@@ -27,6 +27,34 @@ namespace CheckoutAndBuild.Core.Settings
 		[Category("Miscellaneous")]
 		public string ScheduledRunTime { get; set; }
 
+		[SettingsProperty(SettingsAvailability.Global, "SkipUnchanged", "After the checkout/pull step, skip restore, build and test for solutions whose repository received no new commits. A clean step still runs for all solutions.")]
+		[DefaultValue(false)]
+		[Description("After the checkout/pull step, skip restore, build and test for solutions whose repository received no new commits.")]
+		[DisplayName(@"Skip unchanged repositories")]
+		[Category("Miscellaneous")]
+		public bool SkipUnchanged { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "AutoStash", "Stash uncommitted changes automatically before pull and branch checkout and restore them afterwards. A conflicting restore keeps the changes safely in stash@{0}.")]
+		[DefaultValue(true)]
+		[Description("Stash uncommitted changes automatically around pull and branch checkout and restore them afterwards.")]
+		[DisplayName(@"Auto-stash around pull/checkout")]
+		[Category("Miscellaneous")]
+		public bool AutoStash { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "WatchModeEnabled", "Watch mode: fetch all repositories periodically and run the pipeline automatically when a repository is behind its upstream. Combine with 'Skip unchanged repositories' to rebuild only what changed.")]
+		[DefaultValue(false)]
+		[Description("Fetch all repositories periodically and run the pipeline automatically when a repository is behind its upstream.")]
+		[DisplayName(@"Watch mode enabled")]
+		[Category("Miscellaneous")]
+		public bool WatchModeEnabled { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "WatchIntervalMinutes", "Interval in minutes between watch-mode fetches.")]
+		[DefaultValue(10)]
+		[Description("Interval in minutes between watch-mode fetches.")]
+		[DisplayName(@"Watch interval (minutes)")]
+		[Category("Miscellaneous")]
+		public int WatchIntervalMinutes { get; set; }
+
 		[SettingsProperty(SettingsAvailability.Global, "LogLevel", "Verbosity for the CheckoutAndBuild output window and msbuild (Quiet/Minimal/Normal/Detailed/Diagnostic).")]
 		[DefaultValue(LoggerVerbosity.Minimal)]
 		[Description("Verbosity for the CheckoutAndBuild output window and msbuild.")]

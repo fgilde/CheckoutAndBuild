@@ -53,8 +53,13 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
 
         val commitRow = JPanel(BorderLayout(6, 0))
         val commitButton = JButton("Commit All && Push")
+        val fromWorkItem = JButton("From WI…")
+        fromWorkItem.toolTipText = "Prefill the commit message from an Azure DevOps work item (AB#id: title)"
+        val commitEast = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0))
+        commitEast.add(fromWorkItem)
+        commitEast.add(commitButton)
         commitRow.add(commitMessage, BorderLayout.CENTER)
-        commitRow.add(commitButton, BorderLayout.EAST)
+        commitRow.add(commitEast, BorderLayout.EAST)
         commitMessage.toolTipText = "Commit message"
 
         val north = JPanel(BorderLayout())
@@ -69,7 +74,9 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         pull.addActionListener {
             onSelected { root ->
                 onLine("git pull: ${root.name}")
-                val exit = GitOps.pull(root, { onLine("  $it") }, { false })
+                val exit = GitOps.withAutoStash(root, CoabState.get().state.autoStash, { onLine("  $it") }) {
+                    GitOps.pull(root, { onLine("  $it") }, { false })
+                }
                 if (exit != 0) onLine("  pull failed with exit code $exit")
                 refreshInfos()
             }
@@ -120,6 +127,7 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
             }
         }
         suggestBranch.addActionListener { suggestBranchFromWorkItem() }
+        fromWorkItem.addActionListener { commitMessageFromWorkItem() }
         checkout.addActionListener { checkoutBranch() }
         commitButton.addActionListener { commitAndPush() }
         stash.addActionListener {
@@ -209,7 +217,10 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
                     branches.toTypedArray(), infos[row].branch, null)
                 if (index >= 0) {
                     ApplicationManager.getApplication().executeOnPooledThread {
-                        report("checkout", root, GitOps.checkout(root, branches[index]))
+                        val result = GitOps.withAutoStash(root, CoabState.get().state.autoStash, onLine) {
+                            GitOps.checkout(root, branches[index])
+                        }
+                        report("checkout", root, result)
                         refreshInfos()
                     }
                 }
@@ -307,6 +318,29 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
                     report("checkout -b", root, GitOps.createBranch(root, branch))
                     refreshInfos()
                 }
+            }
+        }
+    }
+
+    /** Prefills the commit message as "AB#id: title" — the id defaults to the number in the current branch name. */
+    private fun commitMessageFromWorkItem() {
+        val row = table.selectedRow
+        val branch = if (row in infos.indices) infos[row].branch else ""
+        val guessed = Regex("(\\d{2,})").find(branch)?.groupValues?.get(1) ?: ""
+        val input = Messages.showInputDialog(
+            "Work item id (uses the Work Items connection):", "Commit Message from Work Item", null, guessed, null)
+            ?.trim().orEmpty()
+        val id = input.toIntOrNull() ?: return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val state = CoabState.get().state
+            val title = runCatching {
+                AzdoClient.workItems(state.azdoOrganization, listOf(id)).firstOrNull()?.title
+            }.getOrNull()
+            ApplicationManager.getApplication().invokeLater {
+                commitMessage.text = if (title.isNullOrBlank()) "AB#$id: " else "AB#$id: $title"
+                commitMessage.requestFocusInWindow()
+                if (title.isNullOrBlank())
+                    onLine("Work item title not available — configure the Work Items connection for automatic titles.")
             }
         }
     }

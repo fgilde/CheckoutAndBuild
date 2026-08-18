@@ -182,6 +182,9 @@ footer .sep{color:var(--border)}
     <li data-i18n="pipe.li3"><b>Retry failed</b> — after a run with failures, one click re-runs only the failed projects.</li>
     <li data-i18n="pipe.li4"><b>Filter</b> — the filter box narrows the list live (regex allowed); the context menu of a row can run single steps for just that project.</li>
     <li data-i18n="pipe.li5"><b>Notifications</b> — when the IDE is in the background you get a toast/balloon when the run finishes.</li>
+    <li data-i18n="pipe.li6"><b>Changed only</b> — after the pull, skip install/build/test for projects whose repository received no new commits. One changed repo out of ten means one rebuild, not ten.</li>
+    <li data-i18n="pipe.li7"><b>Watch mode</b> — fetch all repositories on a configurable interval and run the pipeline automatically when one is behind. Combined with “changed only” this turns CheckoutAndBuild into a quiet background CI.</li>
+    <li data-i18n="pipe.li8"><b>Auto-stash</b> — uncommitted changes are stashed automatically around pull and branch checkout and restored afterwards; a conflicting restore keeps them safely in <code>stash@{0}</code>.</li>
   </ul>
   <p data-i18n="pipe.p2">In Visual Studio the pipeline additionally offers <b>Clean</b>, <b>NuGet restore modes</b>, a <b>merged build</b> (build several solutions as one), Delphi projects and MEF plugin services. Build errors and test failures land in the <b>Error List</b>; double-click jumps to the code.</p>
 </section>
@@ -189,7 +192,7 @@ footer .sep{color:var(--border)}
 <section id="profiles">
   <h2 data-i18n="prof.h2">Profiles</h2>
   <p data-i18n="prof.p1">Profiles capture a complete working setup: which projects are included, their priorities, step toggles and per-project command overrides. Switch profiles from the toolbar; create, rename and delete them from the Tools menu. Typical use: a “Frontend” profile with npm projects only, a “Full” profile with everything, a “Hotfix” profile with one solution.</p>
-  <p data-i18n="prof.p2">In Visual Studio, settings can also follow the <b>current branch</b>, and profiles can be exported, imported and copied (JSON under <code>%AppData%\COAB</code>). The JetBrains plugin stores its state in the IDE configuration.</p>
+  <p data-i18n="prof.p2">In Visual Studio, settings can also follow the <b>current branch</b>, and profiles can be exported, imported and copied (JSON under <code>%AppData%\COAB</code>). The JetBrains plugin stores its state in the IDE configuration and offers settings export/import as JSON via the Tools menu (the Azure DevOps token is never exported).</p>
 </section>
 
 <section id="priorities">
@@ -247,6 +250,7 @@ footer .sep{color:var(--border)}
     <li data-i18n="git.li5"><b>Patches &amp; zip</b> — export uncommitted work as a <code>.patch</code> file or as a zip of all changed files (with folder structure); apply patches with 3-way merge.</li>
     <li data-i18n="git.li6"><b>Create pull request</b> — opens the PR creation page of GitHub or Azure DevOps for the current branch, derived from the remote URL.</li>
     <li data-i18n="git.li7"><b>Branch suggestion</b> — type an Azure DevOps work item ID and get a branch name like <code>feature/1234-fix-login-crash</code>, created and checked out on confirm.</li>
+    <li data-i18n="git.li8"><b>Commit message from work item</b> — prefill the commit message as <code>AB#1234: title</code> (the id is guessed from the branch name); the AB# syntax links the commit to the work item in Azure DevOps.</li>
   </ul>
 </section>
 
@@ -267,7 +271,7 @@ footer .sep{color:var(--border)}
   <p data-i18n="wt.p2">Every worktree shows its branch, commit, a <b>sync badge</b> (✓ up to date, ↑n ahead / ↓n behind its upstream, or “no upstream”), a <b>dirty badge</b> (● n uncommitted changes) and flags: <code>main</code>, <code>locked</code>, <code>prunable</code>, <code>detached</code>.</p>
   <h3 data-i18n="wt.h3b">Actions</h3>
   <ul>
-    <li data-i18n="wt.li1"><b>Add</b> — pick an existing branch (checked out into the new folder) or type a new name (created with <code>-b</code>). Branches already used by another worktree are hidden.</li>
+    <li data-i18n="wt.li1"><b>Add</b> — pick an existing branch (checked out into the new folder) or type a new name (created with <code>-b</code>). Branches already used by another worktree are hidden. Optionally run install + build right after creation, so the new worktree is ready to work in.</li>
     <li data-i18n="wt.li2"><b>Pull / Push</b> — sync a single worktree; push sets the upstream automatically when missing.</li>
     <li data-i18n="wt.li3"><b>Update from base</b> — fetches and merges <code>origin/&lt;default branch&gt;</code> into the worktree, keeping feature worktrees current without leaving your main checkout.</li>
     <li data-i18n="wt.li4"><b>Switch branch</b> — check out a different (or new) branch inside the worktree.</li>
@@ -396,10 +400,13 @@ const i18n = {
     "pipe.li3": "<b>Retry failed</b> — nach einem Lauf mit Fehlern startet ein Klick nur die fehlgeschlagenen Projekte erneut.",
     "pipe.li4": "<b>Filter</b> — das Filterfeld schränkt die Liste live ein (Regex erlaubt); das Kontextmenü einer Zeile kann einzelne Schritte nur für dieses Projekt ausführen.",
     "pipe.li5": "<b>Benachrichtigungen</b> — ist die IDE im Hintergrund, kommt ein Toast/Balloon, wenn der Lauf fertig ist.",
+    "pipe.li6": "<b>Changed only</b> — nach dem Pull werden Install/Build/Test für Projekte übersprungen, deren Repository keine neuen Commits bekam. Ein geändertes Repo von zehn heißt ein Rebuild, nicht zehn.",
+    "pipe.li7": "<b>Watch-Modus</b> — fetcht alle Repositories in einem konfigurierbaren Intervall und startet die Pipeline automatisch, wenn eines hinterherhängt. Kombiniert mit „Changed only“ wird CheckoutAndBuild zur leisen Hintergrund-CI.",
+    "pipe.li8": "<b>Auto-Stash</b> — uncommittete Änderungen werden um Pull und Branch-Checkout herum automatisch gestasht und danach wiederhergestellt; bei Konflikt bleiben sie sicher in <code>stash@{0}</code>.",
     "pipe.p2": "In Visual Studio bietet die Pipeline zusätzlich <b>Clean</b>, <b>NuGet-Restore-Modi</b>, einen <b>Merged Build</b> (mehrere Solutions als eine bauen), Delphi-Projekte und MEF-Plugin-Services. Build-Fehler und Test-Failures landen in der <b>Fehlerliste</b>; Doppelklick springt in den Code.",
     "prof.h2": "Profile",
     "prof.p1": "Profile speichern ein komplettes Arbeits-Setup: welche Projekte eingeschlossen sind, ihre Prioritäten, Schritt-Schalter und Kommando-Overrides pro Projekt. Profile wechselst du in der Toolbar; anlegen, umbenennen und löschen geht über das Tools-Menü. Typisch: ein „Frontend“-Profil nur mit npm-Projekten, ein „Full“-Profil mit allem, ein „Hotfix“-Profil mit einer Solution.",
-    "prof.p2": "In Visual Studio können Einstellungen zusätzlich dem <b>aktuellen Branch</b> folgen, und Profile lassen sich exportieren, importieren und kopieren (JSON unter <code>%AppData%\\COAB</code>). Das JetBrains-Plugin speichert seinen Zustand in der IDE-Konfiguration.",
+    "prof.p2": "In Visual Studio können Einstellungen zusätzlich dem <b>aktuellen Branch</b> folgen, und Profile lassen sich exportieren, importieren und kopieren (JSON unter <code>%AppData%\\COAB</code>). Das JetBrains-Plugin speichert seinen Zustand in der IDE-Konfiguration und bietet Settings-Export/-Import als JSON über das Tools-Menü (der Azure-DevOps-Token wird nie exportiert).",
     "prio.h2": "Prioritäten & Parallelität",
     "prio.p1": "Jedes Projekt hat eine numerische Priorität. Niedrigere Prioritäten bauen zuerst; Projekte mit <b>gleicher</b> Priorität bauen <b>parallel</b> (der Parallelitätsgrad ist konfigurierbar). Damit modellierst du Abhängigkeiten: Basisbibliotheken auf Priorität 0, Abhängige auf 1, und so weiter.",
     "prio.p2": "<b>Suggest Priorities</b> scannt .NET-Solutions und -Projekte nach Projekt- und Paketreferenzen und schlägt automatisch eine korrekte Build-Reihenfolge vor (zyklensicher — die Referenztiefe wird zur Priorität).",
@@ -430,6 +437,7 @@ const i18n = {
     "git.li5": "<b>Patches & Zip</b> — uncommittete Arbeit als <code>.patch</code>-Datei oder als Zip aller geänderten Dateien (mit Ordnerstruktur) exportieren; Patches mit 3-Wege-Merge anwenden.",
     "git.li6": "<b>Pull Request erstellen</b> — öffnet die PR-Erstellungsseite von GitHub oder Azure DevOps für den aktuellen Branch, abgeleitet aus der Remote-URL.",
     "git.li7": "<b>Branch-Vorschlag</b> — eine Azure-DevOps-Work-Item-ID eingeben und einen Branch-Namen wie <code>feature/1234-fix-login-crash</code> erhalten, der nach Bestätigung angelegt und ausgecheckt wird.",
+    "git.li8": "<b>Commit-Message aus Work Item</b> — die Commit-Nachricht als <code>AB#1234: Titel</code> vorbefüllen (die ID wird aus dem Branch-Namen geraten); die AB#-Syntax verlinkt den Commit in Azure DevOps mit dem Work Item.",
     "mr.h2": "Multi-Repo-Sync",
     "mr.p1": "Für die Arbeit über viele Repositories gleichzeitig:",
     "mr.li1": "<b>Fetch / Pull / Push all</b> — ein Klick für jedes Repository; Aktionen pro Zeile gibt es auch, inklusive <b>Force Push</b> (mit Lease, nach Bestätigung).",
@@ -439,7 +447,7 @@ const i18n = {
     "wt.h3a": "Die Worktree-Liste",
     "wt.p2": "Jeder Worktree zeigt Branch, Commit, ein <b>Sync-Badge</b> (✓ aktuell, ↑n voraus / ↓n hinterher gegenüber seinem Upstream, oder „no upstream“), ein <b>Dirty-Badge</b> (● n uncommittete Änderungen) und Flags: <code>main</code>, <code>locked</code>, <code>prunable</code>, <code>detached</code>.",
     "wt.h3b": "Aktionen",
-    "wt.li1": "<b>Add</b> — bestehenden Branch wählen (wird in den neuen Ordner ausgecheckt) oder neuen Namen tippen (wird mit <code>-b</code> angelegt). Branches, die schon ein anderer Worktree nutzt, sind ausgeblendet.",
+    "wt.li1": "<b>Add</b> — bestehenden Branch wählen (wird in den neuen Ordner ausgecheckt) oder neuen Namen tippen (wird mit <code>-b</code> angelegt). Branches, die schon ein anderer Worktree nutzt, sind ausgeblendet. Optional läuft direkt nach dem Anlegen Install + Build, damit der neue Worktree sofort einsatzbereit ist.",
     "wt.li2": "<b>Pull / Push</b> — einen einzelnen Worktree synchronisieren; Push setzt den Upstream automatisch, wenn er fehlt.",
     "wt.li3": "<b>Update from Base</b> — fetcht und mergt <code>origin/&lt;Default-Branch&gt;</code> in den Worktree — Feature-Worktrees bleiben aktuell, ohne den Haupt-Checkout zu verlassen.",
     "wt.li4": "<b>Switch Branch</b> — einen anderen (oder neuen) Branch innerhalb des Worktrees auschecken.",

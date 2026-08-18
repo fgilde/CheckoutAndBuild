@@ -36,14 +36,20 @@ namespace CheckoutAndBuild.Core.Services
 					continue;
 
 				var checkoutSettings = GetSettings<CheckoutServiceSettings>(settings, models[0]);
+				var miscSettings = GetSettings<MiscellaneousSettings>(settings, models[0]);
 				foreach (var model in models)
 					model.CurrentOperation = Operations.Checkout;
+				bool stashed = false;
 				try
 				{
 					if (checkoutSettings.ForceAndOverwrite)
 					{
 						await RunGitAsync(group.Key, "reset --hard", cancellation.Token).ConfigureAwait(false);
 						await RunGitAsync(group.Key, "clean -fd", cancellation.Token).ConfigureAwait(false);
+					}
+					else
+					{
+						stashed = await git.AutoStashAsync(group.Key, miscSettings.AutoStash, cancellation.Token).ConfigureAwait(false);
 					}
 					await git.PullAsync(group.Key, ct: cancellation.Token).ConfigureAwait(false);
 				}
@@ -54,6 +60,13 @@ namespace CheckoutAndBuild.Core.Services
 				}
 				finally
 				{
+					if (stashed && !await git.TryAutoStashPopAsync(group.Key, cancellation.Token).ConfigureAwait(false))
+					{
+						var conflict = new InvalidOperationException(
+							$"Auto-stash restore conflicted in \"{group.Key}\" — your changes remain in stash@{{0}}.");
+						foreach (var model in models)
+							model.SetResult(conflict);
+					}
 					foreach (var model in models)
 						model.CurrentOperation = Operations.None;
 				}

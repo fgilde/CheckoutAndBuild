@@ -320,6 +320,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				p => p is ChangeViewModel && !IsBusy);
 			CommitAllCommand = new DelegateCommand(() => RunSafe(() => CommitAllAsync(push: false)), CanCommit);
 			CommitAndPushCommand = new DelegateCommand(() => RunSafe(() => CommitAllAsync(push: true)), CanCommit);
+			CommitFromWorkItemCommand = new DelegateCommand(() => RunSafe(CommitMessageFromWorkItemAsync), () => HasRepository && !IsBusy);
 			ClearHistoryPathFilterCommand = new DelegateCommand(() => { HistoryPathFilter = null; RunSafe(LoadHistoryAsync); });
 			RefreshWorktreesCommand = new DelegateCommand(() => RunSafe(LoadWorktreesAsync), () => HasRepository && !IsBusy);
 			AddWorktreeCommand = new DelegateCommand(() => RunSafe(AddWorktreeAsync), () => HasRepository && !IsBusy);
@@ -395,6 +396,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand DiscardChangeCommand { get; }
 		public ICommand CommitAllCommand { get; }
 		public ICommand CommitAndPushCommand { get; }
+		public ICommand CommitFromWorkItemCommand { get; }
 		public ICommand ClearHistoryPathFilterCommand { get; }
 
 		public string CommitMessage
@@ -624,6 +626,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Application.Current?.Dispatcher.BeginInvoke(new Action(() => UpdatePreview(null, EventArgs.Empty)));
 			UpdatePreview(null, EventArgs.Empty);
 
+			var buildAfter = new System.Windows.Controls.CheckBox
+			{
+				Content = "Run restore && build after create",
+				Margin = new Thickness(8, 6, 8, 0),
+				FontSize = 11
+			};
 			var ok = new System.Windows.Controls.Button
 			{
 				Content = "Create Worktree", Padding = new Thickness(12, 3, 12, 3),
@@ -635,6 +643,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			panel.Children.Add(hint);
 			panel.Children.Add(new System.Windows.Controls.TextBlock { Text = "Worktree folder:", Margin = new Thickness(8, 4, 8, 0), Opacity = 0.7 });
 			panel.Children.Add(pathBox);
+			panel.Children.Add(buildAfter);
 			panel.Children.Add(ok);
 			var window = new Window
 			{
@@ -661,6 +670,40 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			await git.AddWorktreeAsync(repo.Path, targetPath, targetBranch, createBranch);
 			StatusMessage = $"Worktree created: {targetPath}";
 			await LoadWorktreesAsync();
+			if (buildAfter.IsChecked == true)
+				await BootstrapWorktreeAsync(targetPath);
+		}
+
+		/// <summary>dotnet restore + build for the solutions of a freshly created worktree (top two folder levels).</summary>
+		private async Task BootstrapWorktreeAsync(string worktreePath)
+		{
+			var solutions = System.IO.Directory.EnumerateFiles(worktreePath, "*.sln", System.IO.SearchOption.TopDirectoryOnly)
+				.Concat(System.IO.Directory.EnumerateDirectories(worktreePath)
+					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln", System.IO.SearchOption.TopDirectoryOnly)))
+				.ToList();
+			if (solutions.Count == 0)
+			{
+				StatusMessage = "Worktree created — no .sln found to bootstrap (top two levels).";
+				return;
+			}
+			foreach (string solution in solutions)
+			{
+				string name = System.IO.Path.GetFileName(solution);
+				StatusMessage = $"dotnet restore {name}…";
+				var restore = await CheckoutAndBuild.Core.Execution.ProcessRunner.RunAsync("dotnet", $"restore \"{solution}\"");
+				if (!restore.Success)
+				{
+					LastError = $"restore failed for {name}: {restore.StdErr.Trim()}";
+					continue;
+				}
+				StatusMessage = $"dotnet build {name}…";
+				var build = await CheckoutAndBuild.Core.Execution.ProcessRunner.RunAsync("dotnet", $"build \"{solution}\"");
+				if (!build.Success)
+					LastError = $"build failed for {name}: {build.StdErr.Trim()}";
+			}
+			StatusMessage = LastError == null
+				? $"Worktree bootstrapped: {solutions.Count} solution(s) restored and built."
+				: "Worktree bootstrap finished with errors — see the error line.";
 		}
 
 		private void RemoveWorktreeWithConfirm(WorktreeViewModel worktree)
@@ -1711,6 +1754,51 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			StatusMessage = string.IsNullOrEmpty(title)
 				? "No work item title found (check the Work Items connection) — suggested the id only."
 				: "Suggested: " + NewBranchName;
+		}
+
+		/// <summary>Prefills the commit message as "AB#id: title" — the id defaults to the number in the current branch name.</summary>
+		private async Task CommitMessageFromWorkItemAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			string branch = await git.GetCurrentBranchAsync(repo.Path);
+			string guessed = System.Text.RegularExpressions.Regex.Match(branch ?? "", @"\d{2,}").Value;
+
+			var idBox = new System.Windows.Controls.TextBox { Margin = new Thickness(8, 2, 8, 4), Text = guessed };
+			var ok = new System.Windows.Controls.Button
+			{
+				Content = "Prefill", Padding = new Thickness(12, 3, 12, 3),
+				Margin = new Thickness(0, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Right, IsDefault = true
+			};
+			var panel = new System.Windows.Controls.StackPanel();
+			panel.Children.Add(new System.Windows.Controls.TextBlock
+			{
+				Text = "Work item id (uses the Work Items connection):",
+				Margin = new Thickness(8, 8, 8, 0), Opacity = 0.7
+			});
+			panel.Children.Add(idBox);
+			panel.Children.Add(ok);
+			var window = new Window
+			{
+				Title = "Commit Message from Work Item",
+				Content = panel,
+				Width = 320,
+				SizeToContent = SizeToContent.Height,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			ok.Click += (s, e) => window.DialogResult = true;
+			window.Loaded += (s, e) => { idBox.Focus(); idBox.SelectAll(); };
+			if (window.ShowDialog() != true || !int.TryParse(idBox.Text?.Trim(), out int workItemId))
+				return;
+
+			string title = await TryGetWorkItemTitleAsync(workItemId);
+			CommitMessage = string.IsNullOrEmpty(title) ? $"AB#{workItemId}: " : $"AB#{workItemId}: {title}";
+			if (string.IsNullOrEmpty(title))
+				StatusMessage = "No work item title found (check the Work Items connection) — prefilled the id only.";
 		}
 
 		private async Task<string> TryGetWorkItemTitleAsync(int workItemId)

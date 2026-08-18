@@ -52,7 +52,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private val table = JBTable(tableModel)
     private val console = JTextArea()
     private val gitPanel = GitPanel(::appendLineAsync)
-    private val worktreePanel = WorktreePanel(::appendLineAsync) { path -> addFolderPath(path) }
+    private val worktreePanel = WorktreePanel(::appendLineAsync, { path -> addFolderPath(path) }, { path -> buildFolder(path) })
     private val workItemsPanel = WorkItemsPanel(::appendLineAsync)
 
     private val profileCombo = JComboBox<String>()
@@ -60,6 +60,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private val installBox = JCheckBox("Install/Restore")
     private val buildBox = JCheckBox("Build")
     private val testBox = JCheckBox("Test")
+    private val changedOnlyBox = JCheckBox("Changed only")
     private val runButton = JButton("▶ CheckoutAndBuild")
     private val cancelButton = JButton("Cancel")
     private val retryButton = JButton("Retry failed")
@@ -77,7 +78,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private val filterField = JTextField()
     private val sorter = javax.swing.table.TableRowSorter<ProjectTableModel>()
     private val elapsedTimer = Timer(250) { updateStatusLine(); table.repaint() }
-    private val scheduleTimer = Timer(60000) { checkScheduledRun() }
+    private val scheduleTimer = Timer(60000) { checkScheduledRun(); checkWatchRun() }
+    private var lastWatchMillis = 0L
+    private var watchBusy = false
 
     init {
         console.isEditable = false
@@ -119,6 +122,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         toolbar.add(installBox)
         toolbar.add(buildBox)
         toolbar.add(testBox)
+        changedOnlyBox.toolTipText = "After the pull, only build projects whose repository received new commits"
+        changedOnlyBox.isSelected = state.skipUnchanged
+        toolbar.add(changedOnlyBox)
         syncButton.toolTipText = "All repositories: fetch, pull when behind, push when ahead (or without upstream)"
         toolbar.add(syncButton)
         toolbar.add(addButton)
@@ -174,6 +180,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         installBox.addActionListener { coabState.setStepEnabled(StepKind.INSTALL, installBox.isSelected) }
         buildBox.addActionListener { coabState.setStepEnabled(StepKind.BUILD, buildBox.isSelected) }
         testBox.addActionListener { coabState.setStepEnabled(StepKind.TEST, testBox.isSelected) }
+        changedOnlyBox.addActionListener { state.skipUnchanged = changedOnlyBox.isSelected }
 
         reloadProfiles()
         profileCombo.addActionListener {
@@ -227,8 +234,62 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         item("Rename Profile…") { renameProfile() }
         item("Delete Profile") { deleteProfile() }
         menu.addSeparator()
+        item("Export Settings…") { exportSettings() }
+        item("Import Settings…") { importSettings() }
+        menu.addSeparator()
         item("Settings…") { showSettings() }
         return menu
+    }
+
+    private fun exportSettings() {
+        val descriptor = FileSaverDescriptor("Export Settings", "", "json")
+        val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, this)
+        val target = dialog.save(null as com.intellij.openapi.vfs.VirtualFile?, "CheckoutAndBuild-settings") ?: return
+        target.file.writeText(com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(state))
+        appendLine("Settings exported: ${target.file.absolutePath} (the Azure DevOps token is not included).")
+    }
+
+    private fun importSettings() {
+        val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor("json")
+        val chosen = FileChooser.chooseFile(descriptor, null, null) ?: return
+        val file = File(chosen.path.replace('/', File.separatorChar))
+        val imported = runCatching {
+            com.google.gson.Gson().fromJson(file.readText(), CoabState.Model::class.java)
+        }.getOrNull()
+        if (imported == null) {
+            appendLine("Import failed — not a valid settings file.")
+            return
+        }
+        state.folders = imported.folders
+        state.customProjects = imported.customProjects
+        state.profiles = imported.profiles
+        state.currentProfile = imported.currentProfile
+        state.excluded = imported.excluded
+        state.priorities = imported.priorities
+        state.installOverrides = imported.installOverrides
+        state.buildOverrides = imported.buildOverrides
+        state.testOverrides = imported.testOverrides
+        state.stepFlags = imported.stepFlags
+        state.durations = imported.durations
+        state.maxParallel = imported.maxParallel
+        state.scanDepth = imported.scanDepth
+        state.failFast = imported.failFast
+        state.scheduledEnabled = imported.scheduledEnabled
+        state.scheduledTime = imported.scheduledTime
+        state.skipUnchanged = imported.skipUnchanged
+        state.autoStash = imported.autoStash
+        state.watchEnabled = imported.watchEnabled
+        state.watchIntervalMinutes = imported.watchIntervalMinutes
+        state.azdoOrganization = imported.azdoOrganization
+        state.azdoProject = imported.azdoProject
+        state.azdoWiql = imported.azdoWiql
+        if (state.profiles.isEmpty()) state.profiles.add("Default")
+        if (state.currentProfile !in state.profiles) state.currentProfile = state.profiles.first()
+        reloadProfiles()
+        reloadStepBoxes()
+        changedOnlyBox.isSelected = state.skipUnchanged
+        rescan()
+        appendLine("Settings imported from ${file.absolutePath}.")
     }
 
     private fun suggestPriorities() {
@@ -436,8 +497,11 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         val parallel = JSpinner(SpinnerNumberModel(state.maxParallel, 1, 16, 1))
         val depth = JSpinner(SpinnerNumberModel(state.scanDepth, 1, 8, 1))
         val failFast = JCheckBox("Stop remaining priority groups when a project fails", state.failFast)
+        val autoStash = JCheckBox("Auto-stash uncommitted changes around pull/checkout", state.autoStash)
         val scheduled = JCheckBox("Scheduled run (daily)", state.scheduledEnabled)
         val time = JTextField(state.scheduledTime, 6)
+        val watch = JCheckBox("Watch mode: fetch periodically, run pipeline when behind", state.watchEnabled)
+        val watchInterval = JSpinner(SpinnerNumberModel(state.watchIntervalMinutes, 1, 240, 1))
 
         val form = JPanel(GridLayout(0, 2, 8, 4))
         form.add(JLabel("Max parallel projects:"))
@@ -446,8 +510,12 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         form.add(depth)
         form.add(failFast)
         form.add(JLabel(""))
+        form.add(autoStash)
+        form.add(JLabel(""))
         form.add(scheduled)
         form.add(time)
+        form.add(watch)
+        form.add(watchInterval)
 
         val builder = DialogBuilder(this)
         builder.setTitle("CheckoutAndBuild Settings")
@@ -458,8 +526,11 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
             state.maxParallel = parallel.value as Int
             state.scanDepth = depth.value as Int
             state.failFast = failFast.isSelected
+            state.autoStash = autoStash.isSelected
             state.scheduledEnabled = scheduled.isSelected
             state.scheduledTime = time.text.trim()
+            state.watchEnabled = watch.isSelected
+            state.watchIntervalMinutes = watchInterval.value as Int
         }
     }
 
@@ -473,6 +544,37 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         state.lastScheduledRun = today
         appendLine("Scheduled run started (${state.scheduledTime}).")
         runPipeline(includedProjects())
+    }
+
+    private fun checkWatchRun() {
+        if (!state.watchEnabled || runner != null || watchBusy) return
+        val now = System.currentTimeMillis()
+        if (now - lastWatchMillis < state.watchIntervalMinutes * 60_000L) return
+        lastWatchMillis = now
+        watchBusy = true
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val behind = repositoryRoots().filter { root ->
+                    GitOps.fetch(root)
+                    val info = GitOps.info(root)
+                    info.hasUpstream && info.behind > 0
+                }
+                if (behind.isEmpty()) return@executeOnPooledThread
+                val behindPaths = behind.map { it.absolutePath.lowercase() }.toSet()
+                ApplicationManager.getApplication().invokeLater {
+                    updateRepoSummary()
+                    if (runner != null) return@invokeLater
+                    val affected = includedProjects().filter {
+                        GitOps.repositoryRoot(it.directory)?.absolutePath?.lowercase() in behindPaths
+                    }
+                    if (affected.isEmpty()) return@invokeLater
+                    appendLine("Watch: ${behind.joinToString(", ") { it.name }} behind — starting pipeline for ${affected.size} project(s).")
+                    runPipeline(affected, enabledSteps() + StepKind.PULL)
+                }
+            } finally {
+                watchBusy = false
+            }
+        }
     }
 
     private fun exportScript(powershell: Boolean) {
@@ -495,6 +597,21 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val chosen = FileChooser.chooseFile(descriptor, null, null) ?: return
         addFolderPath(chosen.path.replace('/', File.separatorChar))
+    }
+
+    /** Scans a folder (e.g. a freshly created worktree) and runs install + build for its projects. */
+    private fun buildFolder(path: String) {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val found = ProjectScanner.scan(File(path))
+            ApplicationManager.getApplication().invokeLater {
+                if (found.isEmpty()) {
+                    appendLine("No buildable projects found in $path.")
+                    return@invokeLater
+                }
+                appendLine("Bootstrapping ${found.size} project(s) in ${File(path).name}…")
+                runPipeline(found, setOf(StepKind.INSTALL, StepKind.BUILD))
+            }
+        }
     }
 
     private fun addFolderPath(path: String) {
@@ -571,7 +688,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 for (root in roots)
-                    appendLineAsync("Sync ${root.name}: ${GitOps.sync(root)}")
+                    appendLineAsync("Sync ${root.name}: ${GitOps.sync(root, state.autoStash, ::appendLineAsync)}")
             } finally {
                 ApplicationManager.getApplication().invokeLater {
                     syncButton.isEnabled = true
@@ -677,13 +794,13 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         return "%02d:%02d".format(m, s)
     }
 
-    private fun runPipeline(included: List<CoabProject>) {
+    private fun runPipeline(included: List<CoabProject>, forceSteps: Set<StepKind>? = null) {
         if (runner != null) return
         if (included.isEmpty()) {
             appendLine("Nothing to run — add a working folder first.")
             return
         }
-        val steps = enabledSteps()
+        val steps = forceSteps ?: enabledSteps()
         if (steps.isEmpty()) return
 
         console.text = ""

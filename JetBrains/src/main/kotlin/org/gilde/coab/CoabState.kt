@@ -29,6 +29,10 @@ class CoabState : PersistentStateComponent<CoabState.Model> {
         var scheduledEnabled: Boolean = false
         var scheduledTime: String = "08:00"
         var lastScheduledRun: String = ""
+        var skipUnchanged: Boolean = false
+        var autoStash: Boolean = true
+        var watchEnabled: Boolean = false
+        var watchIntervalMinutes: Int = 10
         var azdoOrganization: String = ""
         var azdoProject: String = ""
         var azdoWiql: String = "SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project"
