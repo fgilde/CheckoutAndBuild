@@ -217,7 +217,7 @@
                 </StackPanel>
             </Button>
 
-            <Button Grid.Column="0" MinHeight="24"
+            <Button Grid.Column="0" MinHeight="26"
                     Style="{StaticResource CoabButton}"
                     Command="{Binding RunCommand}"
                     ToolTip="Run the pipeline on all included solutions">
@@ -225,8 +225,8 @@
                     <Path Data="{StaticResource CoabPlayGeometry}"
                           Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ButtonTextBrushKey}}"
                           Stretch="Uniform" Width="10" Height="10"
-                          VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <TextBlock Text="CheckoutAndBuild" VerticalAlignment="Center" />
+                          VerticalAlignment="Center" Margin="0,0,7,0" />
+                    <TextBlock Text="CheckoutAndBuild" VerticalAlignment="Center" FontWeight="SemiBold" />
                 </StackPanel>
             </Button>
 
@@ -276,9 +276,30 @@
             </Button>
         </Grid>
 
-        <TextBox DockPanel.Dock="Top" x:Name="filterBox" Margin="0,0,0,6" FontSize="11"
-                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="Filter solutions by name (Ctrl+E focuses this box, Esc clears)" />
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+            <TextBox x:Name="filterBox" FontSize="11" Padding="18,1,2,1"
+                     Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Filter solutions by name (Ctrl+E focuses this box, Esc clears)" />
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE721;" FontSize="11"
+                       Margin="5,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left"
+                       IsHitTestVisible="False" Opacity="0.5"
+                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+            <TextBlock Text="Filter solutions (Ctrl+E)" FontSize="11"
+                       Margin="20,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left"
+                       IsHitTestVisible="False" Opacity="0.45"
+                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=filterBox}" Value="">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
 
         <TextBlock DockPanel.Dock="Bottom" Margin="0,4,0,0"
                    Text="{Binding LastError}"
@@ -295,11 +316,44 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
+            <StackPanel Margin="0,44,0,0" HorizontalAlignment="Center">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding WorkingFolders.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xED25;" FontSize="34"
+                           HorizontalAlignment="Center" Opacity="0.35"
+                           Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}" />
+                <TextBlock Text="No working folders yet" FontWeight="SemiBold" FontSize="13"
+                           HorizontalAlignment="Center" Margin="0,10,0,2" />
+                <TextBlock Text="Add a folder — solutions and git repositories are discovered automatically."
+                           FontSize="11" Opacity="0.7" HorizontalAlignment="Center" TextAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="280" />
+                <Button Style="{StaticResource CoabButton}" MinHeight="26" Margin="0,14,0,0" Padding="14,0"
+                        HorizontalAlignment="Center"
+                        Command="{Binding AddFolderCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Style="{StaticResource CoabIcon}" Data="{StaticResource CoabPlusGeometry}"
+                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ButtonTextBrushKey}}"
+                              Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Add Working Folder…" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
             <ItemsControl ItemsSource="{Binding WorkingFolders}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
+                      <Border Margin="0,0,0,6" CornerRadius="4" Padding="6,4"
+                              Background="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBackgroundBrushKey}}"
+                              BorderThickness="1"
+                              BorderBrush="{DynamicResource {x:Static platformUi:EnvironmentColors.DropDownBorderBrushKey}}">
                         <Expander IsExpanded="True"
-                                  Margin="0,0,0,4"
                                   Template="{StaticResource CoabExpanderTemplate}"
                                   HorizontalContentAlignment="Stretch"
                                   Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemMenuTextBrushKey}}">
@@ -680,6 +734,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </Expander>
+                      </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

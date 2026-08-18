@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageManifest xmlns="http://schemas.microsoft.com/VisualStudio/ImageManifestSchema/2014">
+  <Symbols>
+    <String Name="Resources" Value="/CheckoutAndBuild.VisualStudio;Component/Resources" />
+    <Guid Name="CoabImages" Value="{7c8d9e0f-1a2b-4c3d-9e4f-5a6b7c8d9e0f}" />
+    <ID Name="CoabIcon" Value="1" />
+  </Symbols>
+  <Images>
+    <Image Guid="$(CoabImages)" ID="$(CoabIcon)">
+      <Source Uri="$(Resources)/icon-16.png">
+        <Size Value="16" />
+      </Source>
+    </Image>
+  </Images>
+</ImageManifest>

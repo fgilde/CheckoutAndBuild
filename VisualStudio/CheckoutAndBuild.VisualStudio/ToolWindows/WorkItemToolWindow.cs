@@ -9,6 +9,7 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 		public WorkItemToolWindow() : base(null)
 		{
 			Caption = "CheckoutAndBuild Work Items";
+			BitmapImageMoniker = CoabImages.Icon;
 			Content = new WorkItemToolWindowControl();
 		}
 	}

@@ -9,6 +9,7 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 		public GitToolWindow() : base(null)
 		{
 			Caption = "CheckoutAndBuild Git";
+			BitmapImageMoniker = CoabImages.Icon;
 			Content = new GitToolWindowControl();
 		}
 	}

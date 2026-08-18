@@ -277,6 +277,8 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         state.scheduledEnabled = imported.scheduledEnabled
         state.scheduledTime = imported.scheduledTime
         state.skipUnchanged = imported.skipUnchanged
+        state.preRunScript = imported.preRunScript
+        state.postRunScript = imported.postRunScript
         state.autoStash = imported.autoStash
         state.watchEnabled = imported.watchEnabled
         state.watchIntervalMinutes = imported.watchIntervalMinutes
@@ -502,6 +504,10 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         val time = JTextField(state.scheduledTime, 6)
         val watch = JCheckBox("Watch mode: fetch periodically, run pipeline when behind", state.watchEnabled)
         val watchInterval = JSpinner(SpinnerNumberModel(state.watchIntervalMinutes, 1, 240, 1))
+        val preScript = JTextField(state.preRunScript, 28)
+        preScript.toolTipText = "Script (.bat/.cmd/.ps1) that runs before the pipeline — a non-zero exit code aborts the run"
+        val postScript = JTextField(state.postRunScript, 28)
+        postScript.toolTipText = "Script (.bat/.cmd/.ps1) that runs after the pipeline — failures are only reported"
 
         val form = JPanel(GridLayout(0, 2, 8, 4))
         form.add(JLabel("Max parallel projects:"))
@@ -516,6 +522,10 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         form.add(time)
         form.add(watch)
         form.add(watchInterval)
+        form.add(JLabel("Pre-run script:"))
+        form.add(preScript)
+        form.add(JLabel("Post-run script:"))
+        form.add(postScript)
 
         val builder = DialogBuilder(this)
         builder.setTitle("CheckoutAndBuild Settings")
@@ -531,6 +541,8 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
             state.scheduledTime = time.text.trim()
             state.watchEnabled = watch.isSelected
             state.watchIntervalMinutes = watchInterval.value as Int
+            state.preRunScript = preScript.text.trim()
+            state.postRunScript = postScript.text.trim()
         }
     }
 

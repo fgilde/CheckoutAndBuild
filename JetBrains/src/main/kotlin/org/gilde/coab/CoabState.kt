@@ -30,6 +30,8 @@ class CoabState : PersistentStateComponent<CoabState.Model> {
         var scheduledTime: String = "08:00"
         var lastScheduledRun: String = ""
         var skipUnchanged: Boolean = false
+        var preRunScript: String = ""
+        var postRunScript: String = ""
         var autoStash: Boolean = true
         var watchEnabled: Boolean = false
         var watchIntervalMinutes: Int = 10

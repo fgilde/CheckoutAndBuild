@@ -9,6 +9,7 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 		public MainToolWindow() : base(null)
 		{
 			Caption = "CheckoutAndBuild";
+			BitmapImageMoniker = CoabImages.Icon;
 			Content = new MainToolWindowControl();
 		}
 	}

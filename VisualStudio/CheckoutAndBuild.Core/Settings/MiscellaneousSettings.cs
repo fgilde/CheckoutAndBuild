@@ -27,6 +27,20 @@ namespace CheckoutAndBuild.Core.Settings
 		[Category("Miscellaneous")]
 		public string ScheduledRunTime { get; set; }
 
+		[SettingsProperty(SettingsAvailability.Global, "PreBuildScript", "Script (.bat/.cmd/.ps1) that runs once before the whole pipeline. A non-zero exit code aborts the run.")]
+		[DefaultValue("")]
+		[Description("Script (.bat/.cmd/.ps1) that runs once before the whole pipeline. A non-zero exit code aborts the run.")]
+		[DisplayName(@"Pre-run script")]
+		[Category("Miscellaneous")]
+		public string PreBuildScript { get; set; }
+
+		[SettingsProperty(SettingsAvailability.Global, "PostBuildScript", "Script (.bat/.cmd/.ps1) that runs once after the build step. A failure is reported but does not abort the run.")]
+		[DefaultValue("")]
+		[Description("Script (.bat/.cmd/.ps1) that runs once after the build step. A failure is reported but does not abort the run.")]
+		[DisplayName(@"Post-build script")]
+		[Category("Miscellaneous")]
+		public string PostBuildScript { get; set; }
+
 		[SettingsProperty(SettingsAvailability.Global, "SkipUnchanged", "After the checkout/pull step, skip restore, build and test for solutions whose repository received no new commits. A clean step still runs for all solutions.")]
 		[DefaultValue(false)]
 		[Description("After the checkout/pull step, skip restore, build and test for solutions whose repository received no new commits.")]

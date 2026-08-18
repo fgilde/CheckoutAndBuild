@@ -34,6 +34,15 @@ class PipelineRunner(
         var stepIndex = 0
         val stepCount = active.size + (if (StepKind.PULL in steps) 1 else 0)
 
+        if (state.preRunScript.isNotBlank()) {
+            onLine("=== Pre-run script: ${state.preRunScript} ===")
+            val exit = runScript(state.preRunScript)
+            if (exit != 0) {
+                onLine("=== Pre-run script failed with exit code $exit — aborting ===")
+                return
+            }
+        }
+
         var targets = projects
         if (StepKind.PULL in steps) {
             onProgress("Pull (1/$stepCount)")
@@ -81,8 +90,27 @@ class PipelineRunner(
                 executor.shutdown()
             }
         }
+        if (!cancelled && state.postRunScript.isNotBlank()) {
+            onLine("=== Post-run script: ${state.postRunScript} ===")
+            val exit = runScript(state.postRunScript)
+            if (exit != 0) onLine("=== Post-run script failed with exit code $exit ===")
+        }
         onLine("")
         onLine(if (cancelled) "=== Cancelled ===" else "=== Done ===")
+    }
+
+    private fun runScript(script: String): Int {
+        val file = java.io.File(script.trim().removeSurrounding("\""))
+        val directory = file.parentFile ?: java.io.File(System.getProperty("user.dir"))
+        val command = if (script.trim().endsWith(".ps1", ignoreCase = true))
+            "powershell -ExecutionPolicy Bypass -File \"${file.absolutePath}\""
+        else "\"${file.absolutePath}\""
+        return try {
+            ProcessRunner.run(command, directory, { onLine("  $it") }, { cancelled })
+        } catch (e: Exception) {
+            onLine("  ${e.message}")
+            -1
+        }
     }
 
     fun runSingle(project: CoabProject, step: StepKind) {

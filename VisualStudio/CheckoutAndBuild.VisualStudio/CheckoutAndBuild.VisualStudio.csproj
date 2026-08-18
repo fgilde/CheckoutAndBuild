@@ -93,6 +93,7 @@
     <Compile Include="CheckoutAndBuildPackage.cs" />
     <Compile Include="Common\CoabOutputPane.cs" />
     <Compile Include="Common\PatProtector.cs" />
+    <Compile Include="Common\CoabImages.cs" />
     <Compile Include="Common\DelegateCommand.cs" />
     <Compile Include="ErrorList\CoabErrorListProvider.cs" />
     <Compile Include="Options\CheckoutAndBuildOptionsPage.cs">
@@ -161,6 +162,10 @@
       <SubType>Designer</SubType>
     </None>
     <Content Include="Resources\icon.png">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Resource Include="Resources\icon-16.png" />
+    <Content Include="Resources\CheckoutAndBuild.imagemanifest">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
     <Content Include="Resources\preview.png">
