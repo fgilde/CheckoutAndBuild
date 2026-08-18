@@ -366,33 +366,53 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Button FontSize="11" Margin="4,0,0,0"
-                                                        Click="OnBranchLinkClick"
-                                                        ToolTip="{Binding RepositoryPath}">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button" BasedOn="{StaticResource CoabLinkButton}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <StackPanel.Style>
+                                                        <Style TargetType="StackPanel">
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding CurrentBranch}" Value="{x:Null}">
                                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
-                                                    </Button.Style>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Path Data="{StaticResource CoabBranchGeometry}"
-                                                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
-                                                              Stretch="Uniform" Width="9" Height="11"
-                                                              Margin="0,0,3,0" VerticalAlignment="Center" />
-                                                        <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
-                                                        <TextBlock Text="{Binding SyncBadge}" VerticalAlignment="Center"
-                                                                   Margin="4,0,0,0" FontSize="10" Opacity="0.8"
-                                                                   ToolTip="Commits ahead/behind the upstream branch" />
-                                                        <Path Data="M 0 0 L 8 12 L 16 0 Z"
-                                                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
-                                                              Stretch="Uniform" Width="7" Height="5"
-                                                              Margin="3,2,0,0" VerticalAlignment="Center" />
-                                                    </StackPanel>
-                                                </Button>
+                                                    </StackPanel.Style>
+                                                    <Button FontSize="11" Margin="4,0,0,0"
+                                                            Click="OnBranchLinkClick"
+                                                            ToolTip="{Binding RepositoryPath}"
+                                                            Style="{StaticResource CoabLinkButton}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Path Data="{StaticResource CoabBranchGeometry}"
+                                                                  Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                                  Stretch="Uniform" Width="9" Height="11"
+                                                                  Margin="0,0,3,0" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding SyncBadge}" VerticalAlignment="Center"
+                                                                       Margin="4,0,0,0" FontSize="10" Opacity="0.8"
+                                                                       ToolTip="Commits ahead/behind the upstream branch (since the last fetch)" />
+                                                            <Path Data="M 0 0 L 8 12 L 16 0 Z"
+                                                                  Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                                                  Stretch="Uniform" Width="7" Height="5"
+                                                                  Margin="3,2,0,0" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <Button FontSize="11" Margin="3,0,0,0"
+                                                            Command="{Binding SyncCommand}"
+                                                            ToolTip="Sync: fetch, pull when behind, push when ahead (sets the upstream when missing)"
+                                                            Style="{StaticResource CoabLinkButton}">
+                                                        <TextBlock VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="⇅" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSyncing}" Value="True">
+                                                                            <Setter Property="Text" Value="…" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Button>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -440,6 +460,8 @@
                                                               ToolTip="Open the first existing project output directory" />
                                                     <MenuItem Header="Show History" Command="{Binding ShowHistoryCommand}"
                                                               ToolTip="Show the git history of this solution's repository" />
+                                                    <MenuItem Header="Open in CheckoutAndBuild Git" Command="{Binding OpenInGitWindowCommand}"
+                                                              ToolTip="Open this solution's repository in the CheckoutAndBuild Git window" />
                                                     <MenuItem Header="Copy Full Path" Command="{Binding CopyFullPathCommand}" />
                                                     <Separator />
                                                     <MenuItem Header="Show Errors…" Command="{Binding ShowErrorsCommand}"

@@ -151,6 +151,26 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         refreshInfos()
     }
 
+    fun refresh() = refreshInfos()
+
+    /** Selects the row of the given repository root (after the pending refresh, if one is running). */
+    fun selectRepository(root: File) {
+        pendingSelection = root
+        applyPendingSelection()
+    }
+
+    private var pendingSelection: File? = null
+
+    private fun applyPendingSelection() {
+        val target = pendingSelection ?: return
+        val index = infos.indexOfFirst { it.root.absolutePath.equals(target.absolutePath, ignoreCase = true) }
+        if (index >= 0) {
+            pendingSelection = null
+            table.setRowSelectionInterval(index, index)
+            table.scrollRectToVisible(table.getCellRect(index, 0, true))
+        }
+    }
+
     private fun refreshInfos() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val loaded = roots.map { GitOps.info(it) }
@@ -158,6 +178,7 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
                 infos.clear()
                 infos.addAll(loaded)
                 model.fireTableDataChanged()
+                applyPendingSelection()
             }
         }
     }

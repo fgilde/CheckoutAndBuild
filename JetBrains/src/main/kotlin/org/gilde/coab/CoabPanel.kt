@@ -63,7 +63,10 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
     private val runButton = JButton("▶ CheckoutAndBuild")
     private val cancelButton = JButton("Cancel")
     private val retryButton = JButton("Retry failed")
+    private val syncButton = JButton("⇅ Sync")
     private val statusLabel = JLabel("Ready")
+    private val repoSummaryLabel = JLabel("")
+    private val tabs = JBTabbedPane()
 
     private var runner: PipelineRunner? = null
     private var lastFailed: Set<String> = emptySet()
@@ -116,6 +119,8 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         toolbar.add(installBox)
         toolbar.add(buildBox)
         toolbar.add(testBox)
+        syncButton.toolTipText = "All repositories: fetch, pull when behind, push when ahead (or without upstream)"
+        toolbar.add(syncButton)
         toolbar.add(addButton)
         toolbar.add(removeButton)
         toolbar.add(refreshButton)
@@ -128,6 +133,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         val statusLeft = JPanel(FlowLayout(FlowLayout.LEFT, 8, 2))
         statusLeft.add(progressBar)
         statusLeft.add(statusLabel)
+        repoSummaryLabel.font = repoSummaryLabel.font.deriveFont(11f)
+        repoSummaryLabel.toolTipText = "Ahead/behind and dirty state per repository (since last fetch)"
+        statusLeft.add(repoSummaryLabel)
         statusRow.add(statusLeft, BorderLayout.WEST)
         filterField.columns = 14
         filterField.toolTipText = "Filter projects by name"
@@ -144,7 +152,6 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         pipelineTab.add(north, BorderLayout.NORTH)
         pipelineTab.add(JBScrollPane(table), BorderLayout.CENTER)
 
-        val tabs = JBTabbedPane()
         tabs.addTab("Pipeline", pipelineTab)
         tabs.addTab("Git", gitPanel)
         tabs.addTab("Worktrees", worktreePanel)
@@ -161,6 +168,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         runButton.addActionListener { runPipeline(includedProjects()) }
         retryButton.addActionListener { runPipeline(includedProjects().filter { it.key in lastFailed }) }
         cancelButton.addActionListener { runner?.cancelled = true }
+        syncButton.addActionListener { syncAllRepositories() }
         toolsButton.addActionListener { toolsMenu().show(toolsButton, 0, toolsButton.height) }
         pullBox.addActionListener { coabState.setStepEnabled(StepKind.PULL, pullBox.isSelected) }
         installBox.addActionListener { coabState.setStepEnabled(StepKind.INSTALL, installBox.isSelected) }
@@ -337,6 +345,19 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         item("Open Project in IDE") {
             com.intellij.ide.impl.ProjectUtil.openOrImport(project.directory.absolutePath, null, true)
         }
+        item("Open Repository in Git Tab") {
+            ApplicationManager.getApplication().executeOnPooledThread {
+                val root = GitOps.repositoryRoot(project.directory)
+                ApplicationManager.getApplication().invokeLater {
+                    if (root == null) {
+                        appendLine("${project.name} is not inside a git repository.")
+                    } else {
+                        tabs.selectedIndex = 1
+                        gitPanel.selectRepository(root)
+                    }
+                }
+            }
+        }
         item("Open in File Manager") {
             com.intellij.ide.actions.RevealFileAction.openDirectory(project.directory)
         }
@@ -509,6 +530,54 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
                 appendLine("Found ${found.size} project(s).")
                 gitPanel.setProjects(found)
                 worktreePanel.setProjects(found)
+                updateRepoSummary()
+            }
+        }
+    }
+
+    private fun repositoryRoots(): List<File> =
+        projects.mapNotNull { GitOps.repositoryRoot(it.directory) }
+            .distinctBy { it.absolutePath.lowercase() }
+
+    private fun updateRepoSummary() {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val parts = repositoryRoots().map { root ->
+                val info = GitOps.info(root)
+                val sync = when {
+                    !info.hasUpstream -> "∅"
+                    info.ahead == 0 && info.behind == 0 -> "✓"
+                    else -> buildString {
+                        if (info.ahead > 0) append("↑${info.ahead}")
+                        if (info.behind > 0) append("↓${info.behind}")
+                    }
+                }
+                val dirty = if (info.dirtyCount > 0) " ●${info.dirtyCount}" else ""
+                "${root.name} $sync$dirty"
+            }
+            ApplicationManager.getApplication().invokeLater {
+                repoSummaryLabel.text = parts.joinToString("  ·  ")
+            }
+        }
+    }
+
+    private fun syncAllRepositories() {
+        val roots = repositoryRoots()
+        if (roots.isEmpty()) {
+            appendLine("No git repositories found.")
+            return
+        }
+        syncButton.isEnabled = false
+        appendLine("Syncing ${roots.size} repositor${if (roots.size == 1) "y" else "ies"}…")
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                for (root in roots)
+                    appendLineAsync("Sync ${root.name}: ${GitOps.sync(root)}")
+            } finally {
+                ApplicationManager.getApplication().invokeLater {
+                    syncButton.isEnabled = true
+                    gitPanel.refresh()
+                    updateRepoSummary()
+                }
             }
         }
     }

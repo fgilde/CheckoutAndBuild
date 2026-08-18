@@ -22,6 +22,8 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 
 		internal System.Threading.Tasks.Task ShowWorktreesAsync(string repositoryPath) => viewModel.ShowWorktreesAsync(repositoryPath);
 
+		internal System.Threading.Tasks.Task ShowRepositoryAsync(string repositoryPath) => viewModel.ShowRepositoryAsync(repositoryPath);
+
 		private async void OnFeedDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			var feedCommit = ((ListBox)sender).SelectedItem as FeedCommitViewModel;

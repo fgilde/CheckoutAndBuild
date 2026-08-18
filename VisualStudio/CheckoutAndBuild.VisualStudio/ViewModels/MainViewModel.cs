@@ -107,6 +107,45 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			RepositoryPath = repositoryPath;
 			ShowRepositoryName = showRepositoryName;
 			this.owner = owner;
+			SyncCommand = new DelegateCommand(async () => await SyncAsync(), () => !IsSyncing);
+		}
+
+		public System.Windows.Input.ICommand SyncCommand { get; }
+
+		private bool isSyncing;
+
+		public bool IsSyncing
+		{
+			get { return isSyncing; }
+			private set { SetProperty(ref isSyncing, value); }
+		}
+
+		/// <summary>Fetch, pull when behind, push when ahead (sets the upstream when missing).</summary>
+		public async Task SyncAsync()
+		{
+			if (IsSyncing)
+				return;
+			IsSyncing = true;
+			try
+			{
+				await git.FetchAsync(RepositoryPath);
+				var status = await git.GetAheadBehindAsync(RepositoryPath);
+				if (status.HasUpstream && status.Behind > 0)
+					await git.PullAsync(RepositoryPath);
+				status = await git.GetAheadBehindAsync(RepositoryPath);
+				if (!status.HasUpstream || status.Ahead > 0)
+					await git.PushAsync(RepositoryPath, setUpstream: !status.HasUpstream);
+				owner.LastError = null;
+				await LoadCurrentBranchAsync();
+			}
+			catch (Exception e)
+			{
+				owner.LastError = e.Message;
+			}
+			finally
+			{
+				IsSyncing = false;
+			}
 		}
 
 		public string RepositoryPath { get; }
@@ -145,14 +184,19 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				CurrentBranch = await git.GetCurrentBranchAsync(RepositoryPath);
 				var status = await git.GetAheadBehindAsync(RepositoryPath);
-				SyncBadge = status.HasUpstream && (status.Ahead > 0 || status.Behind > 0)
-					? $"↑{status.Ahead} ↓{status.Behind}"
-					: null;
+				SyncBadge = FormatSyncBadge(status);
 			}
 			catch (Exception e)
 			{
 				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild branch load failed: " + e.Message);
 			}
+		}
+
+		private static string FormatSyncBadge(CheckoutAndBuild.Core.Git.BranchSyncStatus status)
+		{
+			if (!status.HasUpstream || (status.Ahead == 0 && status.Behind == 0))
+				return null;
+			return ((status.Ahead > 0 ? $"↑{status.Ahead} " : "") + (status.Behind > 0 ? $"↓{status.Behind}" : "")).Trim();
 		}
 
 		/// <summary>Local branches for the dropdown (loaded on open).</summary>
@@ -183,9 +227,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				owner.LastError = null;
 				CurrentBranch = branch;
 				var status = await git.GetAheadBehindAsync(RepositoryPath);
-				SyncBadge = status.HasUpstream && (status.Ahead > 0 || status.Behind > 0)
-					? $"↑{status.Ahead} ↓{status.Behind}"
-					: null;
+				SyncBadge = FormatSyncBadge(status);
 			}
 			catch (Exception e)
 			{

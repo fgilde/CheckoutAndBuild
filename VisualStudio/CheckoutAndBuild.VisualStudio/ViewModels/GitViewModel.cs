@@ -1138,6 +1138,32 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			return loadTask ?? (loadTask = GuardedAsync(RefreshAllAsync));
 		}
 
+		/// <summary>
+		/// Live working folders: the main window's current list when it exists (folders added there are
+		/// visible immediately), otherwise a fresh settings read — the ctor-time settings copy goes stale.
+		/// </summary>
+		private List<string> CurrentWorkingFolders()
+		{
+			var shared = MainViewModel.Shared;
+			if (shared != null && shared.WorkingFolders.Count > 0)
+				return shared.WorkingFolders.Select(f => f.Path).ToList();
+			return JsonSettingsService.CreateDefault().Get<List<string>>(workingFoldersKey, globalContext) ?? new List<string>();
+		}
+
+		/// <summary>Selects the repository and switches to the Changes tab (jump from the main window).</summary>
+		public async Task ShowRepositoryAsync(string repositoryPath)
+		{
+			await LoadAsync();
+			var repo = Repositories.FirstOrDefault(r => string.Equals(r.Path, repositoryPath, StringComparison.OrdinalIgnoreCase));
+			if (repo == null)
+			{
+				repo = new GitRepositoryViewModel(repositoryPath);
+				Repositories.Add(repo);
+			}
+			SelectedTabIndex = 0;
+			SelectedRepository = repo;
+		}
+
 		/// <summary>Selects the repository containing <paramref name="repositoryPath"/> and switches to the History tab.</summary>
 		public async Task ShowHistoryAsync(string repositoryPath)
 		{
@@ -1175,7 +1201,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 
 		private async Task RefreshAllAsync()
 		{
-			var folders = settings.Get<List<string>>(workingFoldersKey, globalContext) ?? new List<string>();
+			var folders = CurrentWorkingFolders();
 			var previous = SelectedRepository?.Path;
 			var roots = await Task.Run(() => FindRepositoryRoots(folders));
 

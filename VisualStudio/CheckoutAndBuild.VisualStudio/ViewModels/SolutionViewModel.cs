@@ -68,6 +68,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ShowHistoryCommand = new DelegateCommand(
 				() => CheckoutAndBuildPackage.Instance?.ShowGitHistory(Model.GitRepositoryRoot),
 				() => Model.GitRepositoryRoot != null);
+			OpenInGitWindowCommand = new DelegateCommand(
+				() => CheckoutAndBuildPackage.Instance?.ShowGitRepository(Model.GitRepositoryRoot),
+				() => Model.GitRepositoryRoot != null);
 			CopyFullPathCommand = new DelegateCommand(() => Clipboard.SetText(ItemPath));
 		}
 
@@ -572,6 +575,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand OpenInExplorerCommand { get; }
 		public ICommand OpenOutputDirectoryCommand { get; }
 		public ICommand ShowHistoryCommand { get; }
+		public ICommand OpenInGitWindowCommand { get; }
 		public ICommand CopyFullPathCommand { get; }
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>

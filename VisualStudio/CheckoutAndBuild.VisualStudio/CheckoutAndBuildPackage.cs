@@ -132,6 +132,16 @@ namespace CheckoutAndBuild.VisualStudio
 			}).FileAndForget("checkoutandbuild/showgithistory");
 		}
 
+		internal void ShowGitRepository(string repositoryPath)
+		{
+			JoinableTaskFactory.RunAsync(async () =>
+			{
+				var window = await ShowToolWindowAsync(typeof(GitToolWindow), 0, true, DisposalToken);
+				if (window?.Content is GitToolWindowControl control)
+					await control.ShowRepositoryAsync(repositoryPath);
+			}).FileAndForget("checkoutandbuild/showgitrepository");
+		}
+
 		internal void ShowGitWorktrees(string repositoryPath)
 		{
 			JoinableTaskFactory.RunAsync(async () =>

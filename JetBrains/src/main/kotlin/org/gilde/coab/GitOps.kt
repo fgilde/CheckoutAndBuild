@@ -96,6 +96,25 @@ object GitOps {
     fun forcePush(root: File): Pair<Int, String> =
         ProcessRunner.capture("git push --force-with-lease", root)
 
+    fun sync(root: File): String {
+        val fetch = fetch(root)
+        if (fetch.first != 0) return "fetch failed: ${fetch.second.lines().firstOrNull().orEmpty()}"
+        var info = info(root)
+        val messages = mutableListOf<String>()
+        if (info.hasUpstream && info.behind > 0) {
+            val pull = ProcessRunner.capture("git pull", root)
+            if (pull.first != 0) return "pull failed: ${pull.second.lines().lastOrNull { it.isNotBlank() }.orEmpty()}"
+            messages.add("pulled ${info.behind}")
+            info = info(root)
+        }
+        if (!info.hasUpstream || info.ahead > 0) {
+            val push = push(root, !info.hasUpstream, info.branch)
+            if (push.first != 0) return "push failed: ${push.second.lines().lastOrNull { it.isNotBlank() }.orEmpty()}"
+            messages.add(if (info.hasUpstream) "pushed ${info.ahead}" else "pushed (upstream set)")
+        }
+        return if (messages.isEmpty()) "up to date" else messages.joinToString(", ")
+    }
+
     fun changes(root: File): List<String> =
         capture(root, "git status --porcelain")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
 
