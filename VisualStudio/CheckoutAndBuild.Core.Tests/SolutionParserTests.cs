@@ -68,6 +68,39 @@ public class SolutionParserTests
     }
 
     [Fact]
+    public void Parse_Slnx_FindsProjectsInFoldersAndReadsBuildTypes()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "coab-slnx-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(dir, "Lib"));
+        File.WriteAllText(Path.Combine(dir, "Lib", "Lib.csproj"),
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>");
+        string slnx = Path.Combine(dir, "Test.slnx");
+        File.WriteAllText(slnx,
+            "<Solution>" +
+            "<Configurations><BuildType Name=\"Debug\" /><BuildType Name=\"Staging\" /></Configurations>" +
+            "<Folder Name=\"/src/\"><Project Path=\"Lib/Lib.csproj\" /></Folder>" +
+            "<Project Path=\"Missing/Missing.csproj\" />" +
+            "<Project Path=\"Docs/readme.md\" />" +
+            "</Solution>");
+        try
+        {
+            var model = SolutionParser.Parse(slnx);
+            Assert.Equal(2, model.Projects.Count);
+            var lib = model.Projects.Single(p => p.Name == "Lib");
+            Assert.True(lib.IsSdkStyle);
+            Assert.Equal("net8.0", lib.TargetFramework);
+            Assert.True(Path.IsPathRooted(lib.ProjectFilePath));
+            Assert.All(model.Projects, p => Assert.Matches(@"^\{[0-9A-F\-]+\}$", p.ProjectGuid));
+            Assert.Contains("Debug|Any CPU", model.SolutionConfigurations);
+            Assert.Contains("Staging|Any CPU", model.SolutionConfigurations);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Model_Defaults_AreSensible()
     {
         var model = Parse();

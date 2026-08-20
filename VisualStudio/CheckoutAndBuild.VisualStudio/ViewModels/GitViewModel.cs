@@ -714,9 +714,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		/// <summary>dotnet restore + build for the solutions of a freshly created worktree (top two folder levels).</summary>
 		private async Task BootstrapWorktreeAsync(string worktreePath)
 		{
-			var solutions = System.IO.Directory.EnumerateFiles(worktreePath, "*.sln", System.IO.SearchOption.TopDirectoryOnly)
+			var solutions = System.IO.Directory.EnumerateFiles(worktreePath, "*.sln*", System.IO.SearchOption.TopDirectoryOnly)
 				.Concat(System.IO.Directory.EnumerateDirectories(worktreePath)
-					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln", System.IO.SearchOption.TopDirectoryOnly)))
+					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln*", System.IO.SearchOption.TopDirectoryOnly)))
+				.Where(f => f.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
 				.ToList();
 			if (solutions.Count == 0)
 			{
@@ -813,10 +814,10 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			if (worktree == null || !worktree.Worktree.Exists)
 				return;
-			string solution = System.IO.Directory.EnumerateFiles(worktree.Path, "*.sln", System.IO.SearchOption.TopDirectoryOnly)
+			string solution = System.IO.Directory.EnumerateFiles(worktree.Path, "*.sln*", System.IO.SearchOption.TopDirectoryOnly)
 				.Concat(System.IO.Directory.EnumerateDirectories(worktree.Path)
-					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln", System.IO.SearchOption.TopDirectoryOnly)))
-				.FirstOrDefault();
+					.SelectMany(d => System.IO.Directory.EnumerateFiles(d, "*.sln*", System.IO.SearchOption.TopDirectoryOnly)))
+				.FirstOrDefault(f => f.EndsWith(".sln", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase));
 			if (solution == null)
 			{
 				StatusMessage = "No .sln found in the worktree (top two levels).";

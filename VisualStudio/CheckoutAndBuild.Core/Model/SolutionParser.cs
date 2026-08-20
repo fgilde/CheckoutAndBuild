@@ -7,7 +7,7 @@ using System.Xml.Linq;
 
 namespace CheckoutAndBuild.Core.Model
 {
-	/// <summary>Parses .sln files (format 12.x) and the contained project files without any IDE/MSBuild dependency.</summary>
+	/// <summary>Parses .sln (format 12.x) and .slnx (XML) files and the contained project files without any IDE/MSBuild dependency.</summary>
 	public static class SolutionParser
 	{
 		private const string SolutionFolderTypeGuid = "{2150E333-8FDC-42A3-9474-1A3956D46DE8}";
@@ -23,6 +23,9 @@ namespace CheckoutAndBuild.Core.Model
 		{
 			if (!File.Exists(slnPath))
 				throw new FileNotFoundException("Solution file not found.", slnPath);
+
+			if (slnPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+				return ParseSlnx(slnPath);
 
 			var model = new SolutionProjectModel(slnPath);
 			string solutionDir = model.SolutionFolder;
@@ -102,6 +105,52 @@ namespace CheckoutAndBuild.Core.Model
 						project.ProjectConfigurations[solutionConfig] = line.Substring(eq + 1).Trim();
 				}
 			}
+
+			return model;
+		}
+
+		/// <summary>
+		/// Parses the XML .slnx format: every &lt;Project Path="…"/&gt; (also inside &lt;Folder&gt; elements) becomes a project.
+		/// The format has no project guids — synthetic ones are generated; configurations come from &lt;BuildType&gt; entries
+		/// or default to Debug/Release.
+		/// </summary>
+		private static SolutionProjectModel ParseSlnx(string slnxPath)
+		{
+			var model = new SolutionProjectModel(slnxPath);
+			string solutionDir = model.SolutionFolder;
+			var doc = XDocument.Load(slnxPath);
+			var root = doc.Root;
+			if (root == null)
+				return model;
+
+			foreach (var element in root.Descendants().Where(e => e.Name.LocalName == "Project"))
+			{
+				string relativePath = (string)element.Attribute("Path");
+				if (string.IsNullOrEmpty(relativePath) || !relativePath.EndsWith("proj", StringComparison.OrdinalIgnoreCase))
+					continue;
+				string fullPath = Path.GetFullPath(Path.Combine(solutionDir,
+					relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)));
+				var project = new ProjectInfo
+				{
+					Name = Path.GetFileNameWithoutExtension(fullPath),
+					ProjectFilePath = fullPath,
+					ProjectGuid = "{" + Guid.NewGuid().ToString().ToUpperInvariant() + "}"
+				};
+				if (File.Exists(fullPath))
+					ParseProjectFile(project);
+				project.ProjectTypeGuid = project.IsSdkStyle
+					? "{9A19103F-16F7-4668-BE54-9A1E7A4F7556}"
+					: "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}";
+				model.Projects.Add(project);
+			}
+
+			var buildTypes = root.Descendants()
+				.Where(e => e.Name.LocalName == "BuildType" && e.Parent?.Name.LocalName == "Configurations")
+				.Select(e => (string)e.Attribute("Name"))
+				.Where(name => !string.IsNullOrEmpty(name))
+				.ToList();
+			foreach (string name in buildTypes.Count > 0 ? buildTypes : new List<string> { "Debug", "Release" })
+				model.SolutionConfigurations.Add($"{name}|Any CPU");
 
 			return model;
 		}

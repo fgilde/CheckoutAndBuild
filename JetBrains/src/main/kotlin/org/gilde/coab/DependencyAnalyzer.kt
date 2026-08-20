@@ -40,10 +40,16 @@ object DependencyAnalyzer {
 
     private fun solutionProjects(solution: File): List<File> {
         if (!solution.isFile) return emptyList()
-        val regex = Regex("Project\\([^)]*\\)\\s*=\\s*\"[^\"]+\",\\s*\"([^\"]+\\.[a-z]{2}proj)\"", RegexOption.IGNORE_CASE)
-        return regex.findAll(solution.readText()).mapNotNull { match ->
-            val relative = match.groupValues[1].replace('\\', File.separatorChar).replace('/', File.separatorChar)
-            val file = File(solution.parentFile, relative)
+        val text = solution.readText()
+        val relatives =
+            if (solution.extension.equals("slnx", true))
+                Regex("<Project\\s[^>]*?Path=\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+                    .findAll(text).map { it.groupValues[1] }.filter { it.endsWith("proj", true) }
+            else
+                Regex("Project\\([^)]*\\)\\s*=\\s*\"[^\"]+\",\\s*\"([^\"]+\\.[a-z]{2}proj)\"", RegexOption.IGNORE_CASE)
+                    .findAll(text).map { it.groupValues[1] }
+        return relatives.mapNotNull { relative ->
+            val file = File(solution.parentFile, relative.replace('\\', File.separatorChar).replace('/', File.separatorChar))
             if (file.isFile) file else null
         }.toList()
     }

@@ -1247,7 +1247,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			string path;
 			using (var dialog = new System.Windows.Forms.FolderBrowserDialog
 			{
-				Description = "Select a working folder to scan for solutions (*.sln)"
+				Description = "Select a working folder to scan for solutions (*.sln, *.slnx)"
 			})
 			{
 				if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
@@ -1407,7 +1407,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				return;
 			var dialog = new Microsoft.Win32.OpenFileDialog
 			{
-				Filter = "Solution files|*.sln",
+				Filter = "Solution files|*.sln;*.slnx",
 				Multiselect = true,
 				Title = "Add solutions to " + folder.Path
 			};
@@ -1526,7 +1526,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			{
 				try
 				{
-					foreach (string sln in Directory.EnumerateFiles(directory, "*.sln"))
+					foreach (string sln in Directory.EnumerateFiles(directory, "*.sln")
+						.Concat(Directory.EnumerateFiles(directory, "*.slnx")))
 					{
 						try
 						{
