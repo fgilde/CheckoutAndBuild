@@ -68,6 +68,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ShowHistoryCommand = new DelegateCommand(
 				() => CheckoutAndBuildPackage.Instance?.ShowGitHistory(Model.GitRepositoryRoot),
 				() => Model.GitRepositoryRoot != null);
+			RunSelectionCommand = new DelegateCommand(async () => await owner.RunSelectionAsync(), () => !owner.IsRunning);
+			BuildSelectionCommand = new DelegateCommand(async () => await owner.RunServiceForSelectionAsync(owner.BuildOperation), () => !owner.IsRunning);
+			CleanSelectionCommand = new DelegateCommand(async () => await owner.RunServiceForSelectionAsync(owner.CleanOperation), () => !owner.IsRunning);
+			TestSelectionCommand = new DelegateCommand(async () => await owner.RunServiceForSelectionAsync(owner.TestOperation), () => !owner.IsRunning);
+			CheckOutdatedPackagesCommand = new DelegateCommand(async () => await CheckOutdatedPackagesAsync(), () => !Model.IsDelphiProject);
 			OpenInGitWindowCommand = new DelegateCommand(
 				() => CheckoutAndBuildPackage.Instance?.ShowGitRepository(Model.GitRepositoryRoot),
 				() => Model.GitRepositoryRoot != null);
@@ -577,6 +582,54 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand ShowHistoryCommand { get; }
 		public ICommand OpenInGitWindowCommand { get; }
 		public ICommand CopyFullPathCommand { get; }
+		public ICommand RunSelectionCommand { get; }
+		public ICommand BuildSelectionCommand { get; }
+		public ICommand CleanSelectionCommand { get; }
+		public ICommand TestSelectionCommand { get; }
+		public ICommand CheckOutdatedPackagesCommand { get; }
+
+		public MainViewModel Owner => owner;
+
+		private bool isSelected;
+
+		/// <summary>Row selection in the main list (click / Ctrl+click / Shift+click) — drives the "…selection" context menu entries.</summary>
+		public bool IsSelected
+		{
+			get { return isSelected; }
+			set { SetProperty(ref isSelected, value); }
+		}
+
+		/// <summary>dotnet list package --outdated for this solution, shown in a plain result window.</summary>
+		private async System.Threading.Tasks.Task CheckOutdatedPackagesAsync()
+		{
+			var result = await CheckoutAndBuild.Core.Execution.ProcessRunner.RunAsync(
+				"dotnet", $"list \"{ItemPath}\" package --outdated");
+			string text = string.IsNullOrWhiteSpace(result.StdOut) ? result.StdErr : result.StdOut;
+			var box = new System.Windows.Controls.TextBox
+			{
+				Text = string.IsNullOrWhiteSpace(text) ? "No output." : text.Trim(),
+				IsReadOnly = true,
+				FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+				FontSize = 11,
+				TextWrapping = TextWrapping.NoWrap,
+				VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+				HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+				BorderThickness = new Thickness(0),
+				Padding = new Thickness(8)
+			};
+			var window = new Window
+			{
+				Title = $"Outdated Packages — {SolutionFileName}",
+				Content = box,
+				Width = 720,
+				Height = 420,
+				Owner = Application.Current?.MainWindow,
+				WindowStartupLocation = WindowStartupLocation.CenterOwner,
+				WindowStyle = WindowStyle.ToolWindow,
+				ShowInTaskbar = false
+			};
+			window.Show();
+		}
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>
 		public void RefreshResult() => OnUI(() =>

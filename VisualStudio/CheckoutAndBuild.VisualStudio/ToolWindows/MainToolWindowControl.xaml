@@ -15,6 +15,23 @@
                 <ResourceDictionary Source="pack://application:,,,/CheckoutAndBuild.VisualStudio;component/Themes/CoabStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <Style x:Key="CoabSelectionMenuItem" TargetType="MenuItem">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Owner.HasMultiSelection}" Value="True">
+                        <Setter Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="CoabSelectionSeparator" TargetType="Separator">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Owner.HasMultiSelection}" Value="True">
+                        <Setter Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
@@ -471,6 +488,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
+                                    <Button DockPanel.Dock="Left" Style="{StaticResource CoabIconButton}" Margin="0,0,6,0"
+                                            Command="{Binding RunFolderCommand}"
+                                            ToolTip="Run the pipeline for the included solutions of this folder only">
+                                        <Path Data="{StaticResource CoabPlayGeometry}"
+                                              Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                                              Stretch="Uniform" Width="9" Height="9" VerticalAlignment="Center" />
+                                    </Button>
                                     <TextBlock Text="{Binding Path}"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center"
@@ -482,9 +506,30 @@
                             <ItemsControl ItemsSource="{Binding IncludedSolutions}" Margin="16,2,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="0,1">
+                                        <Grid Margin="0,1" MouseLeftButtonDown="OnSolutionRowMouseDown">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Background"
+                                                                    Value="{DynamicResource {x:Static platformUi:TreeViewColors.SelectedItemInactiveBrushKey}}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
                                             <Grid.ContextMenu>
                                                 <ContextMenu>
+                                                    <MenuItem Header="Run pipeline for selection" Command="{Binding RunSelectionCommand}"
+                                                              Style="{StaticResource CoabSelectionMenuItem}"
+                                                              ToolTip="Run the enabled pipeline steps for all selected solutions" />
+                                                    <MenuItem Header="Build selection only" Command="{Binding BuildSelectionCommand}"
+                                                              Style="{StaticResource CoabSelectionMenuItem}" />
+                                                    <MenuItem Header="Clean selection only" Command="{Binding CleanSelectionCommand}"
+                                                              Style="{StaticResource CoabSelectionMenuItem}" />
+                                                    <MenuItem Header="Test selection only" Command="{Binding TestSelectionCommand}"
+                                                              Style="{StaticResource CoabSelectionMenuItem}" />
+                                                    <Separator Style="{StaticResource CoabSelectionSeparator}" />
                                                     <MenuItem Header="Build only" Command="{Binding BuildOnlyCommand}" />
                                                     <MenuItem Header="Clean only" Command="{Binding CleanOnlyCommand}" />
                                                     <MenuItem Header="Test only" Command="{Binding TestOnlyCommand}" />
@@ -517,6 +562,8 @@
                                                     <MenuItem Header="Open in CheckoutAndBuild Git" Command="{Binding OpenInGitWindowCommand}"
                                                               ToolTip="Open this solution's repository in the CheckoutAndBuild Git window" />
                                                     <MenuItem Header="Copy Full Path" Command="{Binding CopyFullPathCommand}" />
+                                                    <MenuItem Header="Check Outdated Packages…" Command="{Binding CheckOutdatedPackagesCommand}"
+                                                              ToolTip="dotnet list package --outdated for this solution" />
                                                     <Separator />
                                                     <MenuItem Header="Show Errors…" Command="{Binding ShowErrorsCommand}"
                                                               ToolTip="Errors of the last failed run, with retry" />

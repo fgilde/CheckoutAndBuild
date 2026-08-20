@@ -206,6 +206,15 @@ object GitOps {
 
     fun remoteUrl(root: File): String? = capture(root, "git config --get remote.origin.url")?.trim()
 
+    /** Commit subjects since the latest tag (or the last 50 without tags) as markdown bullet lines. */
+    fun changelog(root: File): String {
+        val tag = capture(root, "git describe --tags --abbrev=0")?.trim()?.takeIf { it.isNotEmpty() }
+        val range = if (tag == null) "--max-count=50" else "\"$tag..HEAD\""
+        val log = capture(root, "git log $range --no-merges --format=\"- %s\"") ?: ""
+        val header = if (tag == null) "## Changes (last 50 commits)" else "## Changes since $tag"
+        return header + "\n\n" + log.trim() + "\n"
+    }
+
     fun pullRequestUrl(remoteUrl: String, branch: String): String? {
         var url = remoteUrl.trim()
         if (url.endsWith(".git", true)) url = url.dropLast(4)

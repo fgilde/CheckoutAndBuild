@@ -365,6 +365,23 @@ namespace CheckoutAndBuild.Core.Git
             }
         }
 
+        /// <summary>Latest tag reachable from HEAD ("git describe --tags --abbrev=0"), or null when the repository has no tags.</summary>
+        public async Task<string> GetLastTagAsync(string repoDir, CancellationToken ct = default)
+        {
+            var result = await ProcessRunner.RunAsync("git", GitArgs(repoDir, "describe --tags --abbrev=0"), cancellationToken: ct).ConfigureAwait(false);
+            return result.Success ? result.StdOut.Trim() : null;
+        }
+
+        /// <summary>Commit subjects since the latest tag (or the last 50 without tags) as markdown bullet lines.</summary>
+        public async Task<string> GetChangelogAsync(string repoDir, CancellationToken ct = default)
+        {
+            string tag = await GetLastTagAsync(repoDir, ct).ConfigureAwait(false);
+            string range = tag == null ? "--max-count=50" : $"\"{tag}..HEAD\"";
+            var result = await RunGitAsync(repoDir, $"log {range} --no-merges --format=\"- %s\"", ct: ct).ConfigureAwait(false);
+            string header = tag == null ? "## Changes (last 50 commits)" : $"## Changes since {tag}";
+            return header + Environment.NewLine + Environment.NewLine + result.StdOut.Trim() + Environment.NewLine;
+        }
+
         /// <summary>Configured "git config user.name" or null when unset.</summary>
         public async Task<string> GetConfiguredUserAsync(string repoDir, CancellationToken ct = default)
         {

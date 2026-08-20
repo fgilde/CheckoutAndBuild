@@ -23,6 +23,14 @@ namespace CheckoutAndBuild.VisualStudio.ToolWindows
 			PreviewKeyDown += OnPreviewKeyDown;
 		}
 
+		private void OnSolutionRowMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+		{
+			var solution = (sender as FrameworkElement)?.DataContext as SolutionViewModel;
+			if (solution == null)
+				return;
+			viewModel.HandleRowClick(solution, System.Windows.Input.Keyboard.Modifiers);
+		}
+
 		private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
 		{
 			if (e.Key == System.Windows.Input.Key.E

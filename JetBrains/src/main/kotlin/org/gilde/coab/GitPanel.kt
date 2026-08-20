@@ -58,8 +58,10 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         val cleanup = JButton("Cleanup Merged…")
         val checkoutAll = JButton("Checkout in All…")
         val suggestBranch = JButton("Suggest Branch…")
+        val changelog = JButton("Copy Changelog")
+        changelog.toolTipText = "Copy the commit subjects since the latest tag as markdown bullets (release-notes draft)"
         listOf(refresh, fetch, pull, push, forcePush, checkout, changes, stash, stashes, history,
-            exportPatch, applyPatch, exportZip, createPr, cleanup, checkoutAll, suggestBranch)
+            exportPatch, applyPatch, exportZip, createPr, cleanup, checkoutAll, suggestBranch, changelog)
             .forEach { toolbar.add(it) }
 
         val commitRow = JPanel(BorderLayout(6, 0))
@@ -139,6 +141,17 @@ class GitPanel(private val onLine: (String) -> Unit) : JPanel(BorderLayout()) {
         }
         suggestBranch.addActionListener { suggestBranchFromWorkItem() }
         fromWorkItem.addActionListener { commitMessageFromWorkItem() }
+        changelog.addActionListener {
+            onSelected { root ->
+                val text = GitOps.changelog(root)
+                val lines = text.lines().count { it.startsWith("- ") }
+                ApplicationManager.getApplication().invokeLater {
+                    java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(
+                        java.awt.datatransfer.StringSelection(text), null)
+                    onLine("Changelog of ${root.name} copied to clipboard ($lines commit(s)).")
+                }
+            }
+        }
         checkout.addActionListener { checkoutBranch() }
         commitButton.addActionListener { commitAndPush() }
         stash.addActionListener {

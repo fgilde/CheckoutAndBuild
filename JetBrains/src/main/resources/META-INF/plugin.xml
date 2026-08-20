@@ -21,5 +21,7 @@
                     factoryClass="org.gilde.coab.CoabToolWindowFactory"
                     icon="/icons/coab.svg"/>
         <notificationGroup id="CheckoutAndBuild" displayType="BALLOON"/>
+        <statusBarWidgetFactory id="CheckoutAndBuildStatus"
+                                implementation="org.gilde.coab.CoabStatusBarWidgetFactory"/>
     </extensions>
 </idea-plugin>

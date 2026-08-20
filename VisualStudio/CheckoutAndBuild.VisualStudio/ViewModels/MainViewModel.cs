@@ -52,6 +52,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		{
 			Path = path;
 			this.owner = owner;
+			RunFolderCommand = new DelegateCommand(
+				async () => await owner.RunPipelineForAsync(Solutions.Where(s => s.IsIncluded)),
+				() => !owner.IsRunning && Solutions.Any(s => s.IsIncluded));
 			IncludedSolutions = new System.Windows.Data.ListCollectionView(Solutions)
 			{
 				Filter = item => ((SolutionViewModel)item).IsIncluded && owner.MatchesFilter((SolutionViewModel)item)
@@ -63,6 +66,9 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				RaisePropertyChanged(nameof(RepositoriesSummary));
 			};
 		}
+
+		/// <summary>Runs the pipeline for the included solutions of this folder only (small run button in the header).</summary>
+		public System.Windows.Input.ICommand RunFolderCommand { get; }
 
 		public bool ShowRepositoriesInline => Repositories.Count > 0 && Repositories.Count <= 3;
 
@@ -659,6 +665,58 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				System.Diagnostics.Trace.WriteLine("CheckoutAndBuild watch check failed: " + e.Message);
 			}
 		}
+
+		#endregion
+
+		#region solution multi-selection
+
+		private SolutionViewModel lastClickedSolution;
+		private bool hasMultiSelection;
+
+		public bool HasMultiSelection
+		{
+			get { return hasMultiSelection; }
+			private set { SetProperty(ref hasMultiSelection, value); }
+		}
+
+		internal IReadOnlyList<SolutionViewModel> SelectedSolutions =>
+			AllSolutions().Where(s => s.IsSelected).ToList();
+
+		/// <summary>Row click in the solution list: plain click selects one, Ctrl toggles, Shift selects the range.</summary>
+		internal void HandleRowClick(SolutionViewModel solution, System.Windows.Input.ModifierKeys modifiers)
+		{
+			var ordered = AllSolutions().ToList();
+			if (modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
+			{
+				solution.IsSelected = !solution.IsSelected;
+			}
+			else if (modifiers.HasFlag(System.Windows.Input.ModifierKeys.Shift) && lastClickedSolution != null)
+			{
+				int from = ordered.IndexOf(lastClickedSolution);
+				int to = ordered.IndexOf(solution);
+				if (from < 0 || to < 0)
+					return;
+				if (from > to)
+					(from, to) = (to, from);
+				for (int index = 0; index < ordered.Count; index++)
+					ordered[index].IsSelected = index >= from && index <= to;
+			}
+			else
+			{
+				bool wasOnlySelection = solution.IsSelected && ordered.Count(s => s.IsSelected) == 1;
+				foreach (var other in ordered)
+					other.IsSelected = false;
+				solution.IsSelected = !wasOnlySelection;
+			}
+			if (!modifiers.HasFlag(System.Windows.Input.ModifierKeys.Shift))
+				lastClickedSolution = solution;
+			HasMultiSelection = ordered.Count(s => s.IsSelected) > 1;
+		}
+
+		internal Task RunSelectionAsync() => RunPipelineForAsync(SelectedSolutions.Where(s => s.IsIncluded));
+
+		internal Task RunServiceForSelectionAsync(IOperationService service) =>
+			RunServiceForAsync(SelectedSolutions, service);
 
 		#endregion
 
@@ -1579,12 +1637,15 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				solution.RefreshResult();
 		}
 
-		private async Task RunPipelineAsync(bool onlyFailed = false)
+		internal Task RunPipelineForAsync(IEnumerable<SolutionViewModel> subset) =>
+			RunPipelineAsync(onlyFailed: false, subset: subset.ToList());
+
+		private async Task RunPipelineAsync(bool onlyFailed = false, IReadOnlyCollection<SolutionViewModel> subset = null)
 		{
 			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 			if (IsRunning)
 				return;
-			var solutions = AllSolutions().Where(s => !onlyFailed || s.HasFailed).ToList();
+			var solutions = (subset ?? AllSolutions()).Where(s => !onlyFailed || s.HasFailed).ToList();
 			var models = solutions.Select(s => (ISolutionProjectModel)s.Model).ToList();
 
 			var enabledModels = AllServices().ToDictionary(
@@ -1677,10 +1738,13 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
-		internal async Task RunSingleServiceAsync(SolutionViewModel solution, IOperationService service)
+		internal Task RunSingleServiceAsync(SolutionViewModel solution, IOperationService service) =>
+			RunServiceForAsync(new[] { solution }, service);
+
+		internal async Task RunServiceForAsync(IReadOnlyList<SolutionViewModel> solutions, IOperationService service)
 		{
 			await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-			if (IsRunning)
+			if (IsRunning || solutions.Count == 0)
 				return;
 
 			LastError = null;
@@ -1690,13 +1754,16 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			IsPaused = false;
 			cancellation = new PausableCancellationTokenSource();
 			cancellation.PausedChanged += OnPausedChanged;
-			ProgressText = lastProgressText = $"{service.OperationName}: {solution.SolutionFileName}";
+			ProgressText = lastProgressText = solutions.Count == 1
+				? $"{service.OperationName}: {solutions[0].SolutionFileName}"
+				: $"{service.OperationName}: {solutions.Count} solutions";
 			ProgressValue = 0;
 			BeginRunStatus();
 
 			try
 			{
-				await Task.Run(() => service.ExecuteAsync(new[] { (ISolutionProjectModel)solution.Model }, serviceSettings, cancellation));
+				var models = solutions.Select(s => (ISolutionProjectModel)s.Model).ToList();
+				await Task.Run(() => service.ExecuteAsync(models, serviceSettings, cancellation));
 				EndRunStatus(cancelled: cancellation.IsCancellationRequested, crashed: false);
 			}
 			catch (OperationCanceledException)

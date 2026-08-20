@@ -339,6 +339,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			ExportZipCommand = new DelegateCommand(() => RunSafe(ExportZipAsync), () => HasRepository && !IsBusy);
 			ApplyPatchCommand = new DelegateCommand(() => RunSafe(ApplyPatchAsync), () => HasRepository && !IsBusy);
 			SuggestBranchCommand = new DelegateCommand(() => RunSafe(SuggestBranchNameAsync), () => HasRepository && !IsBusy);
+			CopyChangelogCommand = new DelegateCommand(() => RunSafe(CopyChangelogAsync), () => HasRepository && !IsBusy);
 
 			CompareChangeCommand = new DelegateCommand(p => RunSafe(() => CompareChangeAsync(p as ChangeViewModel)),
 				p => p is ChangeViewModel c && c.Change.ChangeType != Core.Git.GitChangeType.Untracked && c.Change.ChangeType != Core.Git.GitChangeType.Added && !IsBusy);
@@ -422,6 +423,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand ExportZipCommand { get; }
 		public ICommand ApplyPatchCommand { get; }
 		public ICommand SuggestBranchCommand { get; }
+		public ICommand CopyChangelogCommand { get; }
 		public ICommand ForcePushRepoCommand { get; }
 		public ICommand CompareChangeCommand { get; }
 		public ICommand OpenChangeCommand { get; }
@@ -1922,6 +1924,18 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			CommitMessage = string.IsNullOrEmpty(title) ? $"AB#{workItemId}: " : $"AB#{workItemId}: {title}";
 			if (string.IsNullOrEmpty(title))
 				StatusMessage = "No work item title found (check the Work Items connection) — prefilled the id only.";
+		}
+
+		/// <summary>Copies "- subject" lines since the latest tag (release-notes draft) to the clipboard.</summary>
+		private async Task CopyChangelogAsync()
+		{
+			var repo = SelectedRepository;
+			if (repo == null)
+				return;
+			string changelog = await git.GetChangelogAsync(repo.Path);
+			Clipboard.SetText(changelog);
+			int lines = changelog.Split('\n').Count(l => l.TrimStart().StartsWith("-"));
+			StatusMessage = $"Changelog copied to clipboard ({lines} commit(s)).";
 		}
 
 		private async Task<string> TryGetWorkItemTitleAsync(int workItemId)

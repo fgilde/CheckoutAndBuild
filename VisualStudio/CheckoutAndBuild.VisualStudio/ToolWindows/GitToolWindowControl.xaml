@@ -191,6 +191,10 @@
                         <Button Style="{StaticResource CoabLinkButton}" Content="Apply Patch…"
                                 Command="{Binding ApplyPatchCommand}"
                                 ToolTip="Apply a .patch file to the working tree (git apply --3way)" />
+                        <Separator Style="{StaticResource CoabVerticalSeparator}" />
+                        <Button Style="{StaticResource CoabLinkButton}" Content="Copy Changelog"
+                                Command="{Binding CopyChangelogCommand}"
+                                ToolTip="Copy the commit subjects since the latest tag as markdown bullets (release-notes draft)" />
                     </StackPanel>
 
                     <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">

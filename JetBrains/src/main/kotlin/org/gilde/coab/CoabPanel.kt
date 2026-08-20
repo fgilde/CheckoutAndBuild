@@ -380,23 +380,45 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
                 if (viewRow < 0) return
                 val row = table.convertRowIndexToModel(viewRow)
                 if (row < 0 || row >= projects.size) return
-                table.setRowSelectionInterval(viewRow, viewRow)
-                buildContextMenu(projects[row]).show(table, e.x, e.y)
+                if (!table.isRowSelected(viewRow))
+                    table.setRowSelectionInterval(viewRow, viewRow)
+                val selected = table.selectedRows
+                    .map { table.convertRowIndexToModel(it) }
+                    .filter { it in projects.indices }
+                    .map { projects[it] }
+                buildContextMenu(projects[row], selected).show(table, e.x, e.y)
             }
         })
     }
 
-    private fun buildContextMenu(project: CoabProject): JPopupMenu {
+    private fun folderOf(project: CoabProject): String? =
+        state.folders.firstOrNull { project.directory.absolutePath.lowercase().startsWith(it.lowercase()) }
+
+    private fun buildContextMenu(project: CoabProject, selection: List<CoabProject>): JPopupMenu {
         val menu = JPopupMenu()
         fun item(text: String, action: () -> Unit) {
             val entry = JMenuItem(text)
             entry.addActionListener { action() }
             menu.add(entry)
         }
+        if (selection.size > 1) {
+            item("Run pipeline for selection (${selection.size})") { runPipeline(selection) }
+            item("Install selection only") { runPipeline(selection, setOf(StepKind.INSTALL)) }
+            item("Build selection only") { runPipeline(selection, setOf(StepKind.BUILD)) }
+            item("Test selection only") { runPipeline(selection, setOf(StepKind.TEST)) }
+            menu.addSeparator()
+        }
+        folderOf(project)?.let { folder ->
+            item("Run folder pipeline (${File(folder).name})") {
+                runPipeline(includedProjects().filter { folderOf(it) == folder })
+            }
+            menu.addSeparator()
+        }
         item("Pull only") { runSingle(project, StepKind.PULL) }
         item("Install only") { runSingle(project, StepKind.INSTALL) }
         item("Build only") { runSingle(project, StepKind.BUILD) }
         item("Test only") { runSingle(project, StepKind.TEST) }
+        item("Check Outdated Packages") { checkOutdatedPackages(project) }
         menu.addSeparator()
         item("Start Application") {
             ApplicationManager.getApplication().executeOnPooledThread { appendLineAsync(AppLauncher.start(project)) }
@@ -437,6 +459,24 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         }
         item("Project Settings…") { showProjectSettings(project) }
         return menu
+    }
+
+    /** dotnet list --outdated / npm outdated / maven display-dependency-updates for one project, printed to the console. */
+    private fun checkOutdatedPackages(project: CoabProject) {
+        val command = when (project.type) {
+            ProjectType.DOTNET -> "dotnet list \"${project.file.absolutePath}\" package --outdated"
+            ProjectType.NPM -> "npm outdated"
+            ProjectType.MAVEN -> "${if (File(project.directory, "mvnw.cmd").exists()) "mvnw.cmd" else "mvn"} versions:display-dependency-updates -q"
+            else -> {
+                appendLine("Outdated-package check is not supported for ${project.type} projects.")
+                return
+            }
+        }
+        appendLine("[${project.name}] $command")
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val exit = ProcessRunner.run(command, project.directory, { appendLineAsync("[${project.name}] $it") }, { false })
+            if (exit != 0) appendLineAsync("[${project.name}] exited with code $exit (npm outdated returns 1 when updates exist)")
+        }
     }
 
     private fun addCustomProject() {
@@ -754,6 +794,11 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
                 failed > 0 -> "✗ Finished in $elapsed — $failed project(s) failed"
                 else -> "✓ Done in $elapsed"
             }
+            CoabRunStatus.set(when {
+                pipeline.cancelled -> "COAB ✗ cancelled"
+                failed > 0 -> "COAB ✗ $failed failed"
+                else -> "COAB ✓ $elapsed"
+            })
             progressBar.isIndeterminate = false
             progressBar.value = 100
             progressBar.foreground =
@@ -783,6 +828,7 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         if (runEstimateSeconds > elapsedSeconds)
             text += " • ~${formatSeconds(runEstimateSeconds - elapsedSeconds)} left"
         statusLabel.text = text
+        CoabRunStatus.set("COAB ▶ $currentStepText")
         if (runEstimateSeconds > 0) {
             val percent = ((elapsedSeconds * 100) / runEstimateSeconds).toInt().coerceIn(1, 99)
             progressBar.value = percent
