@@ -599,15 +599,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			set { SetProperty(ref isSelected, value); }
 		}
 
-		/// <summary>dotnet list package --outdated for this solution, shown in a plain result window.</summary>
+		/// <summary>dotnet list package --outdated for this solution — the result window opens immediately and shows progress.</summary>
 		private async System.Threading.Tasks.Task CheckOutdatedPackagesAsync()
 		{
-			var result = await CheckoutAndBuild.Core.Execution.ProcessRunner.RunAsync(
-				"dotnet", $"list \"{ItemPath}\" package --outdated");
-			string text = string.IsNullOrWhiteSpace(result.StdOut) ? result.StdErr : result.StdOut;
 			var box = new System.Windows.Controls.TextBox
 			{
-				Text = string.IsNullOrWhiteSpace(text) ? "No output." : text.Trim(),
+				Text = $"Running dotnet list \"{SolutionFileName}\" package --outdated…\r\n\r\nThis can take a moment (contacts the NuGet feeds).",
 				IsReadOnly = true,
 				FontFamily = new System.Windows.Media.FontFamily("Consolas"),
 				FontSize = 11,
@@ -629,6 +626,11 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				ShowInTaskbar = false
 			};
 			window.Show();
+
+			var result = await CheckoutAndBuild.Core.Execution.ProcessRunner.RunAsync(
+				"dotnet", $"list \"{ItemPath}\" package --outdated");
+			string text = string.IsNullOrWhiteSpace(result.StdOut) ? result.StdErr : result.StdOut;
+			box.Text = string.IsNullOrWhiteSpace(text) ? "No output." : text.Trim();
 		}
 
 		/// <summary>Re-raises the result/status properties (model does not notify on SetResult).</summary>

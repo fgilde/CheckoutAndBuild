@@ -1577,6 +1577,7 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		private static List<SolutionProjectModel> ScanForSolutions(string root)
 		{
 			var result = new List<SolutionProjectModel>();
+			var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			Scan(root, 0);
 			return result;
 
@@ -1585,8 +1586,12 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				try
 				{
 					foreach (string sln in Directory.EnumerateFiles(directory, "*.sln")
-						.Concat(Directory.EnumerateFiles(directory, "*.slnx")))
+						.Concat(Directory.EnumerateFiles(directory, "*.slnx"))
+						.Where(f => f.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
+							|| f.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)))
 					{
+						if (!seenPaths.Add(Path.GetFullPath(sln)))
+							continue;
 						try
 						{
 							result.Add(SolutionParser.Parse(sln));

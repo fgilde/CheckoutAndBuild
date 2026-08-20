@@ -512,8 +512,12 @@
                                                     <Setter Property="Background" Value="Transparent" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Background"
-                                                                    Value="{DynamicResource {x:Static platformUi:TreeViewColors.SelectedItemInactiveBrushKey}}" />
+                                                            <Setter Property="Background">
+                                                                <Setter.Value>
+                                                                    <SolidColorBrush Opacity="0.3"
+                                                                                     Color="{DynamicResource {x:Static platformUi:EnvironmentColors.SystemHighlightColorKey}}" />
+                                                                </Setter.Value>
+                                                            </Setter>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
