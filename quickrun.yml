@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
+name: CheckoutAndBuild
+description: "The product is a Visual Studio extension, which only Visual Studio on Windows can load. Its core targets netstandard2.0 and builds anywhere, which is what this does."
+
+requires:
+  - tool: dotnet
+    version: ">=10.0"
+    install: https://dotnet.microsoft.com/download
+
+setup:
+  - run: dotnet restore VisualStudio/CheckoutAndBuild.Core
+  - run: dotnet build VisualStudio/CheckoutAndBuild.Core -c Release
+
+tasks:
+  - name: test
+    run: dotnet test VisualStudio/CheckoutAndBuild.Core.Tests -c Release --no-build
