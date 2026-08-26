@@ -1,16 +1,39 @@
 # yaml-language-server: $schema=https://fgilde.github.io/QuickRun/quickrun.schema.json
 name: CheckoutAndBuild
-description: "The product is a Visual Studio extension, which only Visual Studio on Windows can load. Its core targets netstandard2.0 and builds anywhere, which is what this does."
+description: "A Visual Studio extension. This builds the solution and starts Visual Studio's experimental instance with the extension loaded - the F5 of a VSIX project."
 
 requires:
-  - tool: dotnet
-    version: ">=10.0"
-    install: https://dotnet.microsoft.com/download
+  - tool: git
+    install: https://git-scm.com/downloads
 
 setup:
-  # Das Testprojekt bauen, nicht Core: es referenziert Core und zieht es dadurch mit.
-  - run: dotnet build VisualStudio/CheckoutAndBuild.Core.Tests -c Release
+  # MSBuild from Visual Studio, not `dotnet build`: CheckoutAndBuild.VisualStudio is a classic
+  # project (ProjectTypeGuids, TargetFrameworkVersion v4.8) built by the VSSDK targets, which the
+  # .NET SDK cannot load. vswhere ships with every Visual Studio installation and always lives at
+  # this path, on 32- and 64-bit Windows alike.
+  - run:
+      windows: >
+        powershell -NoProfile -ExecutionPolicy Bypass -Command
+        "$vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe';
+        if (-not (Test-Path $vswhere)) { throw 'Visual Studio 2022 or newer is required to build this extension.' };
+        $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1;
+        if (-not $msbuild) { throw 'No MSBuild found in the Visual Studio installation.' };
+        & $msbuild 'VisualStudio\CheckoutAndBuild.slnx' -restore -p:Configuration=Debug -v:minimal;
+        exit $LASTEXITCODE"
+    when: windows
 
 tasks:
-  - name: test
-    run: dotnet test VisualStudio/CheckoutAndBuild.Core.Tests -c Release --no-build
+  - name: visual-studio
+    # The experimental instance: a separate Visual Studio hive with this extension registered, so
+    # trying it out cannot disturb the Visual Studio you work in. This is what F5 on a VSIX project
+    # does, and there is nothing else here to run - every project in the solution is a library.
+    run:
+      windows: >
+        powershell -NoProfile -ExecutionPolicy Bypass -Command
+        "$vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe';
+        $devenv = & $vswhere -latest -property productPath;
+        & $devenv /rootSuffix Exp"
+      linux: echo "CheckoutAndBuild is a Visual Studio extension and runs on Windows only."
+      macos: echo "CheckoutAndBuild is a Visual Studio extension and runs on Windows only."
+    # Visual Studio takes a while to come up, and its window is the only sign that it did.
+    readyWhen: {window: true}
