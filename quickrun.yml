@@ -8,8 +8,8 @@ requires:
     install: https://dotnet.microsoft.com/download
 
 setup:
-  - run: dotnet restore VisualStudio/CheckoutAndBuild.Core
-  - run: dotnet build VisualStudio/CheckoutAndBuild.Core -c Release
+  # Das Testprojekt bauen, nicht Core: es referenziert Core und zieht es dadurch mit.
+  - run: dotnet build VisualStudio/CheckoutAndBuild.Core.Tests -c Release
 
 tasks:
   - name: test
