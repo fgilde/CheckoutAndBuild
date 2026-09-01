@@ -2,6 +2,8 @@
 
 Local one-click CI for Visual Studio: keep any number of solutions up to date with a single click — clean, git checkout, NuGet restore, build and test, all out of process and in parallel. Plus a full git cockpit (changes, stashes, history, branches, worktrees, multi-repo sync) and Azure DevOps work item tools.
 
+[![QuickRun](https://quickrun.org/badge.svg)](https://quickrun.org/run?repo=fgilde/CheckoutAndBuild)
+
 **Website:** https://fgilde.github.io/CheckoutAndBuild/ · **Marketplace:** https://marketplace.visualstudio.com/items?itemName=fgilde.CheckoutAndBuild
 
 ![CheckoutAndBuild main window](art/screenshot-main.png)
