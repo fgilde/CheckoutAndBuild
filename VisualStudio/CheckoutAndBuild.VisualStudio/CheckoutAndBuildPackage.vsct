@@ -8,7 +8,26 @@
       <Group guid="guidCheckoutAndBuildCmdSet" id="ErrorListGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ERRORLIST" />
       </Group>
+      <Group guid="guidCheckoutAndBuildCmdSet" id="SolutionContextGroup" priority="0x0450">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_SOLNNODE" />
+      </Group>
+      <Group guid="guidCheckoutAndBuildCmdSet" id="ExtensionsMenuGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenuAlias" id="IDM_VS_MENU_EXTENSIONS_ALIAS" />
+      </Group>
+      <Group guid="guidCheckoutAndBuildCmdSet" id="GitActionsGroup" priority="0x0100">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="CoabSubMenu" />
+      </Group>
     </Groups>
+
+    <Menus>
+      <Menu guid="guidCheckoutAndBuildCmdSet" id="CoabSubMenu" priority="0x0100" type="Menu">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="SolutionContextGroup" />
+        <Icon guid="guidCoabImages" id="coabIconImage" />
+        <Strings>
+          <ButtonText>CheckoutAndBuild</ButtonText>
+        </Strings>
+      </Menu>
+    </Menus>
 
     <Buttons>
       <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidShowMainWindow" priority="0x0100" type="Button">
@@ -35,6 +54,28 @@
         </Strings>
       </Button>
 
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidExportSolutionPatch" priority="0x0100" type="Button">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="GitActionsGroup" />
+        <Strings>
+          <ButtonText>Export Changes as Patch…</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidExportSolutionZip" priority="0x0101" type="Button">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="GitActionsGroup" />
+        <Strings>
+          <ButtonText>Export Changes as Zip…</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidOpenSolutionInGit" priority="0x0102" type="Button">
+        <Parent guid="guidCheckoutAndBuildCmdSet" id="GitActionsGroup" />
+        <Icon guid="guidCoabImages" id="coabIconImage" />
+        <Strings>
+          <ButtonText>Open in CheckoutAndBuild Git</ButtonText>
+        </Strings>
+      </Button>
+
       <Button guid="guidCheckoutAndBuildCmdSet" id="cmdidClearErrors" priority="0x0100" type="Button">
         <Parent guid="guidCheckoutAndBuildCmdSet" id="ErrorListGroup" />
         <CommandFlag>DynamicVisibility</CommandFlag>
@@ -50,6 +91,12 @@
     </Bitmaps>
   </Commands>
 
+  <CommandPlacements>
+    <CommandPlacement guid="guidCheckoutAndBuildCmdSet" id="CoabSubMenu" priority="0x0100">
+      <Parent guid="guidCheckoutAndBuildCmdSet" id="ExtensionsMenuGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
+
   <Symbols>
     <GuidSymbol name="guidCheckoutAndBuildPackage" value="{13646d50-ef88-4777-9d09-e55b321cd24f}" />
     <GuidSymbol name="guidCheckoutAndBuildCmdSet" value="{874acff0-be59-4dfc-8975-d77d0b75b5fe}">
@@ -57,10 +104,20 @@
       <IDSymbol name="cmdidClearErrors" value="0x0200" />
       <IDSymbol name="cmdidShowGitWindow" value="0x0300" />
       <IDSymbol name="cmdidShowWorkItemWindow" value="0x0400" />
+      <IDSymbol name="cmdidExportSolutionPatch" value="0x0500" />
+      <IDSymbol name="cmdidExportSolutionZip" value="0x0510" />
+      <IDSymbol name="cmdidOpenSolutionInGit" value="0x0520" />
       <IDSymbol name="ErrorListGroup" value="0x1020" />
+      <IDSymbol name="SolutionContextGroup" value="0x1030" />
+      <IDSymbol name="ExtensionsMenuGroup" value="0x1040" />
+      <IDSymbol name="GitActionsGroup" value="0x1050" />
+      <IDSymbol name="CoabSubMenu" value="0x1100" />
     </GuidSymbol>
     <GuidSymbol name="guidCoabImages" value="{5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e}">
       <IDSymbol name="coabIconImage" value="1" />
+    </GuidSymbol>
+    <GuidSymbol name="guidSHLMainMenuAlias" value="{d309f791-903f-11d0-9efc-00a0c911004f}">
+      <IDSymbol name="IDM_VS_MENU_EXTENSIONS_ALIAS" value="0x0091" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

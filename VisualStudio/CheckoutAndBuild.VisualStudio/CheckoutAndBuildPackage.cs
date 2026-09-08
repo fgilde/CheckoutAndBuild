@@ -29,6 +29,9 @@ namespace CheckoutAndBuild.VisualStudio
 		public const int ClearErrorsCommandId = 0x0200;
 		public const int ShowGitWindowCommandId = 0x0300;
 		public const int ShowWorkItemWindowCommandId = 0x0400;
+		public const int ExportSolutionPatchCommandId = 0x0500;
+		public const int ExportSolutionZipCommandId = 0x0510;
+		public const int OpenSolutionInGitCommandId = 0x0520;
 
 		private CoabErrorListProvider errorListProvider;
 
@@ -66,7 +69,79 @@ namespace CheckoutAndBuild.VisualStudio
 				var clearErrors = new OleMenuCommand(ClearErrors, new CommandID(CommandSetGuid, ClearErrorsCommandId));
 				clearErrors.BeforeQueryStatus += OnClearErrorsQueryStatus;
 				commandService.AddCommand(clearErrors);
+
+				commandService.AddCommand(new MenuCommand(
+					(s, e) => ExportSolutionChanges(asZip: false),
+					new CommandID(CommandSetGuid, ExportSolutionPatchCommandId)));
+				commandService.AddCommand(new MenuCommand(
+					(s, e) => ExportSolutionChanges(asZip: true),
+					new CommandID(CommandSetGuid, ExportSolutionZipCommandId)));
+				commandService.AddCommand(new MenuCommand(
+					(s, e) => OpenSolutionInGit(),
+					new CommandID(CommandSetGuid, OpenSolutionInGitCommandId)));
 			}
+		}
+
+		/// <summary>Repository root of the solution currently open in this instance, or null (with a message shown).</summary>
+		private string GetActiveSolutionRepository()
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+			string directory = null;
+			if (GetGlobalService(typeof(Microsoft.VisualStudio.Shell.Interop.SVsSolution)) is Microsoft.VisualStudio.Shell.Interop.IVsSolution solution)
+				solution.GetSolutionInfo(out directory, out _, out _);
+			string root = null;
+			if (!string.IsNullOrEmpty(directory))
+			{
+				try { root = new CheckoutAndBuild.Core.Git.GitService().GetRepositoryRoot(directory); }
+				catch (Exception) { }
+			}
+			if (string.IsNullOrEmpty(root))
+				VsShellUtilities.ShowMessageBox(this,
+					"The open solution is not inside a git repository (or no solution is open).",
+					"CheckoutAndBuild", Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_INFO,
+					Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK,
+					Microsoft.VisualStudio.Shell.Interop.OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+			return string.IsNullOrEmpty(root) ? null : root;
+		}
+
+		/// <summary>Exports the uncommitted changes of the open solution's repository as .patch or .zip.</summary>
+		private void ExportSolutionChanges(bool asZip)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+			string root = GetActiveSolutionRepository();
+			if (root == null)
+				return;
+			string name = System.IO.Path.GetFileName(root.TrimEnd(System.IO.Path.DirectorySeparatorChar));
+			var dialog = new Microsoft.Win32.SaveFileDialog
+			{
+				Filter = asZip ? "Zip archive|*.zip" : "Patch file|*.patch",
+				FileName = name + "-changes" + (asZip ? ".zip" : ".patch"),
+				DefaultExt = asZip ? ".zip" : ".patch"
+			};
+			if (dialog.ShowDialog() != true)
+				return;
+			JoinableTaskFactory.RunAsync(async () =>
+			{
+				var git = new CheckoutAndBuild.Core.Git.GitService();
+				if (asZip)
+					await git.ExportChangesAsZipAsync(root, dialog.FileName);
+				else
+					await git.ExportChangesAsPatchAsync(root, dialog.FileName);
+				await JoinableTaskFactory.SwitchToMainThreadAsync();
+				VsShellUtilities.ShowMessageBox(this,
+					"Exported: " + dialog.FileName,
+					"CheckoutAndBuild", Microsoft.VisualStudio.Shell.Interop.OLEMSGICON.OLEMSGICON_INFO,
+					Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK,
+					Microsoft.VisualStudio.Shell.Interop.OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+			}).FileAndForget("checkoutandbuild/exportsolutionchanges");
+		}
+
+		private void OpenSolutionInGit()
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+			string root = GetActiveSolutionRepository();
+			if (root != null)
+				ShowGitRepository(root);
 		}
 
 		protected override void Dispose(bool disposing)

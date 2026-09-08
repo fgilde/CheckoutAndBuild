@@ -1282,11 +1282,37 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			}
 		}
 
+		/// <summary>Directory of the solution currently open in this Visual Studio instance, or null. UI thread only.</summary>
+		private static string GetOpenSolutionDirectory()
+		{
+			try
+			{
+				var solution = Microsoft.VisualStudio.Shell.Package.GetGlobalService(
+					typeof(Microsoft.VisualStudio.Shell.Interop.SVsSolution)) as Microsoft.VisualStudio.Shell.Interop.IVsSolution;
+				if (solution == null)
+					return null;
+				solution.GetSolutionInfo(out string directory, out _, out _);
+				return string.IsNullOrEmpty(directory) ? null : directory;
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
 		private async Task RefreshAllAsync()
 		{
 			var folders = CurrentWorkingFolders();
 			var previous = SelectedRepository?.Path;
+			string solutionDirectory = GetOpenSolutionDirectory();
 			var roots = await Task.Run(() => FindRepositoryRoots(folders));
+			string activeRoot = solutionDirectory == null
+				? null
+				: await Task.Run(() =>
+				{
+					try { return git.GetRepositoryRoot(solutionDirectory); }
+					catch (Exception) { return null; }
+				});
 
 			Repositories.Clear();
 			foreach (var entry in roots)
@@ -1306,7 +1332,22 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 				Repositories.Add(repo);
 			}
 
+			if (activeRoot != null && !Repositories.Any(r => string.Equals(r.Path, activeRoot, StringComparison.OrdinalIgnoreCase)))
+			{
+				var openRepo = new GitRepositoryViewModel(activeRoot) { Folder = "(open solution)" };
+				try
+				{
+					openRepo.Branch = await git.GetCurrentBranchAsync(activeRoot);
+				}
+				catch (Exception e)
+				{
+					System.Diagnostics.Trace.WriteLine("CheckoutAndBuild branch load failed: " + e.Message);
+				}
+				Repositories.Insert(0, openRepo);
+			}
+
 			SelectedRepository = Repositories.FirstOrDefault(r => string.Equals(r.Path, previous, StringComparison.OrdinalIgnoreCase))
+								 ?? Repositories.FirstOrDefault(r => string.Equals(r.Path, activeRoot, StringComparison.OrdinalIgnoreCase))
 								 ?? Repositories.FirstOrDefault();
 			if (SelectedRepository == null)
 				StatusMessage = "No git repositories found beneath the configured working folders.";

@@ -81,12 +81,6 @@
                 </CollectionViewSource.GroupDescriptions>
             </CollectionViewSource>
 
-            <CollectionViewSource x:Key="GroupedRepositories" Source="{Binding Repositories}">
-                <CollectionViewSource.GroupDescriptions>
-                    <PropertyGroupDescription PropertyName="Folder" />
-                </CollectionViewSource.GroupDescriptions>
-            </CollectionViewSource>
-
             <CollectionViewSource x:Key="GroupedSyncRows" Source="{Binding SyncRows}">
                 <CollectionViewSource.GroupDescriptions>
                     <PropertyGroupDescription PropertyName="FolderName" />
@@ -127,34 +121,22 @@
                        Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
                        ToolTip="Branch" />
             <TextBlock Text="Repository:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
-            <ComboBox ItemsSource="{Binding Source={StaticResource GroupedRepositories}}"
-                      SelectedItem="{Binding SelectedRepository}"
-                      VerticalAlignment="Center" MinWidth="180"
-                      ToolTip="{Binding SelectedRepository.Path}">
-                <ComboBox.GroupStyle>
-                    <GroupStyle>
-                        <GroupStyle.HeaderTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="4,3,4,1">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B7;" FontSize="10"
-                                               VerticalAlignment="Center" Margin="0,0,4,0" Opacity="0.6" />
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="10" Opacity="0.7" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </GroupStyle.HeaderTemplate>
-                    </GroupStyle>
-                </ComboBox.GroupStyle>
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal" Margin="8,0,0,0">
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock Text="{Binding Branch}" Margin="6,0,0,0" FontSize="10" Opacity="0.7"
-                                       FontStyle="Italic" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
+            <Button x:Name="repoPickerButton" Style="{StaticResource CoabLinkButton}" FontSize="12"
+                    Click="OnRepoPickerClick" VerticalAlignment="Center"
+                    ToolTip="{Binding SelectedRepository.Path}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8B7;" FontSize="11"
+                               VerticalAlignment="Center" Margin="0,0,5,0" Opacity="0.7" />
+                    <TextBlock Text="{Binding SelectedRepository.Name, FallbackValue=Select repository…}"
+                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding SelectedRepository.Branch, StringFormat='  ({0})'}"
+                               FontSize="11" FontStyle="Italic" Opacity="0.75" VerticalAlignment="Center" />
+                    <Path Data="M 0 0 L 8 12 L 16 0 Z"
+                          Fill="{DynamicResource {x:Static platformUi:EnvironmentColors.ControlLinkTextBrushKey}}"
+                          Stretch="Uniform" Width="7" Height="5"
+                          Margin="5,2,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <ProgressBar DockPanel.Dock="Top" Height="4" Margin="0,0,0,4"
