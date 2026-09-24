@@ -94,6 +94,7 @@
     <Compile Include="Common\CoabOutputPane.cs" />
     <Compile Include="Common\PatProtector.cs" />
     <Compile Include="Common\CoabImages.cs" />
+    <Compile Include="Common\ConnectPages.cs" />
     <Compile Include="Common\DelegateCommand.cs" />
     <Compile Include="ErrorList\CoabErrorListProvider.cs" />
     <Compile Include="Options\CheckoutAndBuildOptionsPage.cs">

@@ -9,6 +9,7 @@
 <meta property="og:title" content="CheckoutAndBuild — local one-click CI for Visual Studio">
 <meta property="og:description" content="Clean, checkout, restore, build and test any number of solutions with one click. Plus a full git cockpit with worktrees and multi-repo sync.">
 <meta property="og:image" content="https://fgilde.github.io/CheckoutAndBuild/screenshot.png">
+<script type="module" src="https://connect.gilde.org/widgets/v1.js"></script>
 <style>
 :root{
   --bg:#0d1117;--bg2:#11161d;--card:#161c24;--border:#232b36;
@@ -69,6 +70,7 @@ h2{font-size:30px;font-weight:800;letter-spacing:-.01em;text-align:center}
 .dl-card ol{color:var(--muted);font-size:13px;padding-left:18px}
 .dl-card ol li{padding:2px 0}
 .legacy{margin-top:26px;text-align:center;color:var(--muted);font-size:13px}
+.connect-row{display:flex;gap:14px;justify-content:center;margin-top:32px;flex-wrap:wrap}
 .legacy a{margin:0 6px}
 @media(max-width:820px){.dl-grid{grid-template-columns:1fr}}
 
@@ -261,6 +263,29 @@ footer .sep{color:var(--border)}
   </div>
 </section>
 
+<section id="connect">
+  <div class="wrap">
+    <h2 data-i18n="connect.h2">Get in touch</h2>
+    <p class="sub" data-i18n="connect.sub">A question, an idea, a bug — or a small thank-you for the project. Both are one click away.</p>
+    <div class="connect-row">
+      <gilde-contact id="connectContact" project="fgilde/CheckoutAndBuild" widget="contact"
+                     theme="dark" accent="#2ea7ff" language="auto"
+                     title="Contact CheckoutAndBuild" width="560" radius="18" padding="28"
+                     show-logo="true" show-description="true" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="CheckoutAndBuild" footer-tagline="gilde.org"><span data-i18n="connect.contactBtn">Contact</span></gilde-contact>
+      <gilde-support id="connectSupport" project="fgilde/CheckoutAndBuild" widget="support"
+                     theme="dark" accent="#2ea7ff" language="auto"
+                     width="560" radius="18" padding="28"
+                     show-logo="true" show-description="true" show-homepage="true"
+                     show-preview-notice="false" show-footer="true"
+                     footer-brand="CheckoutAndBuild" footer-tagline="gilde.org"
+                     show-support-hint="false" support-layout="rows"
+                     show-support-icons="true" show-support-qr="true"><span data-i18n="connect.supportBtn">Support the project</span></gilde-support>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <span>© <a href="https://florian.gilde.org">Florian Gilde</a></span>
@@ -341,6 +366,10 @@ const i18n = {
     "start.s4h": "CheckoutAndBuild drücken",
     "start.s4p": "Zusehen, wie alles gecleant, gepullt, restored, gebaut und getestet wird — in einem Lauf.",
     "start.docs": "Zur vollständigen Dokumentation →",
+    "connect.h2": "Kontakt & Unterstützung",
+    "connect.sub": "Eine Frage, eine Idee, ein Bug — oder ein kleines Dankeschön für das Projekt. Beides nur einen Klick entfernt.",
+    "connect.contactBtn": "Kontakt",
+    "connect.supportBtn": "Projekt unterstützen",
     "footer.docs": "Dokumentation",
     "footer.license": "Lizenz"
   }
@@ -356,6 +385,10 @@ function setLang(lang) {
   });
   document.getElementById('lang-en').classList.toggle('active', lang !== 'de');
   document.getElementById('lang-de').classList.toggle('active', lang === 'de');
+  document.querySelectorAll('gilde-contact, gilde-support').forEach(el => el.setAttribute('language', lang));
+  const connectContact = document.getElementById('connectContact');
+  if (connectContact)
+    connectContact.setAttribute('title', lang === 'de' ? 'Kontakt CheckoutAndBuild' : 'Contact CheckoutAndBuild');
   try { localStorage.setItem('coab-lang', lang); } catch {}
 }
 document.getElementById('lang-en').addEventListener('click', () => setLang('en'));

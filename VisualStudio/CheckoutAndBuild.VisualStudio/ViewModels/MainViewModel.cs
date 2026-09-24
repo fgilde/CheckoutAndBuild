@@ -374,6 +374,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 			SetSortModeCommand = new DelegateCommand(p => SetSortMode(p));
 			RetryFailedCommand = new DelegateCommand(async () => await RunPipelineAsync(onlyFailed: true),
 				() => !IsRunning && AllSolutions().Any(s => s.IsIncluded && s.HasFailed));
+			OpenContactCommand = new DelegateCommand(() => ConnectPages.Open("contact"));
+			OpenSupportCommand = new DelegateCommand(() => ConnectPages.Open("support"));
 			SuggestPrioritiesCommand = new DelegateCommand(async () => await SuggestPrioritiesAsync(),
 				() => !IsRunning && AllSolutions().Any());
 			OpenFolderCommand = new DelegateCommand(
@@ -476,6 +478,8 @@ namespace CheckoutAndBuild.VisualStudio.ViewModels
 		public ICommand ToggleSortDescendingCommand { get; }
 		public ICommand RetryFailedCommand { get; }
 		public ICommand SuggestPrioritiesCommand { get; }
+		public ICommand OpenContactCommand { get; }
+		public ICommand OpenSupportCommand { get; }
 
 		private async Task SuggestPrioritiesAsync()
 		{

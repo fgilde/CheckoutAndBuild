@@ -140,6 +140,11 @@
                             <MenuItem Header="Suggest Build Priorities" Command="{Binding SuggestPrioritiesCommand}"
                                       ToolTip="Scan cross-solution references and set the build order automatically (referenced solutions build first)" />
                             <Separator />
+                            <MenuItem Header="Contact…" Command="{Binding OpenContactCommand}"
+                                      ToolTip="Contact the CheckoutAndBuild author (opens in your browser)" />
+                            <MenuItem Header="Support the Project…" Command="{Binding OpenSupportCommand}"
+                                      ToolTip="Support the CheckoutAndBuild project (opens in your browser)" />
+                            <Separator />
                             <MenuItem Header="Sort by">
                                 <MenuItem Header="Build Priority" IsChecked="{Binding IsSortByPriority, Mode=OneWay}"
                                           Command="{Binding SetSortModeCommand}" CommandParameter="BuildPriority" />

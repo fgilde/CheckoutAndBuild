@@ -6,6 +6,7 @@
 <title>CheckoutAndBuild — Documentation</title>
 <meta name="description" content="Full documentation for CheckoutAndBuild: pipeline, git cockpit, worktrees, Azure DevOps work items — for Visual Studio and all JetBrains IDEs.">
 <link rel="icon" type="image/png" href="../icon.png">
+<script type="module" src="https://connect.gilde.org/widgets/v1.js"></script>
 <style>
 :root{
   --bg:#0d1117;--bg2:#11161d;--card:#161c24;--border:#232b36;
@@ -330,7 +331,23 @@ footer .sep{color:var(--border)}
   <p data-i18n="faq.a5">Visual Studio 2022 and 2026 (amd64). JetBrains IDEs from 2024.2 in every product (Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion, …). The classic extensions for VS 2013/2015/2017 remain available on the marketplace unchanged.</p>
 
   <h3 data-i18n="faq.q6">Something is broken / I have an idea</h3>
-  <p data-i18n="faq.a6">Please open an issue on <a href="https://github.com/fgilde/CheckoutAndBuild/issues">GitHub</a> — ideally with the console output of the failing run.</p>
+  <p data-i18n="faq.a6">Please open an issue on <a href="https://github.com/fgilde/CheckoutAndBuild/issues">GitHub</a> — ideally with the console output of the failing run. Or reach out directly:</p>
+  <p style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+    <gilde-contact id="connectContact" project="fgilde/CheckoutAndBuild" widget="contact"
+                   theme="dark" accent="#2ea7ff" language="auto"
+                   title="Contact CheckoutAndBuild" width="560" radius="18" padding="28"
+                   show-logo="true" show-description="true" show-homepage="true"
+                   show-preview-notice="false" show-footer="true"
+                   footer-brand="CheckoutAndBuild" footer-tagline="gilde.org"><span data-i18n="faq.contactBtn">Contact</span></gilde-contact>
+    <gilde-support project="fgilde/CheckoutAndBuild" widget="support"
+                   theme="dark" accent="#2ea7ff" language="auto"
+                   width="560" radius="18" padding="28"
+                   show-logo="true" show-description="true" show-homepage="true"
+                   show-preview-notice="false" show-footer="true"
+                   footer-brand="CheckoutAndBuild" footer-tagline="gilde.org"
+                   show-support-hint="false" support-layout="rows"
+                   show-support-icons="true" show-support-qr="true"><span data-i18n="faq.supportBtn">Support the project</span></gilde-support>
+  </p>
 </section>
 
 </main>
@@ -488,7 +505,9 @@ const i18n = {
     "faq.q5": "Welche Versionen werden unterstützt?",
     "faq.a5": "Visual Studio 2022 und 2026 (amd64). JetBrains-IDEs ab 2024.2 in jedem Produkt (Rider, IntelliJ IDEA, PhpStorm, WebStorm, GoLand, CLion, …). Die klassischen Extensions für VS 2013/2015/2017 bleiben unverändert im Marketplace verfügbar.",
     "faq.q6": "Etwas ist kaputt / ich habe eine Idee",
-    "faq.a6": "Bitte ein Issue auf <a href='https://github.com/fgilde/CheckoutAndBuild/issues'>GitHub</a> öffnen — idealerweise mit der Konsolen-Ausgabe des fehlgeschlagenen Laufs.",
+    "faq.a6": "Bitte ein Issue auf <a href='https://github.com/fgilde/CheckoutAndBuild/issues'>GitHub</a> öffnen — idealerweise mit der Konsolen-Ausgabe des fehlgeschlagenen Laufs. Oder direkt melden:",
+    "faq.contactBtn": "Kontakt",
+    "faq.supportBtn": "Projekt unterstützen",
     "footer.license": "Lizenz"
   }
 };
@@ -503,6 +522,10 @@ function setLang(lang) {
   });
   document.getElementById('lang-en').classList.toggle('active', lang !== 'de');
   document.getElementById('lang-de').classList.toggle('active', lang === 'de');
+  document.querySelectorAll('gilde-contact, gilde-support').forEach(el => el.setAttribute('language', lang));
+  const connectContact = document.getElementById('connectContact');
+  if (connectContact)
+    connectContact.setAttribute('title', lang === 'de' ? 'Kontakt CheckoutAndBuild' : 'Contact CheckoutAndBuild');
   try { localStorage.setItem('coab-lang', lang); } catch {}
 }
 document.getElementById('lang-en').addEventListener('click', () => setLang('en'));

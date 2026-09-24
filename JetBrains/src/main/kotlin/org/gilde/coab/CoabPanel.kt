@@ -237,6 +237,9 @@ class CoabPanel(private val ideProject: Project) : JPanel(BorderLayout()) {
         item("Export Settings…") { exportSettings() }
         item("Import Settings…") { importSettings() }
         menu.addSeparator()
+        item("Contact…") { ConnectDialog.show(this, "contact") }
+        item("Support the Project…") { ConnectDialog.show(this, "support") }
+        menu.addSeparator()
         item("Settings…") { showSettings() }
         return menu
     }
